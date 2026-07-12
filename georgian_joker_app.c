@@ -228,7 +228,9 @@ static void confirm_yes(AppCtx* ctx) {
         st->save_available = false;
         start_new_pulka(ctx);
     } else {
-        /* save & exit confirm */
+        /* save & exit confirm: pack the RESUMABLE phase, not ConfirmExit,
+         * so Continue lands back in play instead of a dangling dialog */
+        st->phase = st->prev_phase;
         do_save(ctx);
         st->save_available = true;
         st->phase = PhaseMenu;
