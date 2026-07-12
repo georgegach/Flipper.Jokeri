@@ -35,7 +35,7 @@ typedef struct {
     uint8_t sub; /* UiSub */
     uint8_t prev_phase; /* phase to return to from the Standings overlay */
     /* selections */
-    uint8_t menu_sel; /* 0 Continue / 1 New / 2 About (Continue hidden if !save_available) */
+    uint8_t menu_sel; /* compact index over VISIBLE items (Continue only when save_available) */
     uint8_t hand_sel; /* selected index in the human hand */
     int8_t bid_sel; /* bid picker value */
     uint8_t joker_sel; /* joker popup row */
