@@ -45,6 +45,9 @@ enum { GjSuitSpades = 0, GjSuitHearts = 1, GjSuitDiamonds = 2, GjSuitClubs = 3 }
 #define GJ_SUIT_NONE 0xFF /* led_suit value when nothing led yet */
 
 #define GJ_RANK_6 0
+#define GJ_RANK_7 1
+#define GJ_RANK_8 2
+#define GJ_RANK_9 3
 #define GJ_RANK_10 4
 #define GJ_RANK_J 5
 #define GJ_RANK_Q 6
