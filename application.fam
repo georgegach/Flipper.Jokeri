@@ -1,0 +1,15 @@
+App(
+    appid="georgianjoker",
+    name="Georgian Joker",
+    apptype=FlipperAppType.EXTERNAL,
+    entry_point="georgian_joker_app",
+    stack_size=2 * 1024,
+    requires=["gui", "storage"],
+    fap_author="@georgegach",
+    fap_category="Games",
+    fap_description="Djokeri - the Georgian trick-taking card game. A full 24-deal pulka against three AI opponents: bid exactly, dodge the khishti, and play your Jokers wisely.",
+    fap_icon_assets="images",
+    fap_icon="images/gj-icon.png",
+    fap_version="0.1.0",
+    fap_weburl="https://joker.agentic.ge",
+)

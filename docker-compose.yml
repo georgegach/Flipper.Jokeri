@@ -1,0 +1,11 @@
+services:
+  ufbt:
+    build: .
+    image: georgian-joker-ufbt:latest
+    volumes:
+      - .:/app
+      - ufbt-cache:/ufbt-cache
+    working_dir: /app
+
+volumes:
+  ufbt-cache:
