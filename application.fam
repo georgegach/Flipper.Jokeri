@@ -7,7 +7,7 @@ App(
     requires=["gui", "storage"],
     fap_author="@georgegach",
     fap_category="Games",
-    fap_description="Djokeri - the Georgian trick-taking card game. A full 24-deal pulka against three AI opponents: bid exactly, dodge the khishti, and play your Jokers wisely.",
+    fap_description="Jokeri - the Georgian trick-taking card game. A full 24-deal pulka against three AI opponents: bid exactly, dodge the khishti, and play your Jokers wisely.",
     fap_icon_assets="images",
     fap_icon="images/gj-icon.png",
     fap_version="0.1.0",

@@ -1,4 +1,4 @@
-/* gj_engine.c — Georgian Joker (Djokeri) pure rules engine.
+/* gj_engine.c — Georgian Joker (Jokeri) pure rules engine.
  *
  * furi-free by contract (gj_engine.h): libc headers below only. Host tests
  * compile this with a plain C compiler + sanitizers. No malloc, no floats,

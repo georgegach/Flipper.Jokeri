@@ -352,7 +352,7 @@ static void draw_menu(Canvas* c, const GjApp* app) {
     canvas_set_font(c, FontPrimary);
     canvas_draw_str_aligned(c, 20, 3, AlignLeft, AlignTop, "GEORGIAN JOKER");
     canvas_set_font(c, FontSecondary);
-    canvas_draw_str_aligned(c, 20, 11, AlignLeft, AlignTop, "DJOKERI / 24 DEALS");
+    canvas_draw_str_aligned(c, 20, 11, AlignLeft, AlignTop, "JOKERI / 24 DEALS");
     canvas_set_color(c, ColorBlack);
 
     /* compact indices, matching the shell: menu_sel counts only the items
@@ -678,7 +678,7 @@ static void draw_about(Canvas* c) {
     canvas_set_color(c, ColorBlack);
     canvas_draw_xbm(c, 5, 15, 7, 7, gj_icon_joker7());
     canvas_set_font(c, FontSecondary);
-    canvas_draw_str_aligned(c, 17, 15, AlignLeft, AlignTop, "DJOKERI  v0.1.0");
+    canvas_draw_str_aligned(c, 17, 15, AlignLeft, AlignTop, "JOKERI  v0.1.0");
     canvas_draw_line(c, 4, 25, 123, 25);
     canvas_draw_str_aligned(c, 5, 29, AlignLeft, AlignTop, "<> SELECT    OK PLAY");
     canvas_draw_str_aligned(c, 5, 39, AlignLeft, AlignTop, "^ TABLE    BACK EXIT");

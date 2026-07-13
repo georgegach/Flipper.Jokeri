@@ -1,4 +1,4 @@
-/* gj_engine.h — Georgian Joker (Djokeri) pure rules engine.
+/* gj_engine.h — Georgian Joker (Jokeri) pure rules engine.
  *
  * CONTRACT: this header and gj_engine.c must stay furi-free — include only
  * <stdint.h> <stdbool.h> <string.h>. The host test suite (tests/) compiles

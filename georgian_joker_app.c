@@ -1,6 +1,6 @@
 /* georgian_joker_app.c — the app shell: ViewPort + 25ms frame-clock message
  * loop, single mutex guarding GjApp, and the phase machine that drives the
- * Djokeri pulka (deal -> trump -> bidding -> trick play -> scoring) against
+ * Jokeri pulka (deal -> trump -> bidding -> trick play -> scoring) against
  * three AI seats. Rendering lives in gj_ui.c; rules in gj_engine.c; AI in
  * gj_ai.c; save/resume in gj_save.c. Skeleton transplanted from
  * ChaosEngineer.Nexus (ViewPort, no ViewDispatcher/SceneManager). */
