@@ -31,8 +31,8 @@ int8_t gj_ai_bid(const GjGame* g, uint8_t seat);
 int8_t gj_ai_bid_blind(const GjGame* g, uint8_t seat);
 
 /* Trump naming for 9-card deals (house rule H5). If blind, chooses with
- * zero hand knowledge (deterministic salt). Otherwise evaluates only the
- * first 3 dealt cards of hands[seat] (the traditional 3-card peek).
+ * zero hand knowledge (deterministic salt). Otherwise the namer holds all
+ * nine cards, so it evaluates the whole hand — longest suit, honor tiebreak.
  * Returns a suit 0..3 or GJ_NO_TRUMP. */
 uint8_t gj_ai_pick_trump(const GjGame* g, uint8_t seat, bool blind);
 

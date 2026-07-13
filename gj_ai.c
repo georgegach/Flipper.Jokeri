@@ -210,12 +210,13 @@ uint8_t gj_ai_pick_trump(const GjGame* g, uint8_t seat, bool blind) {
         /* Zero hand knowledge: deterministic rotation, never no-trump. */
         return (uint8_t)((seat + g->deal_index) % 4);
     }
-    /* Sighted: only the traditional 3-card peek (hands[seat].cards[0..2],
-     * jokers-first after the sort). Pick the majority suit; ties break on
-     * honor presence then lowest suit index. If the peek is jokers-only, or
-     * scattered single honors that are all A/K, prefer no-trump. */
+    /* Sighted: the namer holds the whole 9-card hand when calling trump, so
+     * evaluate all of it (order-independent — the hand is already sorted, so a
+     * fixed 3-card window would bias toward high spades). Pick the longest
+     * suit; ties break on honor presence then lowest suit index. Jokers-only,
+     * or scattered single honors all A/K, prefer no-trump. */
     const GjHand* h = &g->hands[seat];
-    uint8_t look = h->count < 3 ? h->count : 3;
+    uint8_t look = h->count;
     uint8_t cnt[4] = {0, 0, 0, 0};
     bool honor[4] = {false, false, false, false};
     int nonjoker = 0, strong = 0;

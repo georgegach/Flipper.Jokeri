@@ -162,11 +162,22 @@ bool gj_bid_legal(const GjGame* g, uint8_t seat, uint8_t bid) {
     if(bid > g->cards_this_deal) return false;
     /* khishti: dealer bids last, may not make the sum equal cards_this_deal */
     if(seat == g->dealer) {
+        /* Only binds once the other three have actually bid; querying the
+         * dealer's legality out of order must not fold -1 sentinels into sum. */
         int sum = 0;
-        for(uint8_t s = 0; s < GJ_PLAYERS; s++)
-            if(s != g->dealer) sum += g->bids[s];
-        int forbidden = (int)g->cards_this_deal - sum;
-        if((int)bid == forbidden) return false;
+        bool all_bid = true;
+        for(uint8_t s = 0; s < GJ_PLAYERS; s++) {
+            if(s == g->dealer) continue;
+            if(g->bids[s] < 0) {
+                all_bid = false;
+                break;
+            }
+            sum += g->bids[s];
+        }
+        if(all_bid) {
+            int forbidden = (int)g->cards_this_deal - sum;
+            if((int)bid == forbidden) return false;
+        }
     }
     return true;
 }
