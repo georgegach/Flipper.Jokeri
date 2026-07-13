@@ -40,11 +40,65 @@ static char seat_letter(uint8_t s) {
 
 /* ---- low-level helpers --------------------------------------------- */
 
+static void draw_tri(Canvas* c, int x, int y);
+
 static void draw_modal_frame(Canvas* c, int x, int y, int w, int h) {
+    /* Two-pixel drop shadow keeps overlays distinct from the busy card table. */
+    canvas_set_color(c, ColorBlack);
+    canvas_draw_box(c, x + 2, y + 2, w, h);
     canvas_set_color(c, ColorWhite);
     canvas_draw_box(c, x, y, w, h);
     canvas_set_color(c, ColorBlack);
     canvas_draw_frame(c, x, y, w, h);
+}
+
+static void draw_titled_modal(
+    Canvas* c,
+    int x,
+    int y,
+    int w,
+    int h,
+    const char* title) {
+    draw_modal_frame(c, x, y, w, h);
+    canvas_set_color(c, ColorBlack);
+    canvas_draw_box(c, x, y, w, 10);
+    canvas_set_color(c, ColorWhite);
+    canvas_set_font(c, FontSecondary);
+    canvas_draw_str_aligned(c, x + w / 2, y + 1, AlignCenter, AlignTop, title);
+    canvas_set_color(c, ColorBlack);
+}
+
+static void draw_header(Canvas* c, const char* title) {
+    canvas_set_color(c, ColorBlack);
+    canvas_draw_box(c, 0, 0, 128, 10);
+    canvas_set_color(c, ColorWhite);
+    canvas_set_font(c, FontSecondary);
+    canvas_draw_str_aligned(c, 64, 1, AlignCenter, AlignTop, title);
+    canvas_set_color(c, ColorBlack);
+}
+
+static void draw_footer(Canvas* c, const char* hint) {
+    canvas_set_color(c, ColorBlack);
+    canvas_draw_box(c, 0, 55, 128, 9);
+    canvas_set_color(c, ColorWhite);
+    canvas_set_font(c, FontSecondary);
+    canvas_draw_str_aligned(c, 64, 56, AlignCenter, AlignTop, hint);
+    canvas_set_color(c, ColorBlack);
+}
+
+static void draw_selected_row(Canvas* c, int x, int y, int w, const char* label, bool selected) {
+    canvas_set_font(c, FontSecondary);
+    if(selected) {
+        canvas_set_color(c, ColorBlack);
+        canvas_draw_box(c, x, y, w, 10);
+        canvas_set_color(c, ColorWhite);
+        canvas_draw_str_aligned(c, x + 5, y + 1, AlignLeft, AlignTop, label);
+        draw_tri(c, x + w - 7, y + 2);
+        canvas_set_color(c, ColorBlack);
+    } else {
+        canvas_set_color(c, ColorBlack);
+        canvas_draw_str_aligned(c, x + 5, y + 1, AlignLeft, AlignTop, label);
+    }
 }
 
 /* Small filled right-pointing triangle (turn marker). */
@@ -52,6 +106,18 @@ static void draw_tri(Canvas* c, int x, int y) {
     canvas_draw_line(c, x, y, x, y + 4);
     canvas_draw_line(c, x + 1, y + 1, x + 1, y + 3);
     canvas_draw_dot(c, x + 2, y + 2);
+}
+
+/* Sparse diagonal used to suggest the four-sided card table without adding
+ * visual noise behind the cards. */
+static void draw_table_diamond(Canvas* c) {
+    canvas_set_color(c, ColorBlack);
+    for(int i = 0; i <= 10; i += 2) {
+        canvas_draw_dot(c, 47 + i, 18 + i / 2);
+        canvas_draw_dot(c, 69 + i, 23 - i / 2);
+        canvas_draw_dot(c, 47 + i, 32 - i / 2);
+        canvas_draw_dot(c, 69 + i, 27 + i / 2);
+    }
 }
 
 /* Trump icon (+ flipped rank) at (x,y); nothing while awaiting naming. */
@@ -73,10 +139,14 @@ static void draw_trump_indicator(Canvas* c, int x, int y, const GjGame* g) {
 static void draw_minicard(Canvas* c, int x, int y, GjCard card, uint8_t kind, bool inverted) {
     canvas_set_color(c, ColorBlack);
     if(card == GJ_CARD_NONE) {
-        canvas_draw_dot(c, x, y);
-        canvas_draw_dot(c, x + 10, y);
-        canvas_draw_dot(c, x, y + 14);
-        canvas_draw_dot(c, x + 10, y + 14);
+        canvas_draw_line(c, x, y, x + 2, y);
+        canvas_draw_line(c, x, y, x, y + 2);
+        canvas_draw_line(c, x + 8, y, x + 10, y);
+        canvas_draw_line(c, x + 10, y, x + 10, y + 2);
+        canvas_draw_line(c, x, y + 12, x, y + 14);
+        canvas_draw_line(c, x, y + 14, x + 2, y + 14);
+        canvas_draw_line(c, x + 10, y + 12, x + 10, y + 14);
+        canvas_draw_line(c, x + 8, y + 14, x + 10, y + 14);
         return;
     }
     if(inverted) {
@@ -102,17 +172,20 @@ static void draw_minicard(Canvas* c, int x, int y, GjCard card, uint8_t kind, bo
 static void draw_status_bar(Canvas* c, const GjApp* app) {
     const GjGame* g = &app->game;
     canvas_set_color(c, ColorBlack);
+    canvas_draw_box(c, 0, 0, 128, 10);
+    canvas_set_color(c, ColorWhite);
     canvas_set_font(c, FontSecondary);
     canvas_draw_str_aligned(c, 0, 1, AlignLeft, AlignTop, app->str_deal);
     draw_trump_indicator(c, 50, 0, g);
     canvas_draw_str_aligned(c, 127, 1, AlignRight, AlignTop, app->str_bid);
-    canvas_draw_line(c, 0, 9, 127, 9);
+    canvas_set_color(c, ColorBlack);
 }
 
 static void draw_table(Canvas* c, const GjApp* app) {
     const GjGame* g = &app->game;
     bool result = (app->phase == PhaseTrickResult);
     bool incomplete = !gj_trick_complete(g);
+    draw_table_diamond(c);
     for(uint8_t s = 0; s < GJ_PLAYERS; s++) {
         int x = SLOT_X[s];
         int y = SLOT_Y[s];
@@ -127,12 +200,21 @@ static void draw_table(Canvas* c, const GjApp* app) {
             snprintf(
                 tag, sizeof(tag), "%c%d/%u", seat_letter(s), bid, (unsigned)g->tricks_taken[s]);
         }
-        canvas_set_color(c, ColorBlack);
         canvas_set_font(c, FontSecondary);
+        bool active = app->phase == PhaseTrickPlay && incomplete && g->turn == s;
+        if(active) {
+            int tw = (int)canvas_string_width(c, tag);
+            canvas_set_color(c, ColorBlack);
+            canvas_draw_box(c, TAG_X[s] - 1, TAG_Y[s] - 1, tw + 3, 9);
+            canvas_set_color(c, ColorWhite);
+        } else {
+            canvas_set_color(c, ColorBlack);
+        }
         canvas_draw_str_aligned(c, TAG_X[s], TAG_Y[s], AlignLeft, AlignTop, tag);
+        canvas_set_color(c, ColorBlack);
         if(inv) canvas_draw_str_aligned(c, TAG_X[s] + 22, TAG_Y[s], AlignLeft, AlignTop, "+1");
 
-        if(app->phase == PhaseTrickPlay && incomplete && g->turn == s) {
+        if(active) {
             draw_tri(c, x - 4, y + 5);
         }
     }
@@ -155,6 +237,7 @@ static void draw_hand(Canvas* c, const GjApp* app) {
 
     for(uint8_t i = 0; i < count; i++) {
         int x = x0 + (int)i * 13;
+        bool selected = human_turn && app->hand_sel == i;
         int y = 46;
         if(blind_prebid) {
             canvas_set_color(c, ColorBlack);
@@ -162,7 +245,6 @@ static void draw_hand(Canvas* c, const GjApp* app) {
             continue;
         }
         GjCard card = h->cards[i];
-        bool selected = human_turn && app->hand_sel == i;
         bool illegal = human_turn && !((legal >> i) & 1u);
 
         if(selected) {
@@ -196,10 +278,12 @@ static void draw_play_layout(Canvas* c, const GjApp* app) {
     bool blind_prebid = gj_deal_is_blind(g->deal_index) && g->bids[0] < 0;
     if(blind_prebid) {
         canvas_set_color(c, ColorBlack);
-        canvas_draw_box(c, 20, 18, 88, 18);
+        canvas_draw_box(c, 18, 17, 92, 20);
         canvas_set_color(c, ColorWhite);
         canvas_set_font(c, FontPrimary);
-        canvas_draw_str_aligned(c, 64, 27, AlignCenter, AlignCenter, "BLIND");
+        canvas_draw_str_aligned(c, 64, 20, AlignCenter, AlignTop, "BLIND BID");
+        canvas_set_font(c, FontSecondary);
+        canvas_draw_str_aligned(c, 64, 29, AlignCenter, AlignTop, "hand hidden");
         canvas_set_color(c, ColorBlack);
     } else {
         draw_table(c, app);
@@ -212,18 +296,19 @@ static void draw_play_layout(Canvas* c, const GjApp* app) {
 static void draw_bid_modal(Canvas* c, const GjApp* app) {
     const GjGame* g = &app->game;
     if(!(g->turn == 0 && g->bids[0] < 0)) return;
-    draw_modal_frame(c, 34, 18, 60, 28);
-    canvas_set_font(c, FontSecondary);
-    canvas_draw_str_aligned(c, 64, 21, AlignCenter, AlignTop, "YOUR BID");
+    draw_titled_modal(c, 27, 14, 74, 32, "YOUR BID");
     char buf[16];
     bool legal = gj_bid_legal(g, 0, (uint8_t)app->bid_sel);
     if(legal) {
-        snprintf(buf, sizeof(buf), "< %d >", app->bid_sel);
+        snprintf(buf, sizeof(buf), "<  %d  >", app->bid_sel);
     } else {
-        snprintf(buf, sizeof(buf), "x %d x", app->bid_sel);
+        snprintf(buf, sizeof(buf), "x  %d  x", app->bid_sel);
     }
+    canvas_set_color(c, ColorBlack);
     canvas_set_font(c, FontPrimary);
-    canvas_draw_str_aligned(c, 64, 32, AlignCenter, AlignTop, buf);
+    canvas_draw_str_aligned(c, 64, 28, AlignCenter, AlignTop, buf);
+    canvas_set_font(c, FontSecondary);
+    canvas_draw_str_aligned(c, 64, 38, AlignCenter, AlignTop, legal ? "OK confirm" : "KHISHTI!");
 }
 
 static void draw_joker_menu(Canvas* c, const GjApp* app) {
@@ -239,32 +324,36 @@ static void draw_joker_menu(Canvas* c, const GjApp* app) {
         rows[n++] = "Take";
         rows[n++] = "Underplay";
     }
-    int hgt = 4 + (int)n * 10;
-    draw_modal_frame(c, 40, 11, 86, hgt);
-    canvas_set_font(c, FontSecondary);
+    int hgt = 12 + (int)n * 10;
+    int y = (n == 3) ? 10 : 16;
+    draw_titled_modal(c, 32, y, 94, hgt, "PLAY JOKER");
     for(uint8_t i = 0; i < n; i++) {
-        char line[20];
-        snprintf(line, sizeof(line), "%c %s", (app->joker_sel == i) ? '>' : ' ', rows[i]);
-        canvas_draw_str_aligned(c, 44, 13 + (int)i * 10, AlignLeft, AlignTop, line);
+        draw_selected_row(c, 35, y + 11 + (int)i * 10, 88, rows[i], app->joker_sel == i);
     }
 }
 
 static void draw_joker_suit(Canvas* c, const GjApp* app) {
-    draw_modal_frame(c, 20, 16, 88, 22);
-    static const uint8_t ix[4] = {30, 50, 70, 90};
-    for(uint8_t i = 0; i < 4; i++) canvas_draw_xbm(c, ix[i], 24, 7, 7, gj_icon_suit7(i));
+    draw_titled_modal(c, 14, 13, 100, 34, "DEMAND SUIT");
+    static const uint8_t suit_option_x[4] = {26, 48, 70, 92};
+    canvas_set_color(c, ColorBlack);
+    for(uint8_t i = 0; i < 4; i++)
+        canvas_draw_xbm(c, suit_option_x[i], 31, 7, 7, gj_icon_suit7(i));
     uint8_t sel = app->suit_sel & 3u;
-    canvas_draw_frame(c, ix[sel] - 2, 22, 11, 11);
+    canvas_draw_frame(c, suit_option_x[sel] - 4, 27, 15, 15);
 }
 
 /* ---- per-phase screens --------------------------------------------- */
 
 static void draw_menu(Canvas* c, const GjApp* app) {
     canvas_set_color(c, ColorBlack);
+    canvas_draw_box(c, 0, 0, 128, 19);
+    canvas_set_color(c, ColorWhite);
+    canvas_draw_xbm(c, 8, 6, 7, 7, gj_icon_joker7());
     canvas_set_font(c, FontPrimary);
-    canvas_draw_str_aligned(c, 64, 6, AlignCenter, AlignTop, "Georgian Joker");
+    canvas_draw_str_aligned(c, 20, 3, AlignLeft, AlignTop, "GEORGIAN JOKER");
     canvas_set_font(c, FontSecondary);
-    canvas_draw_str_aligned(c, 64, 22, AlignCenter, AlignTop, "Djokeri");
+    canvas_draw_str_aligned(c, 20, 11, AlignLeft, AlignTop, "DJOKERI / 24 DEALS");
+    canvas_set_color(c, ColorBlack);
 
     /* compact indices, matching the shell: menu_sel counts only the items
      * actually shown (Continue present only when a valid save exists). */
@@ -274,81 +363,102 @@ static void draw_menu(Canvas* c, const GjApp* app) {
     labels[n++] = "New Pulka";
     labels[n++] = "About";
     for(uint8_t i = 0; i < n; i++) {
-        char line[20];
-        snprintf(line, sizeof(line), "%c %s", (app->menu_sel == i) ? '>' : ' ', labels[i]);
-        canvas_draw_str_aligned(c, 42, 34 + (int)i * 9, AlignLeft, AlignTop, line);
+        int y = 23 + (int)i * 12;
+        draw_selected_row(c, 24, y, 80, labels[i], app->menu_sel == i);
     }
 }
 
 static void draw_stage_intro(Canvas* c, const GjApp* app) {
     const GjGame* g = &app->game;
     uint8_t stage = gj_deal_stage(g->deal_index) & 3u;
+    char top[20];
+    snprintf(top, sizeof(top), "DEAL %02u / 24", (unsigned)(g->deal_index + 1));
+    draw_header(c, top);
     canvas_set_color(c, ColorBlack);
     canvas_set_font(c, FontPrimary);
-    canvas_draw_str_aligned(c, 64, 12, AlignCenter, AlignTop, STAGE_NAMES[stage]);
+    canvas_draw_str_aligned(c, 64, 14, AlignCenter, AlignTop, STAGE_NAMES[stage]);
+    /* Four-stage pulka rail. Current stage is solid, past stages are ticks. */
+    for(uint8_t i = 0; i < 4; i++) {
+        int x = 21 + (int)i * 23;
+        if(i == stage) {
+            canvas_draw_box(c, x, 26, 18, 3);
+        } else if(i < stage) {
+            for(int p = 0; p < 18; p += 3) canvas_draw_dot(c, x + p, 27);
+        } else {
+            canvas_draw_line(c, x, 27, x + 17, 27);
+        }
+    }
     canvas_set_font(c, FontSecondary);
-    char buf[28];
-    snprintf(
-        buf,
-        sizeof(buf),
-        "Deal %u/24 - %u cards",
-        (unsigned)(g->deal_index + 1),
-        (unsigned)gj_deal_cards_for(g->deal_index));
+    char buf[20];
+    unsigned cards = (unsigned)gj_deal_cards_for(g->deal_index);
+    snprintf(buf, sizeof(buf), "%u CARD%s", cards, cards == 1 ? "" : "S");
     canvas_draw_str_aligned(c, 64, 34, AlignCenter, AlignTop, buf);
     char db[24];
-    snprintf(db, sizeof(db), "Dealer: %s", seat_name(g->dealer));
+    snprintf(db, sizeof(db), "DEALER  %s", seat_name(g->dealer));
     canvas_draw_str_aligned(c, 64, 46, AlignCenter, AlignTop, db);
+    draw_footer(c, "OK  CONTINUE");
 }
 
 static void draw_trump_picker(Canvas* c, uint8_t sel) {
-    static const uint8_t ox[5] = {14, 34, 54, 74, 96};
-    int y = 53;
-    for(uint8_t i = 0; i < 4; i++) canvas_draw_xbm(c, ox[i], y, 7, 7, gj_icon_suit7(i));
-    canvas_set_font(c, FontSecondary);
-    canvas_draw_str(c, ox[4], y + 7, "NT");
+    static const uint8_t trump_option_x[5] = {16, 38, 60, 82, 105};
+    int y = 52;
     uint8_t s = (sel > 4) ? 4 : sel;
-    int sw = (s == 4) ? ((int)canvas_string_width(c, "NT") + 2) : 9;
-    canvas_draw_frame(c, ox[s] - 1, y - 1, sw, 9);
+    if(s < 4) {
+        canvas_set_color(c, ColorBlack);
+        canvas_draw_box(c, trump_option_x[s] - 4, y - 4, 15, 15);
+    }
+    for(uint8_t i = 0; i < 4; i++) {
+        canvas_set_color(c, i == s ? ColorWhite : ColorBlack);
+        canvas_draw_xbm(c, trump_option_x[i], y, 7, 7, gj_icon_suit7(i));
+    }
+    canvas_set_color(c, ColorBlack);
+    if(s == 4) canvas_draw_box(c, trump_option_x[4] - 4, y - 4, 20, 15);
+    if(s == 4) canvas_set_color(c, ColorWhite);
+    canvas_set_font(c, FontSecondary);
+    canvas_draw_str(c, trump_option_x[4], y + 7, "NT");
+    canvas_set_color(c, ColorBlack);
 }
 
 static void draw_trump_select(Canvas* c, const GjApp* app) {
     const GjGame* g = &app->game;
-    canvas_set_color(c, ColorBlack);
-    canvas_set_font(c, FontPrimary);
-    canvas_draw_str_aligned(c, 64, 0, AlignCenter, AlignTop, "Name the trump");
+    draw_header(c, "CHOOSE TRUMP");
 
     bool blind = gj_deal_is_blind(g->deal_index);
     uint8_t namer = gj_trump_namer(g);
     if(blind) {
-        canvas_draw_box(c, 34, 18, 60, 16);
+        canvas_draw_box(c, 31, 15, 66, 20);
         canvas_set_color(c, ColorWhite);
         canvas_set_font(c, FontPrimary);
-        canvas_draw_str_aligned(c, 64, 26, AlignCenter, AlignCenter, "BLIND");
+        canvas_draw_str_aligned(c, 64, 18, AlignCenter, AlignTop, "BLIND DEAL");
+        canvas_set_font(c, FontSecondary);
+        canvas_draw_str_aligned(c, 64, 27, AlignCenter, AlignTop, "no peek");
         canvas_set_color(c, ColorBlack);
     } else if(namer == 0) {
         uint8_t shown = g->hands[0].count < 3 ? g->hands[0].count : 3;
         for(uint8_t i = 0; i < shown; i++) {
-            draw_minicard(c, 34 + (int)i * 20, 18, g->hands[0].cards[i], GjPlayNormal, false);
+            draw_minicard(c, 43 + (int)i * 14, 14, g->hands[0].cards[i], GjPlayNormal, false);
         }
+        canvas_set_font(c, FontSecondary);
+        canvas_draw_str_aligned(c, 64, 33, AlignCenter, AlignTop, "3-CARD PEEK");
     } else {
         canvas_set_font(c, FontSecondary);
         char b[28];
-        snprintf(b, sizeof(b), "%s is naming trump...", seat_name(namer));
-        canvas_draw_str_aligned(c, 64, 24, AlignCenter, AlignTop, b);
+        snprintf(b, sizeof(b), "%s IS CHOOSING", seat_name(namer));
+        canvas_draw_str_aligned(c, 64, 23, AlignCenter, AlignTop, b);
     }
     draw_trump_picker(c, app->trump_sel);
 }
 
 static void draw_trump_reveal(Canvas* c, const GjApp* app) {
     const GjGame* g = &app->game;
+    draw_header(c, "TRUMP REVEALED");
     canvas_set_color(c, ColorBlack);
-    canvas_set_font(c, FontPrimary);
-    canvas_draw_str_aligned(c, 64, 6, AlignCenter, AlignTop, "Trump");
-    int iy = 28;
+    canvas_draw_frame(c, 45, 14, 38, 29);
+    int iy = 23;
     if(g->trump_suit == GJ_NO_TRUMP) {
         canvas_draw_xbm(c, 60, iy, 7, 7, gj_icon_no_trump7());
         canvas_set_font(c, FontSecondary);
-        canvas_draw_str_aligned(c, 64, iy + 12, AlignCenter, AlignTop, "No trump");
+        canvas_draw_str_aligned(c, 64, 46, AlignCenter, AlignTop, "NO TRUMP");
     } else if(g->trump_suit < 4) {
         canvas_draw_xbm(c, 54, iy, 7, 7, gj_icon_suit7(g->trump_suit));
         canvas_set_font(c, FontPrimary);
@@ -358,8 +468,11 @@ static void draw_trump_reveal(Canvas* c, const GjApp* app) {
         if(gj_deal_trump_is_named(g->deal_index)) {
             canvas_set_font(c, FontSecondary);
             char b[28];
-            snprintf(b, sizeof(b), "named by %s", seat_name(gj_trump_namer(g)));
-            canvas_draw_str_aligned(c, 64, iy + 14, AlignCenter, AlignTop, b);
+            snprintf(b, sizeof(b), "NAMED BY %s", seat_name(gj_trump_namer(g)));
+            canvas_draw_str_aligned(c, 64, 46, AlignCenter, AlignTop, b);
+        } else {
+            canvas_set_font(c, FontSecondary);
+            canvas_draw_str_aligned(c, 64, 46, AlignCenter, AlignTop, "FLIPPED TRUMP");
         }
     }
 }
@@ -381,24 +494,37 @@ static void draw_trickplay(Canvas* c, const GjApp* app) {
 static void draw_deal_score(Canvas* c, const GjApp* app) {
     const GjGame* g = &app->game;
     uint8_t done = g->deal_index ? (uint8_t)(g->deal_index - 1) : 0;
-    canvas_set_color(c, ColorBlack);
-    canvas_set_font(c, FontPrimary);
     char hdr[28];
     snprintf(
-        hdr, sizeof(hdr), "DEAL %u - %u CARDS", (unsigned)(done + 1), (unsigned)gj_deal_cards_for(done));
-    canvas_draw_str_aligned(c, 64, 0, AlignCenter, AlignTop, hdr);
+        hdr, sizeof(hdr), "DEAL %02u RESULTS", (unsigned)(done + 1));
+    draw_header(c, hdr);
     canvas_set_font(c, FontSecondary);
     for(uint8_t s = 0; s < GJ_PLAYERS; s++) {
-        int y = 14 + (int)s * 10;
+        int y = 12 + (int)s * 10;
+        bool made = g->bids[s] == (int8_t)g->tricks_taken[s];
+        if(s == 0) {
+            canvas_set_color(c, ColorBlack);
+            canvas_draw_box(c, 0, y - 1, 128, 10);
+            canvas_set_color(c, ColorWhite);
+        } else {
+            canvas_set_color(c, ColorBlack);
+        }
         char row[28];
         snprintf(
-            row, sizeof(row), "%-5s b%d t%u", seat_name(s), g->bids[s], (unsigned)g->tricks_taken[s]);
-        canvas_draw_str_aligned(c, 0, y, AlignLeft, AlignTop, row);
+            row,
+            sizeof(row),
+            "%c %-5s  %d/%u",
+            made ? '+' : 'x',
+            seat_name(s),
+            g->bids[s],
+            (unsigned)g->tricks_taken[s]);
+        canvas_draw_str_aligned(c, 3, y, AlignLeft, AlignTop, row);
         char pts[10];
         snprintf(pts, sizeof(pts), "%+d", g->deal_scores[done][s]);
-        canvas_draw_str_aligned(c, 127, y, AlignRight, AlignTop, pts);
+        canvas_draw_str_aligned(c, 124, y, AlignRight, AlignTop, pts);
     }
-    canvas_draw_str_aligned(c, 64, 56, AlignCenter, AlignTop, "OK next  ^ table");
+    canvas_set_color(c, ColorBlack);
+    draw_footer(c, "OK NEXT     ^ TABLE");
 }
 
 /* Standings row label: A1..A8 / N1..N4 / D8..D1 / B1..B4. */
@@ -448,6 +574,12 @@ static void draw_standings(Canvas* c, const GjApp* app) {
         uint8_t d = (uint8_t)(scroll + vis);
         if(d >= GJ_NUM_DEALS) break;
         int y = 8 + (int)vis * 8;
+        bool current = d == g->deal_index;
+        if(current) {
+            canvas_set_color(c, ColorBlack);
+            canvas_draw_box(c, 0, y, 125, 8);
+            canvas_set_color(c, ColorWhite);
+        }
         char lbl[6];
         standings_label(d, lbl, sizeof(lbl));
         canvas_draw_str_aligned(c, 0, y, AlignLeft, AlignTop, lbl);
@@ -463,8 +595,10 @@ static void draw_standings(Canvas* c, const GjApp* app) {
             canvas_draw_str_aligned(c, COLX[s], y, AlignRight, AlignTop, cell);
         }
         if(d == 7 || d == 11 || d == 19) {
+            canvas_set_color(c, current ? ColorWhite : ColorBlack);
             for(int px = 0; px < 124; px += 2) canvas_draw_dot(c, px, y + 7);
         }
+        canvas_set_color(c, ColorBlack);
     }
 
     /* pinned totals */
@@ -497,52 +631,58 @@ static void draw_game_over(Canvas* c, const GjApp* app) {
             }
         }
     }
-    canvas_set_color(c, ColorBlack);
-    canvas_set_font(c, FontPrimary);
-    canvas_draw_str_aligned(c, 64, 0, AlignCenter, AlignTop, "PULKA COMPLETE");
+    draw_header(c, "PULKA COMPLETE");
     canvas_set_font(c, FontSecondary);
     for(uint8_t i = 0; i < GJ_PLAYERS; i++) {
         uint8_t s = order[i];
-        int y = 16 + (int)i * 10;
+        int y = 12 + (int)i * 10;
         bool win = (i == 0);
         if(win) {
             canvas_set_color(c, ColorBlack);
-            canvas_draw_box(c, 10, y - 1, 108, 10);
+            canvas_draw_box(c, 6, y - 1, 116, 10);
             canvas_set_color(c, ColorWhite);
         }
         char row[24];
-        snprintf(row, sizeof(row), "%u. %-6s", (unsigned)(i + 1), seat_name(s));
-        canvas_draw_str_aligned(c, 14, y, AlignLeft, AlignTop, row);
+        snprintf(row, sizeof(row), "%c %u. %-6s", win ? '*' : ' ', (unsigned)(i + 1), seat_name(s));
+        canvas_draw_str_aligned(c, 10, y, AlignLeft, AlignTop, row);
         char pts[10];
         snprintf(pts, sizeof(pts), "%d", g->totals[s]);
-        canvas_draw_str_aligned(c, 114, y, AlignRight, AlignTop, pts);
+        canvas_draw_str_aligned(c, 118, y, AlignRight, AlignTop, pts);
         if(win) canvas_set_color(c, ColorBlack);
     }
-    canvas_draw_str_aligned(c, 64, 56, AlignCenter, AlignTop, "OK -> menu");
+    draw_footer(c, "OK  BACK TO MENU");
 }
 
 static void draw_confirm_exit(Canvas* c, const GjApp* app) {
-    draw_modal_frame(c, 24, 18, 80, 30);
+    draw_titled_modal(c, 20, 15, 88, 34, "LEAVE PULKA?");
     canvas_set_font(c, FontSecondary);
-    canvas_draw_str_aligned(c, 64, 22, AlignCenter, AlignTop, "Save & exit?");
+    canvas_draw_str_aligned(c, 64, 27, AlignCenter, AlignTop, "progress saved");
     if(app->confirm_sel == 0) {
-        canvas_draw_frame(c, 34, 33, 24, 11);
+        canvas_draw_box(c, 31, 38, 29, 9);
+        canvas_set_color(c, ColorWhite);
+        canvas_draw_str_aligned(c, 45, 39, AlignCenter, AlignTop, "SAVE");
     } else {
-        canvas_draw_frame(c, 70, 33, 20, 11);
+        canvas_draw_box(c, 69, 38, 28, 9);
+        canvas_set_color(c, ColorWhite);
+        canvas_draw_str_aligned(c, 83, 39, AlignCenter, AlignTop, "STAY");
     }
-    canvas_draw_str_aligned(c, 46, 34, AlignCenter, AlignTop, "Yes");
-    canvas_draw_str_aligned(c, 80, 34, AlignCenter, AlignTop, "No");
+    canvas_set_color(c, ColorBlack);
+    if(app->confirm_sel != 0)
+        canvas_draw_str_aligned(c, 45, 39, AlignCenter, AlignTop, "SAVE");
+    if(app->confirm_sel != 1)
+        canvas_draw_str_aligned(c, 83, 39, AlignCenter, AlignTop, "STAY");
 }
 
 static void draw_about(Canvas* c) {
+    draw_header(c, "GEORGIAN JOKER");
     canvas_set_color(c, ColorBlack);
-    canvas_set_font(c, FontPrimary);
-    canvas_draw_str_aligned(c, 64, 0, AlignCenter, AlignTop, "Georgian Joker");
+    canvas_draw_xbm(c, 5, 15, 7, 7, gj_icon_joker7());
     canvas_set_font(c, FontSecondary);
-    canvas_draw_str_aligned(c, 64, 12, AlignCenter, AlignTop, "v0.1.0  joker.agentic.ge");
-    canvas_draw_str_aligned(c, 2, 26, AlignLeft, AlignTop, "</>: select  OK: play");
-    canvas_draw_str_aligned(c, 2, 36, AlignLeft, AlignTop, "^: standings  Back: exit");
-    canvas_draw_str_aligned(c, 2, 46, AlignLeft, AlignTop, "Black=filled Red=outline");
+    canvas_draw_str_aligned(c, 17, 15, AlignLeft, AlignTop, "DJOKERI  v0.1.0");
+    canvas_draw_line(c, 4, 25, 123, 25);
+    canvas_draw_str_aligned(c, 5, 29, AlignLeft, AlignTop, "<> SELECT    OK PLAY");
+    canvas_draw_str_aligned(c, 5, 39, AlignLeft, AlignTop, "^ TABLE    BACK EXIT");
+    draw_footer(c, "BLACK:FULL  RED:EDGE");
 }
 
 /* ---- entry points --------------------------------------------------- */
