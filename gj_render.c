@@ -502,12 +502,13 @@ static void draw_menu(GjGfx* g, const GjApp* app) {
     labels[n++] = "About";
     for(uint8_t i = 0; i < n; i++) {
         int16_t y = (int16_t)(30 + i * 14);
+        /* centered so "New Pulka" (53px) fits the 56px pill; the inverted
+         * pill alone marks selection (a chevron would collide with text) */
         if(app->menu_sel == i) {
             gj_gfx_rrect(g, 4, y, 56, 12, 1);
-            gj_gfx_text(g, 8, (int16_t)(y + 2), labels[i], 0);
-            tri(g, 52, (int16_t)(y + 4), 0, 0);
+            gj_gfx_text_center(g, 32, (int16_t)(y + 2), labels[i], 0);
         } else {
-            gj_gfx_text(g, 8, (int16_t)(y + 2), labels[i], 1);
+            gj_gfx_text_center(g, 32, (int16_t)(y + 2), labels[i], 1);
         }
     }
     gj_gfx_hline(g, 0, 116, GJ_FB_W, 1);
