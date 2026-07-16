@@ -45,7 +45,7 @@ static char* i2s(int v, char* b) {
 
 static void scat(char* d, const char* s) {
     while(*d) d++;
-    while(*s) *d++ = *s;
+    while(*s) *d++ = *s++;
     *d = 0;
 }
 
