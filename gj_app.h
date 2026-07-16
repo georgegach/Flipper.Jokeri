@@ -1,7 +1,7 @@
 /* gj_app.h — shared application state (phase machine + UI selections).
  *
  * Furi-free on purpose: pure state, no OS handles (those live inside
- * georgian_joker_app.c). Both the app shell and gj_ui.c consume this.
+ * georgian_joker_app.c). Consumed by gj_shell.c and gj_render.c.
  */
 #pragma once
 
@@ -20,6 +20,7 @@ typedef enum {
     PhaseGameOver, /* final ranking; save deleted */
     PhaseConfirmExit, /* "Save & exit?" from Back during play */
     PhaseAbout,
+    PhaseSplash, /* boot splash, auto-advance to Menu (appended: save compat) */
 } GamePhase;
 
 typedef enum {
