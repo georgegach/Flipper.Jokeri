@@ -21,6 +21,7 @@ typedef enum {
     PhaseConfirmExit, /* "Save & exit?" from Back during play */
     PhaseAbout,
     PhaseSplash, /* boot splash, auto-advance to Menu (appended: save compat) */
+    PhaseLeadIntro, /* "YOU START"/"X STARTS" beat after bidding, before play */
 } GamePhase;
 
 typedef enum {

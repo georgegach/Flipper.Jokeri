@@ -57,11 +57,6 @@ static const char* rank_str(GjCard c) {
     return (r < 9u) ? names[r] : "?";
 }
 
-static char seat_letter(uint8_t s) {
-    static const char L[4] = {'S', 'W', 'N', 'E'};
-    return L[s & 3u];
-}
-
 static const char* seat_name(uint8_t s) {
     switch(s & 3u) {
     case 0:
@@ -157,10 +152,10 @@ static void tri(GjGfx* g, int16_t x, int16_t y, uint8_t dir, uint8_t color) {
     }
 }
 
-/* 9x9 filled disc token with a white 'D' (dealer marker) */
+/* 7x7 filled disc token with a white 'D' (dealer marker) */
 static void dealer_disc(GjGfx* g, int16_t x, int16_t y) {
-    gj_gfx_rrect(g, x, y, 9, 9, 1);
-    gj_gfx_text(g, (int16_t)(x + 2), (int16_t)(y + 1), "D", 0);
+    gj_gfx_rrect(g, x, y, 7, 7, 1);
+    gj_gfx_text(g, (int16_t)(x + 1), y, "D", 0);
 }
 
 /* checkerboard dim of the whole frame (modal backdrop) */
@@ -208,80 +203,103 @@ static void minicard(GjGfx* g, int16_t x, int16_t y, GjCard c, uint8_t kind, boo
 /* status strip + table + hand (the play layout)                          */
 /* ===================================================================== */
 
-/* geometry */
-#define ST_H 11
+/* geometry — a calm cross: N top, W/E flanking an empty centre, S (you) above
+ * the hand. Generous margins; seat tags are lean "bid/taken" (position names
+ * the seat) with a dealer disc + turn triangle as the only per-seat icons. */
 #define SLOT_W 12
 #define SLOT_H 16
+#define HAND_Y 104
 
 static const uint8_t SLOT_X[4] = {26, 4, 26, 48}; /* S, W, N, E */
-static const uint8_t SLOT_Y[4] = {64, 40, 14, 40};
-static const uint8_t INFO_X[4] = {14, 2, 14, 40};
-static const uint8_t INFO_Y[4] = {82, 58, 32, 58};
+static const uint8_t SLOT_Y[4] = {82, 50, 16, 50};
 
 static void draw_status(GjGfx* g, const GjApp* app) {
     const GjGame* gm = &app->game;
     char buf[10], num[6];
-    /* deal counter d/24 */
+    /* deal counter d/24, left */
     u2s((uint16_t)(gm->deal_index + 1), num);
     buf[0] = 0;
     scat(buf, num);
     scat(buf, "/");
     u2s(GJ_NUM_DEALS, num);
     scat(buf, num);
-    gj_gfx_text(g, 1, 2, buf, 1);
-    /* stage tick marks: 4 segments, current filled, past dotted */
-    uint8_t stage = gj_deal_stage(gm->deal_index) & 3u;
-    for(uint8_t i = 0; i < 4; i++) {
-        int16_t sx = (int16_t)(30 + i * 5);
-        if(i == stage)
-            gj_gfx_rect(g, sx, 4, 4, 3, 1);
-        else if(i < stage)
-            gj_gfx_hline(g, sx, 5, 4, 1);
-        else {
-            gj_gfx_pixel(g, sx, 5, 1);
-            gj_gfx_pixel(g, (int16_t)(sx + 2), 5, 1);
-        }
-    }
+    gj_gfx_text(g, 3, 2, buf, 1);
     /* trump pip, right */
     if(gm->trump_suit != GJ_SUIT_NONE) {
         if(gm->trump_suit == GJ_NO_TRUMP)
-            gj_gfx_xbm(g, 55, 2, 7, 7, nt7, 1);
+            gj_gfx_xbm(g, 54, 1, 7, 7, nt7, 1);
         else
-            pip7(g, 55, 2, (GjCard)(gm->trump_suit * 9 + 3), 1); /* any card of the suit */
+            pip7(g, 54, 1, (GjCard)(gm->trump_suit * 9 + 3), 1); /* any card of the suit */
     }
-    gj_gfx_hline(g, 0, ST_H, GJ_FB_W, 1);
 }
 
-/* one seat's info: dealer disc, turn triangle, "Xb/t" tag */
+/* one seat's info: lean "bid/taken" tag, dealer disc, turn triangle. Position
+ * names the seat, so no letter. Tag sits under N and the flanking W/E cards,
+ * and to the left of your own (S) card so it never crowds the hand. */
 static void draw_seat_info(GjGfx* g, const GjApp* app, uint8_t s) {
     const GjGame* gm = &app->game;
-    int16_t x = INFO_X[s], y = INFO_Y[s];
     bool acting = (app->phase == PhaseTrickPlay || app->phase == PhaseBidding) &&
                   !gj_trick_complete(gm) && gm->turn == s;
-    /* tag string "N2/1" or "N-/1" */
-    char tag[10], num[6];
-    tag[0] = seat_letter(s);
-    tag[1] = 0;
+    bool dealer = (gm->dealer == s);
+
+    char tag[8], num[6];
+    tag[0] = 0;
     if(gm->bids[s] < 0)
         scat(tag, "-");
     else
         scat(tag, i2s(gm->bids[s], num));
     scat(tag, "/");
     scat(tag, u2s(gm->tricks_taken[s], num));
+    int16_t tw = (int16_t)gj_gfx_text_width(tag);
 
-    uint16_t tw = gj_gfx_text_width(tag);
-    if(acting) {
-        gj_gfx_rrect(g, (int16_t)(x - 1), (int16_t)(y - 1), (int16_t)(tw + 3), 9, 1);
-        gj_gfx_text(g, x, y, tag, 0);
-        tri(g, (int16_t)(x + tw + 3), (int16_t)(y + 1), s == 2 ? 3 : (s == 0 ? 2 : (s == 1 ? 0 : 1)), 1);
-    } else {
-        gj_gfx_text(g, x, y, tag, 1);
+    int16_t tx, ty; /* tag top-left */
+    switch(s) {
+    case 2: /* N: centred under the top card */
+        tx = (int16_t)(32 - tw / 2);
+        ty = 33;
+        break;
+    case 1: /* W: under the left card */
+        tx = 4;
+        ty = 67;
+        break;
+    case 3: /* E: under the right card, right-aligned */
+        tx = (int16_t)(60 - tw);
+        ty = 67;
+        break;
+    default: /* S = you: left of your card */
+        tx = 4;
+        ty = 86;
+        break;
     }
-    if(gm->dealer == s) dealer_disc(g, (int16_t)(x + tw + (acting ? 10 : 3)), (int16_t)(y - 1));
-    if(s == 0) { /* chevron marking your seat */
-        gj_gfx_pixel(g, (int16_t)(x - 4), y, 1);
-        gj_gfx_pixel(g, (int16_t)(x - 3), (int16_t)(y + 1), 1);
-        gj_gfx_pixel(g, (int16_t)(x - 2), y, 1);
+    gj_gfx_text(g, tx, ty, tag, 1);
+
+    /* turn triangle points toward the table centre; dealer disc trails. Both
+     * are placed on the side of the tag that has room (edges stay clear). */
+    uint8_t dir = (s == 2) ? 3 : (s == 0) ? 2 : (s == 1) ? 0 : 1;
+    if(s == 3) { /* E: markers to the left of the right-aligned tag */
+        int16_t mx = (int16_t)(tx - 2);
+        if(acting) {
+            mx -= 5;
+            tri(g, mx, (int16_t)(ty + 1), dir, 1);
+        }
+        if(dealer) {
+            mx -= 9;
+            dealer_disc(g, mx, ty);
+        }
+    } else if(s == 0) { /* S: markers to the right of your card */
+        int16_t mx = 42;
+        if(acting) {
+            tri(g, mx, (int16_t)(ty + 1), dir, 1);
+            mx += 6;
+        }
+        if(dealer) dealer_disc(g, mx, ty);
+    } else { /* N, W: markers to the right of the tag */
+        int16_t mx = (int16_t)(tx + tw + 2);
+        if(acting) {
+            tri(g, mx, (int16_t)(ty + 1), dir, 1);
+            mx += 6;
+        }
+        if(dealer) dealer_disc(g, mx, ty);
     }
 }
 
@@ -294,13 +312,13 @@ static void draw_hand(GjGfx* g, const GjApp* app) {
         /* hatched card backs + BLIND banner (never peek hands[0]) */
         for(uint8_t i = 0; i < n && i < 4; i++) {
             int16_t x = (int16_t)(8 + i * 13);
-            gj_gfx_rframe(g, x, 98, SLOT_W, 24, 1);
-            hatch(g, (int16_t)(x + 1), 99, 10, 22);
+            gj_gfx_rframe(g, x, HAND_Y, SLOT_W, 24, 1);
+            hatch(g, (int16_t)(x + 1), (int16_t)(HAND_Y + 1), 10, 22);
         }
-        int16_t bw = (int16_t)(gj_gfx_text_width("BLIND") + 6);
+        int16_t bw = (int16_t)(gj_gfx_text_width("BLIND") + 8);
         int16_t bx = (int16_t)((GJ_FB_W - bw) / 2);
-        gj_gfx_rrect(g, bx, 86, bw, 10, 1);
-        gj_gfx_text_center(g, 32, 87, "BLIND", 0);
+        gj_gfx_rrect(g, bx, (int16_t)(HAND_Y + 7), bw, 11, 1);
+        gj_gfx_text_center(g, 32, (int16_t)(HAND_Y + 9), "BLIND", 0);
         return;
     }
     if(n == 0) return;
@@ -319,7 +337,7 @@ static void draw_hand(GjGfx* g, const GjApp* app) {
     for(uint8_t k = 0; k < shown; k++) {
         uint8_t i = (uint8_t)(win + k);
         int16_t x = (int16_t)(8 + k * 13);
-        int16_t y = 98;
+        int16_t y = HAND_Y;
         bool sel = (app->hand_sel == i) &&
                    (app->phase == PhaseTrickPlay || app->phase == PhaseBidding);
         bool illegal = human_turn && !((legal >> i) & 1u);
@@ -337,9 +355,9 @@ static void draw_hand(GjGfx* g, const GjApp* app) {
         gj_gfx_text_center(g, (int16_t)(x + 6), (int16_t)(y + 2), rank_str(c), fg);
         if(sel || !illegal) pip5(g, (int16_t)(x + 3), (int16_t)(y + 14), c, fg);
     }
-    /* overflow arrows */
-    if(win > 0) tri(g, 1, 106, 1, 1);
-    if(win + shown < n) tri(g, 60, 106, 0, 1);
+    /* overflow arrows, vertically centred on the hand row */
+    if(win > 0) tri(g, 1, (int16_t)(HAND_Y + 9), 1, 1);
+    if(win + shown < n) tri(g, 60, (int16_t)(HAND_Y + 9), 0, 1);
 }
 
 static void draw_play_base(GjGfx* g, const GjApp* app) {
@@ -354,13 +372,9 @@ static void draw_play_base(GjGfx* g, const GjApp* app) {
             gj_gfx_xbm(g, (int16_t)(SLOT_X[s] + 3), (int16_t)(SLOT_Y[s] - 6), 7, 5, crown7, 1);
         }
     }
-    /* demanded-suit hint beside the leader */
-    if(gm->demand_kind == GjJokerDemandSuit && gm->led_suit < 4) {
-        uint8_t ld = gm->trick_leader & 3u;
-        pip5(g, (int16_t)(SLOT_X[ld] + 13), (int16_t)(SLOT_Y[ld] + 5),
-             (GjCard)(gm->led_suit * 9 + 3), 1);
-    }
-    gj_gfx_hline(g, 0, 95, GJ_FB_W, 1);
+    /* demanded-suit hint in the empty table centre */
+    if(gm->demand_kind == GjJokerDemandSuit && gm->led_suit < 4)
+        pip7(g, 28, 54, (GjCard)(gm->led_suit * 9 + 3), 1);
     draw_hand(g, app);
 }
 
@@ -806,6 +820,32 @@ static void draw_confirm(GjGfx* g, const GjApp* app) {
     }
 }
 
+/* near-empty beat after bidding: who leads the first trick */
+static void draw_lead_intro(GjGfx* g, const GjApp* app) {
+    const GjGame* gm = &app->game;
+    uint8_t ld = gm->trick_leader & 3u;
+    static const char* NAMES[4] = {"YOU", "WEST", "NORTH", "EAST"};
+    const char* nm = NAMES[ld];
+    const char* verb = (ld == 0) ? "START" : "STARTS";
+    int16_t nw = (int16_t)gj_gfx_text_big_width(nm);
+    gj_gfx_text_big(g, (int16_t)(32 - nw / 2), 38, nm, 1);
+    gj_gfx_text_center(g, 32, 60, verb, 1);
+    /* turn triangle pointing at that seat's table position */
+    uint8_t dir = (ld == 2) ? 3 : (ld == 0) ? 2 : (ld == 1) ? 0 : 1;
+    tri(g, 30, 72, dir, 1);
+    /* your bid for the deal */
+    char buf[12], num[6];
+    buf[0] = 0;
+    scat(buf, "BID ");
+    if(gm->bids[0] < 0)
+        scat(buf, "-");
+    else
+        scat(buf, i2s(gm->bids[0], num));
+    gj_gfx_text_center(g, 32, 90, buf, 1);
+    gj_gfx_hline(g, 0, 116, GJ_FB_W, 1);
+    gj_gfx_text_center(g, 32, 119, "OK", 1);
+}
+
 /* ===================================================================== */
 /* dispatch                                                               */
 /* ===================================================================== */
@@ -817,6 +857,9 @@ static void draw_phase(GjGfx* g, const GjApp* app, uint8_t phase) {
         break;
     case PhaseStageIntro:
         draw_stage_intro(g, app);
+        break;
+    case PhaseLeadIntro:
+        draw_lead_intro(g, app);
         break;
     case PhaseTrumpSelect:
         draw_trump_select(g, app);

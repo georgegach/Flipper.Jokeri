@@ -172,6 +172,15 @@ static void enter_bidding(GjApp* st, const GjShellIo* io) {
     refresh_cache(st);
 }
 
+/* Who-leads beat between bidding and the first trick: the leader is easy to
+ * miss from the turn marker alone. ~1.2 s auto-advance, any OK skips. */
+static void enter_lead_intro(GjApp* st) {
+    st->phase = PhaseLeadIntro;
+    st->sub = SubNone;
+    st->wait_ticks = 48;
+    refresh_cache(st);
+}
+
 static void enter_trick_play(GjApp* st, const GjShellIo* io) {
     st->phase = PhaseTrickPlay;
     st->sub = SubNone;
@@ -441,6 +450,10 @@ void gj_shell_input(GjApp* st, const GjShellIo* io, GjKey key) {
         if(is_ok) enter_bidding(st, io);
         break;
 
+    case PhaseLeadIntro:
+        if(is_ok) enter_trick_play(st, io);
+        break;
+
     case PhaseBidding:
         if(st->game.turn != 0) {
             if(is_press && key == GjKeyBack) exit_confirm_from(st, PhaseBidding);
@@ -458,7 +471,7 @@ void gj_shell_input(GjApp* st, const GjShellIo* io, GjKey key) {
                gj_place_bid(&st->game, 0, (uint8_t)st->bid_sel)) {
                 refresh_cache(st);
                 if(gj_bidding_done(&st->game))
-                    enter_trick_play(st, io);
+                    enter_lead_intro(st);
                 else
                     arm_pacing(st, io);
             }
@@ -566,6 +579,11 @@ void gj_shell_tick(GjApp* st, const GjShellIo* io) {
         if(st->wait_ticks == 0) enter_bidding(st, io);
         break;
 
+    case PhaseLeadIntro:
+        if(st->wait_ticks > 0) st->wait_ticks--;
+        if(st->wait_ticks == 0) enter_trick_play(st, io);
+        break;
+
     case PhaseBidding:
         if(st->game.turn != 0) {
             if(st->wait_ticks > 0) st->wait_ticks--;
@@ -577,7 +595,7 @@ void gj_shell_tick(GjApp* st, const GjShellIo* io) {
                 gj_place_bid(&st->game, seat, (uint8_t)b);
                 refresh_cache(st);
                 if(gj_bidding_done(&st->game)) {
-                    enter_trick_play(st, io);
+                    enter_lead_intro(st);
                 } else if(st->game.turn == 0) {
                     normalize_bid_sel(st);
                     st->wait_ticks = 0;
