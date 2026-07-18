@@ -113,7 +113,7 @@ uint16_t gj_gfx_text_width(const char* s) {
 
 void gj_gfx_text(GjGfx* g, int16_t x, int16_t y, const char* s, uint8_t color) {
     int16_t cx = x;
-    uint8_t rows[7];
+    uint8_t rows[GJ_FONT_H];
     for(const char* p = s; *p; p++) {
         gj_font_glyph(*p, rows);
         for(int r = 0; r < GJ_FONT_H; r++) {
@@ -130,12 +130,12 @@ uint16_t gj_gfx_text_big_width(const char* s) {
     uint16_t n = 0;
     for(const char* p = s; *p; p++) n++;
     if(n == 0) return 0;
-    return (uint16_t)(n * 12 - 2); /* 10px glyph + 2px gap, drop trailing */
+    return (uint16_t)(n * (GJ_FONT_ADV * 2) - 2); /* 6px glyph + 2px gap, drop trailing */
 }
 
 void gj_gfx_text_big(GjGfx* g, int16_t x, int16_t y, const char* s, uint8_t color) {
     int16_t cx = x;
-    uint8_t rows[7];
+    uint8_t rows[GJ_FONT_H];
     for(const char* p = s; *p; p++) {
         gj_font_glyph(*p, rows);
         for(int r = 0; r < GJ_FONT_H; r++) {
@@ -151,6 +151,6 @@ void gj_gfx_text_big(GjGfx* g, int16_t x, int16_t y, const char* s, uint8_t colo
                 gj_gfx_pixel(g, (int16_t)(px + 1), (int16_t)(py + 1), color);
             }
         }
-        cx = (int16_t)(cx + 12);
+        cx = (int16_t)(cx + GJ_FONT_ADV * 2);
     }
 }

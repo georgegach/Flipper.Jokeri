@@ -176,6 +176,12 @@ static void modal(GjGfx* g, int16_t x, int16_t y, int16_t w, int16_t h, const ch
 /* card faces                                                             */
 /* ===================================================================== */
 
+/* joker face: a plain big 'J' (6x10), centred in a w x h card box */
+static void joker_face(GjGfx* g, int16_t x, int16_t y, int16_t w, int16_t h, uint8_t fg) {
+    int16_t jw = (int16_t)gj_gfx_text_big_width("J");
+    gj_gfx_text_big(g, (int16_t)(x + (w - jw) / 2), (int16_t)(y + (h - 10) / 2), "J", fg);
+}
+
 /* trick mini-card slot (12x16). empty -> dotted. */
 static void minicard(GjGfx* g, int16_t x, int16_t y, GjCard c, uint8_t kind, bool inv) {
     if(c == GJ_CARD_NONE) {
@@ -190,13 +196,19 @@ static void minicard(GjGfx* g, int16_t x, int16_t y, GjCard c, uint8_t kind, boo
         gj_gfx_rframe(g, x, y, 12, 16, 1);
         fg = 1;
     }
-    const char* r = rank_str(c);
-    gj_gfx_text_center(g, (int16_t)(x + 6), (int16_t)(y + 1), r, fg);
-    pip5(g, (int16_t)(x + 3), (int16_t)(y + 9), c, fg);
+    bool marked = (kind == GjJokerUnderplay || kind == GjJokerDemandSuit ||
+                   kind == GjJokerDemandTrump);
+    if(gj_is_joker(c)) {
+        /* plain big J; hoisted to the top when a kind marker shares the box */
+        joker_face(g, x, (int16_t)(y + (marked ? -3 : 0)), 12, 16, fg);
+    } else {
+        gj_gfx_text_center(g, (int16_t)(x + 6), (int16_t)(y + 2), rank_str(c), fg);
+        pip5(g, (int16_t)(x + 3), (int16_t)(y + 9), c, fg);
+    }
     if(kind == GjJokerUnderplay)
-        tri(g, (int16_t)(x + 8), (int16_t)(y + 9), 3, fg);
-    else if(kind == GjJokerDemandSuit || kind == GjJokerDemandTrump)
-        gj_gfx_text(g, (int16_t)(x + 8), (int16_t)(y + 1), "!", fg);
+        tri(g, (int16_t)(x + 4), (int16_t)(y + 11), 3, fg);
+    else if(marked)
+        gj_gfx_text(g, (int16_t)(x + 5), (int16_t)(y + 11), "!", fg);
 }
 
 /* ===================================================================== */
@@ -352,8 +364,12 @@ static void draw_hand(GjGfx* g, const GjApp* app) {
         } else {
             gj_gfx_rframe(g, x, y, SLOT_W, 24, 1);
         }
-        gj_gfx_text_center(g, (int16_t)(x + 6), (int16_t)(y + 2), rank_str(c), fg);
-        if(sel || !illegal) pip5(g, (int16_t)(x + 3), (int16_t)(y + 14), c, fg);
+        if(gj_is_joker(c)) {
+            joker_face(g, x, y, SLOT_W, 24, fg);
+        } else {
+            gj_gfx_text_center(g, (int16_t)(x + 6), (int16_t)(y + 3), rank_str(c), fg);
+            if(sel || !illegal) pip5(g, (int16_t)(x + 3), (int16_t)(y + 14), c, fg);
+        }
     }
     /* overflow arrows, vertically centred on the hand row */
     if(win > 0) tri(g, 1, (int16_t)(HAND_Y + 9), 1, 1);
