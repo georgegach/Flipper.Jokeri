@@ -619,10 +619,8 @@ void gj_shell_tick(GjApp* st, const GjShellIo* io) {
         }
         break;
 
-    case PhaseStageIntro:
-        if(st->wait_ticks > 0) st->wait_ticks--;
-        if(st->wait_ticks == 0) stage_intro_advance(st);
-        break;
+    /* StageIntro / TrumpReveal / LeadIntro / TrickResult no longer auto-advance
+     * — they hold until the player presses OK (see gj_shell_input). */
 
     case PhaseTrumpSelect:
         if(gj_trump_namer(&st->game) != 0) { /* bot namer */
@@ -636,16 +634,6 @@ void gj_shell_tick(GjApp* st, const GjShellIo* io) {
                 refresh_cache(st);
             }
         }
-        break;
-
-    case PhaseTrumpReveal:
-        if(st->wait_ticks > 0) st->wait_ticks--;
-        if(st->wait_ticks == 0) enter_bidding(st, io);
-        break;
-
-    case PhaseLeadIntro:
-        if(st->wait_ticks > 0) st->wait_ticks--;
-        if(st->wait_ticks == 0) enter_trick_play(st, io);
         break;
 
     case PhaseBidding:
@@ -693,12 +681,7 @@ void gj_shell_tick(GjApp* st, const GjShellIo* io) {
         }
         break;
 
-    case PhaseTrickResult:
-        if(st->wait_ticks > 0) st->wait_ticks--;
-        if(st->wait_ticks == 0) trick_result_advance(st, io);
-        break;
-
-    default: /* Menu / TrumpSelect(human) / DealScore / Standings / etc. */
+    default: /* Menu / TrumpSelect(human) / DealScore / Standings / intros / etc. */
         break;
     }
 }

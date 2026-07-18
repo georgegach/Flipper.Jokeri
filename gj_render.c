@@ -124,6 +124,7 @@ static const T7Glyph T7[] = {
     {'-', 3, {0x00, 0x00, 0x00, 0x07, 0x00, 0x00, 0x00}},
     {'A', 5, {0x0E, 0x11, 0x11, 0x1F, 0x11, 0x11, 0x11}},
     {'B', 5, {0x0F, 0x11, 0x11, 0x0F, 0x11, 0x11, 0x0F}},
+    {'C', 5, {0x0E, 0x11, 0x01, 0x01, 0x01, 0x11, 0x0E}},
     {'D', 5, {0x0F, 0x11, 0x11, 0x11, 0x11, 0x11, 0x0F}},
     {'E', 5, {0x1F, 0x01, 0x01, 0x0F, 0x01, 0x01, 0x1F}},
     {'G', 5, {0x0E, 0x11, 0x01, 0x1D, 0x11, 0x11, 0x0E}},
@@ -131,8 +132,10 @@ static const T7Glyph T7[] = {
     {'I', 5, {0x1F, 0x04, 0x04, 0x04, 0x04, 0x04, 0x1F}},
     {'J', 5, {0x10, 0x10, 0x10, 0x10, 0x10, 0x11, 0x0E}},
     {'K', 5, {0x11, 0x09, 0x05, 0x03, 0x05, 0x09, 0x11}},
+    {'L', 5, {0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x1F}},
     {'N', 5, {0x11, 0x11, 0x13, 0x15, 0x19, 0x11, 0x11}},
     {'O', 5, {0x0E, 0x11, 0x11, 0x11, 0x11, 0x11, 0x0E}},
+    {'P', 5, {0x0F, 0x11, 0x11, 0x0F, 0x01, 0x01, 0x01}},
     {'Q', 5, {0x0E, 0x11, 0x11, 0x11, 0x15, 0x09, 0x16}},
     {'R', 5, {0x0F, 0x11, 0x11, 0x0F, 0x05, 0x09, 0x11}},
     {'S', 5, {0x0E, 0x11, 0x01, 0x0E, 0x10, 0x11, 0x0E}},
@@ -297,15 +300,15 @@ static void minicard(GjGfx* g, int16_t x, int16_t y, GjCard c, uint8_t kind, boo
 static const uint8_t SLOT_X[4] = {27, 12, 27, 42};
 static const uint8_t SLOT_Y[4] = {61, 48, 35, 48};
 
-/* append "bid:taken" (bid '-' when unbid) to buf */
+/* append "taken:bid" (bid '-' when unbid) to buf */
 static void bt_pair(char* buf, int8_t bid, uint8_t taken) {
     char num[6];
+    scat(buf, u2s(taken, num));
+    scat(buf, ":");
     if(bid < 0)
         scat(buf, "-");
     else
         scat(buf, i2s(bid, num));
-    scat(buf, ":");
-    scat(buf, u2s(taken, num));
 }
 
 /* top status bar (no rule underneath): opponents W/N/E as 5x7 labels with
@@ -405,6 +408,10 @@ static void draw_hand(GjGfx* g, const GjApp* app) {
             y -= 5;
             gj_gfx_rrect(g, x, y, CARD_W, CARD_H, 1);
             fg = 0;
+            /* the lifted card pierces the table edge (y105): clear 1px either
+             * side so the line breaks cleanly at the card instead of fusing */
+            gj_gfx_pixel(g, (int16_t)(x - 1), 105, 0);
+            gj_gfx_pixel(g, (int16_t)(x + CARD_W), 105, 0);
         } else if(illegal) {
             gj_gfx_dotted_rframe(g, x, y, CARD_W, CARD_H);
         } else {
@@ -586,36 +593,35 @@ static void draw_splash(GjGfx* g, const GjApp* app) {
 }
 
 static void draw_menu(GjGfx* g, const GjApp* app) {
-    /* logo pip row */
-    gj_gfx_xbm(g, 6, 6, 7, 7, jo7, 1);
-    gj_gfx_text(g, 16, 4, "GEORGIAN", 1);
-    gj_gfx_text(g, 16, 12, "JOKER", 1);
-    gj_gfx_hline(g, 0, 22, GJ_FB_W, 1);
+    /* logo pip row (menu text in the crafted 5x7 table font, uppercase) */
+    gj_gfx_xbm(g, 4, 5, 7, 7, jo7, 1);
+    t7_text(g, 14, 5, "GEORGIAN", 1);
+    t7_text(g, 14, 14, "JOKER", 1);
+    gj_gfx_hline(g, 0, 24, GJ_FB_W, 1);
 
     const char* labels[3];
     uint8_t n = 0;
     char cont[16], num[6];
     if(app->save_available) {
         cont[0] = 0;
-        scat(cont, "Cont d");
+        scat(cont, "CONT D");
         scat(cont, u2s((uint16_t)(app->game.deal_index + 1), num));
         labels[n++] = cont;
     }
-    labels[n++] = "New Pulka";
-    labels[n++] = "About";
+    labels[n++] = "NEW PULKA";
+    labels[n++] = "ABOUT";
     for(uint8_t i = 0; i < n; i++) {
-        int16_t y = (int16_t)(30 + i * 14);
-        /* centered so "New Pulka" (53px) fits the 56px pill; the inverted
-         * pill alone marks selection (a chevron would collide with text) */
+        int16_t y = (int16_t)(34 + i * 15);
+        /* centered in the pill; the inverted pill alone marks selection */
         if(app->menu_sel == i) {
-            gj_gfx_rrect(g, 4, y, 56, 12, 1);
-            gj_gfx_text_center(g, 32, (int16_t)(y + 2), labels[i], 0);
+            gj_gfx_rrect(g, 2, y, 60, 13, 1);
+            t7_center(g, 32, (int16_t)(y + 3), labels[i], 0);
         } else {
-            gj_gfx_text_center(g, 32, (int16_t)(y + 2), labels[i], 1);
+            t7_center(g, 32, (int16_t)(y + 3), labels[i], 1);
         }
     }
     gj_gfx_hline(g, 0, 116, GJ_FB_W, 1);
-    gj_gfx_text_center(g, 32, 119, "OK SELECT", 1);
+    t7_center(g, 32, 119, "OK SELECT", 1);
 }
 
 static void draw_stage_rail(GjGfx* g, int16_t y, uint8_t stage) {
@@ -669,12 +675,10 @@ static void draw_trump_reveal(GjGfx* g, const GjApp* app) {
     gj_gfx_text_center(g, 32, 8, "TRUMP", 1);
     gj_gfx_hline(g, 8, 18, 48, 1);
     if(gm->trump_suit == GJ_NO_TRUMP) {
-        gj_gfx_dotted_rframe(g, 15, 25, 34, 34);
         gj_gfx_rframe(g, 20, 30, 24, 24, 1);
         gj_gfx_xbm(g, 28, 38, 7, 7, nt7, 1);
         gj_gfx_text_center(g, 32, 62, "NO TRUMP", 1);
     } else if(gm->trump_suit < 4) {
-        gj_gfx_dotted_rframe(g, 15, 23, 34, 44);
         if(gm->trump_card != GJ_CARD_NONE && !gj_is_joker(gm->trump_card))
             big_card(g, 20, 28, gm->trump_card);
         else {
