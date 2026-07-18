@@ -60,13 +60,13 @@ static const char* rank_str(GjCard c) {
 static const char* seat_name(uint8_t s) {
     switch(s & 3u) {
     case 0:
-        return "You";
+        return "YOU";
     case 1:
-        return "West";
+        return "WEST";
     case 2:
-        return "North";
+        return "NORTH";
     default:
-        return "East";
+        return "EAST";
     }
 }
 
@@ -122,17 +122,28 @@ static const T7Glyph T7[] = {
     {'9', 5, {0x0E, 0x11, 0x11, 0x1E, 0x10, 0x10, 0x0E}},
     {':', 1, {0x00, 0x00, 0x01, 0x00, 0x00, 0x01, 0x00}},
     {'-', 3, {0x00, 0x00, 0x00, 0x07, 0x00, 0x00, 0x00}},
+    {'.', 1, {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01}},
+    {'/', 5, {0x10, 0x10, 0x08, 0x04, 0x02, 0x01, 0x01}},
+    {'+', 5, {0x00, 0x04, 0x04, 0x1F, 0x04, 0x04, 0x00}},
+    {'?', 5, {0x0E, 0x11, 0x10, 0x08, 0x04, 0x00, 0x04}},
+    {'!', 1, {0x01, 0x01, 0x01, 0x01, 0x01, 0x00, 0x01}},
+    {'^', 5, {0x04, 0x0A, 0x11, 0x00, 0x00, 0x00, 0x00}},
+    {'v', 5, {0x00, 0x00, 0x00, 0x00, 0x11, 0x0A, 0x04}}, /* down chevron */
+    {'<', 5, {0x08, 0x04, 0x02, 0x01, 0x02, 0x04, 0x08}},
+    {'>', 5, {0x02, 0x04, 0x08, 0x10, 0x08, 0x04, 0x02}},
     {'A', 5, {0x0E, 0x11, 0x11, 0x1F, 0x11, 0x11, 0x11}},
     {'B', 5, {0x0F, 0x11, 0x11, 0x0F, 0x11, 0x11, 0x0F}},
     {'C', 5, {0x0E, 0x11, 0x01, 0x01, 0x01, 0x11, 0x0E}},
     {'D', 5, {0x0F, 0x11, 0x11, 0x11, 0x11, 0x11, 0x0F}},
     {'E', 5, {0x1F, 0x01, 0x01, 0x0F, 0x01, 0x01, 0x1F}},
+    {'F', 5, {0x1F, 0x01, 0x01, 0x0F, 0x01, 0x01, 0x01}},
     {'G', 5, {0x0E, 0x11, 0x01, 0x1D, 0x11, 0x11, 0x0E}},
     {'H', 5, {0x11, 0x11, 0x11, 0x1F, 0x11, 0x11, 0x11}},
     {'I', 5, {0x1F, 0x04, 0x04, 0x04, 0x04, 0x04, 0x1F}},
     {'J', 5, {0x10, 0x10, 0x10, 0x10, 0x10, 0x11, 0x0E}},
     {'K', 5, {0x11, 0x09, 0x05, 0x03, 0x05, 0x09, 0x11}},
     {'L', 5, {0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x1F}},
+    {'M', 5, {0x11, 0x1B, 0x15, 0x15, 0x11, 0x11, 0x11}},
     {'N', 5, {0x11, 0x11, 0x13, 0x15, 0x19, 0x11, 0x11}},
     {'O', 5, {0x0E, 0x11, 0x11, 0x11, 0x11, 0x11, 0x0E}},
     {'P', 5, {0x0F, 0x11, 0x11, 0x0F, 0x01, 0x01, 0x01}},
@@ -141,8 +152,11 @@ static const T7Glyph T7[] = {
     {'S', 5, {0x0E, 0x11, 0x01, 0x0E, 0x10, 0x11, 0x0E}},
     {'T', 5, {0x1F, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04}},
     {'U', 5, {0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x0E}},
+    {'V', 5, {0x11, 0x11, 0x11, 0x11, 0x11, 0x0A, 0x04}},
     {'W', 7, {0x49, 0x49, 0x49, 0x49, 0x49, 0x49, 0x36}},
+    {'X', 5, {0x11, 0x11, 0x0A, 0x04, 0x0A, 0x11, 0x11}},
     {'Y', 5, {0x11, 0x11, 0x0A, 0x04, 0x04, 0x04, 0x04}},
+    {'Z', 5, {0x1F, 0x10, 0x08, 0x04, 0x02, 0x01, 0x1F}},
 };
 
 static const T7Glyph* t7_find(char ch) {
@@ -220,7 +234,7 @@ static void modal(GjGfx* g, int16_t x, int16_t y, int16_t w, int16_t h, const ch
     gj_gfx_rrect(g, x, y, w, h, 0); /* clear */
     gj_gfx_rframe(g, x, y, w, h, 1);
     gj_gfx_rect(g, (int16_t)(x + 1), (int16_t)(y + 1), (int16_t)(w - 2), 9, 1);
-    gj_gfx_text_center(g, (int16_t)(x + w / 2), (int16_t)(y + 2), title, 0);
+    t7_center(g, (int16_t)(x + w / 2), (int16_t)(y + 1), title, 0);
 }
 
 /* ===================================================================== */
@@ -312,8 +326,7 @@ static void bt_pair(char* buf, int8_t bid, uint8_t taken) {
 }
 
 /* top status bar (no rule underneath): opponents W/N/E as 5x7 labels with
- * their bid:taken pair beneath. Acting seat gets an inverted label pill;
- * the dealer gets a 2px dot left of its label. */
+ * their taken:bid pair beneath, and a 2px dealer dot centred under the pair. */
 static void draw_top_bar(GjGfx* g, const GjApp* app) {
     const GjGame* gm = &app->game;
     static const uint8_t COL[3] = {12, 32, 52}; /* column centres for W,N,E */
@@ -326,11 +339,11 @@ static void draw_top_bar(GjGfx* g, const GjApp* app) {
                       !gj_trick_complete(gm) && gm->turn == s;
         if(acting) gj_gfx_rrect(g, (int16_t)(cx - 5), 0, 11, 9, 1);
         t7_center(g, cx, 1, LBL[i], (uint8_t)(acting ? 0 : 1));
-        if(gm->dealer == s) gj_gfx_rect(g, (int16_t)(cx - 9), 3, 2, 2, 1);
         char pair[8];
         pair[0] = 0;
         bt_pair(pair, gm->bids[s], gm->tricks_taken[s]);
         t7_center(g, cx, 10, pair, 1);
+        if(gm->dealer == s) gj_gfx_rect(g, (int16_t)(cx - 1), 18, 2, 2, 1);
     }
 }
 
@@ -350,13 +363,14 @@ static void draw_bottom_row(GjGfx* g, const GjApp* app) {
         }
     } /* GJ_SUIT_NONE -> nothing */
 
-    /* right: your bid:taken, dealer dot leading when you deal */
+    /* right: your taken:bid, dealer dot centred beneath it when you deal */
     char own[8];
     own[0] = 0;
     bt_pair(own, gm->bids[0], gm->tricks_taken[0]);
-    int16_t tx = (int16_t)(61 - (int16_t)t7_width(own));
+    int16_t ow = (int16_t)t7_width(own);
+    int16_t tx = (int16_t)(61 - ow);
     t7_text(g, tx, 94, own, 1);
-    if(gm->dealer == 0) gj_gfx_rect(g, (int16_t)(tx - 5), 96, 2, 2, 1);
+    if(gm->dealer == 0) gj_gfx_rect(g, (int16_t)(tx + ow / 2 - 1), 102, 2, 2, 1);
 }
 
 static void draw_hand(GjGfx* g, const GjApp* app) {
@@ -373,10 +387,10 @@ static void draw_hand(GjGfx* g, const GjApp* app) {
             gj_gfx_rframe(g, x, HAND_Y, CARD_W, CARD_H, 1);
             hatch(g, (int16_t)(x + 1), (int16_t)(HAND_Y + 1), 9, 18);
         }
-        int16_t bw = (int16_t)(gj_gfx_text_width("BLIND") + 8);
+        int16_t bw = (int16_t)(t7_width("BLIND") + 8);
         int16_t bx = (int16_t)((GJ_FB_W - bw) / 2);
-        gj_gfx_rrect(g, bx, (int16_t)(HAND_Y + 5), bw, 11, 1);
-        gj_gfx_text_center(g, 32, (int16_t)(HAND_Y + 7), "BLIND", 0);
+        gj_gfx_rrect(g, bx, (int16_t)(HAND_Y + 4), bw, 11, 1);
+        t7_center(g, 32, (int16_t)(HAND_Y + 6), "BLIND", 0);
         return;
     }
     if(n == 0) return;
@@ -451,7 +465,7 @@ static void draw_bid_inline(GjGfx* g, const GjApp* app) {
         tri(g, 15, 45, 1, 1);
         tri(g, 46, 45, 0, 1);
     }
-    t7_center(g, 32, 56, legal ? "OK SET" : "KHISHTI", 1);
+    if(!legal) t7_center(g, 32, 56, "KHISHTI", 1); /* forbidden bid warning */
     if(focus_bid) tri(g, 30, 70, 3, 1); /* down = count your hand */
 }
 
@@ -499,29 +513,29 @@ static void draw_joker_menu(GjGfx* g, const GjApp* app) {
     const char* rows[3];
     uint8_t n = 0;
     if(leading) {
-        rows[n++] = "Demand suit";
-        if(gm->trump_suit < 4) rows[n++] = "Demand trmp";
-        rows[n++] = "Underplay";
+        rows[n++] = "SUIT"; /* demand named suit */
+        if(gm->trump_suit < 4) rows[n++] = "TRUMP"; /* demand highest trump */
+        rows[n++] = "UNDER"; /* underplay */
     } else {
-        rows[n++] = "Take";
-        rows[n++] = "Underplay";
+        rows[n++] = "TAKE";
+        rows[n++] = "UNDER";
     }
-    int16_t h = (int16_t)(13 + n * 11);
+    int16_t h = (int16_t)(14 + n * 12);
     int16_t y = (int16_t)(50 - h / 2);
-    modal(g, 3, y, 58, h, "PLAY JOKER");
+    modal(g, 3, y, 58, h, "JOKER");
     for(uint8_t i = 0; i < n; i++) {
-        int16_t ry = (int16_t)(y + 12 + i * 11);
+        int16_t ry = (int16_t)(y + 12 + i * 12);
         if(app->joker_sel == i) {
-            gj_gfx_rrect(g, 5, ry, 54, 10, 1);
-            gj_gfx_text(g, 8, (int16_t)(ry + 1), rows[i], 0);
+            gj_gfx_rrect(g, 5, ry, 54, 11, 1);
+            t7_text(g, 9, (int16_t)(ry + 2), rows[i], 0);
         } else {
-            gj_gfx_text(g, 8, (int16_t)(ry + 1), rows[i], 1);
+            t7_text(g, 9, (int16_t)(ry + 2), rows[i], 1);
         }
     }
 }
 
 static void draw_suit_picker(GjGfx* g, const GjApp* app) {
-    modal(g, 4, 44, 56, 30, "DEMAND SUIT");
+    modal(g, 4, 44, 56, 30, "SUIT?");
     static const uint8_t ox[4] = {10, 22, 34, 46};
     uint8_t sel = app->suit_sel & 3u;
     for(uint8_t i = 0; i < 4; i++) {
@@ -588,8 +602,8 @@ static void draw_splash(GjGfx* g, const GjApp* app) {
         else
             gj_gfx_frame(g, dx, 74, 4, 4, 1);
     }
-    gj_gfx_text_center(g, 32, 108, "v0.2", 1);
-    gj_gfx_text_center(g, 32, 118, "agentic.ge", 1);
+    t7_center(g, 32, 106, "V0.2", 1);
+    t7_center(g, 32, 118, "AGENTIC.GE", 1);
 }
 
 static void draw_menu(GjGfx* g, const GjApp* app) {
@@ -644,20 +658,20 @@ static void draw_stage_intro(GjGfx* g, const GjApp* app) {
     scat(buf, "DEAL ");
     scat(buf, u2s((uint16_t)(gm->deal_index + 1), num));
     scat(buf, "/24");
-    gj_gfx_text_center(g, 32, 14, buf, 1);
+    t7_center(g, 32, 14, buf, 1);
     int16_t tw = (int16_t)gj_gfx_text_big_width(STAGE_NAMES[stage]);
     gj_gfx_text_big(g, (int16_t)(32 - tw / 2), 34, STAGE_NAMES[stage], 1);
     draw_stage_rail(g, 58, stage);
     buf[0] = 0;
     scat(buf, u2s(gj_deal_cards_for(gm->deal_index), num));
     scat(buf, " CARDS");
-    gj_gfx_text_center(g, 32, 72, buf, 1);
+    t7_center(g, 32, 72, buf, 1);
     buf[0] = 0;
     scat(buf, "DEAL ");
     scat(buf, seat_name(gm->dealer));
-    gj_gfx_text_center(g, 32, 84, buf, 1);
-    gj_gfx_hline(g, 0, 116, GJ_FB_W, 1);
-    gj_gfx_text_center(g, 32, 119, "OK NEXT", 1);
+    t7_center(g, 32, 84, buf, 1);
+    gj_gfx_hline(g, 0, 114, GJ_FB_W, 1);
+    t7_center(g, 32, 118, "OK NEXT", 1);
 }
 
 /* one large card ~24x34 (trump reveal) */
@@ -672,12 +686,12 @@ static void big_card(GjGfx* g, int16_t x, int16_t y, GjCard c) {
 
 static void draw_trump_reveal(GjGfx* g, const GjApp* app) {
     const GjGame* gm = &app->game;
-    gj_gfx_text_center(g, 32, 8, "TRUMP", 1);
+    t7_center(g, 32, 6, "TRUMP", 1);
     gj_gfx_hline(g, 8, 18, 48, 1);
     if(gm->trump_suit == GJ_NO_TRUMP) {
         gj_gfx_rframe(g, 20, 30, 24, 24, 1);
         gj_gfx_xbm(g, 28, 38, 7, 7, nt7, 1);
-        gj_gfx_text_center(g, 32, 62, "NO TRUMP", 1);
+        t7_center(g, 32, 62, "NO TRUMP", 1);
     } else if(gm->trump_suit < 4) {
         if(gm->trump_card != GJ_CARD_NONE && !gj_is_joker(gm->trump_card))
             big_card(g, 20, 28, gm->trump_card);
@@ -690,82 +704,80 @@ static void draw_trump_reveal(GjGfx* g, const GjApp* app) {
             b[0] = 0;
             scat(b, "BY ");
             scat(b, seat_name(gj_trump_namer(gm)));
-            gj_gfx_text_center(g, 32, 70, b, 1);
+            t7_center(g, 32, 70, b, 1);
         } else {
-            gj_gfx_text_center(g, 32, 70, "FLIPPED", 1);
+            t7_center(g, 32, 70, "FLIPPED", 1);
         }
     }
-    gj_gfx_hline(g, 0, 116, GJ_FB_W, 1);
-    gj_gfx_text_center(g, 32, 119, "OK", 1);
+    gj_gfx_hline(g, 0, 114, GJ_FB_W, 1);
+    t7_center(g, 32, 118, "OK", 1);
 }
 
 static void draw_trump_select(GjGfx* g, const GjApp* app) {
     const GjGame* gm = &app->game;
-    gj_gfx_text_center(g, 32, 6, "CHOOSE TRUMP", 1);
+    t7_center(g, 32, 4, "PICK TRUMP", 1);
     gj_gfx_hline(g, 4, 16, 56, 1);
     bool blind = gj_deal_is_blind(gm->deal_index);
     uint8_t namer = gj_trump_namer(gm);
     if(blind) {
-        gj_gfx_rrect(g, 10, 26, 44, 16, 1);
-        gj_gfx_text_center(g, 32, 30, "BLIND", 0);
+        gj_gfx_rrect(g, 10, 26, 44, 13, 1);
+        t7_center(g, 32, 29, "BLIND", 0);
     } else if(namer == 0) {
         uint8_t shown = gm->hands[0].count < 3 ? gm->hands[0].count : 3;
         for(uint8_t i = 0; i < shown; i++)
             minicard(g, (int16_t)(8 + i * 16), 26, gm->hands[0].cards[i], GjPlayNormal, false);
-        gj_gfx_text_center(g, 32, 49, "3-CARD PEEK", 1);
+        t7_center(g, 32, 50, "PEEK", 1);
     } else {
         char b[20];
         b[0] = 0;
         scat(b, seat_name(namer));
         scat(b, " PICKS");
-        gj_gfx_text_center(g, 32, 34, b, 1);
+        t7_center(g, 32, 34, b, 1);
     }
     /* picker: 4 suits + NT, selected framed */
     static const uint8_t ox[5] = {4, 16, 28, 40, 52};
-    int16_t y = 90;
+    int16_t y = 88;
     uint8_t sel = app->trump_sel > 4 ? 4 : app->trump_sel;
     for(uint8_t i = 0; i < 4; i++) {
         if(i == sel) gj_gfx_rframe(g, (int16_t)(ox[i] - 2), (int16_t)(y - 2), 11, 11, 1);
         pip7(g, (int16_t)ox[i], y, (GjCard)(i * 9 + 3), 1);
     }
     if(sel == 4) gj_gfx_rframe(g, (int16_t)(ox[4] - 2), (int16_t)(y - 2), 13, 11, 1);
-    gj_gfx_text(g, (int16_t)ox[4], (int16_t)(y + 1), "NT", 1);
-    gj_gfx_hline(g, 0, 116, GJ_FB_W, 1);
-    gj_gfx_text_center(g, 32, 119, blind || namer != 0 ? "WAIT" : "OK SET", 1);
+    t7_text(g, (int16_t)ox[4], (int16_t)(y + 1), "NT", 1);
+    gj_gfx_hline(g, 0, 114, GJ_FB_W, 1);
+    if(blind || namer != 0) t7_center(g, 32, 118, "WAIT", 1);
 }
 
 static void draw_deal_score(GjGfx* g, const GjApp* app) {
     const GjGame* gm = &app->game;
     uint8_t done = gm->deal_index ? (uint8_t)(gm->deal_index - 1) : 0;
-    gj_gfx_text_center(g, 32, 4, "DEAL RESULT", 1);
+    static const char* const INIT[4] = {"Y", "W", "N", "E"};
+    t7_center(g, 32, 3, "RESULT", 1);
     gj_gfx_hline(g, 0, 13, GJ_FB_W, 1);
     for(uint8_t s = 0; s < GJ_PLAYERS; s++) {
-        int16_t y = (int16_t)(17 + s * 12);
+        int16_t y = (int16_t)(17 + s * 13);
         bool made = gm->bids[s] == (int8_t)gm->tricks_taken[s];
         uint8_t fg = 1;
         if(s == 0) {
             gj_gfx_rrect(g, 0, (int16_t)(y - 1), GJ_FB_W, 11, 1);
             fg = 0;
         }
-        char row[20], num[6];
-        row[0] = made ? '+' : 'x';
-        row[1] = ' ';
-        row[2] = 0;
-        scat(row, seat_name(s));
-        gj_gfx_text(g, 2, y, row, fg);
-        /* bid/took */
-        row[0] = 0;
-        scat(row, i2s(gm->bids[s], num));
-        scat(row, "/");
-        scat(row, u2s(gm->tricks_taken[s], num));
-        gj_gfx_text(g, 38, y, row, fg);
-        /* points */
+        char cell[8], num[6];
+        t7_text(g, 2, y, INIT[s], fg); /* seat initial */
+        /* taken:bid */
+        cell[0] = 0;
+        scat(cell, u2s(gm->tricks_taken[s], num));
+        scat(cell, ":");
+        scat(cell, i2s(gm->bids[s], num));
+        t7_text(g, 10, y, cell, fg);
+        t7_text(g, 30, y, made ? "+" : "X", fg); /* made / missed */
+        /* points, right-aligned */
         i2s(gm->deal_scores[done][s], num);
-        gj_gfx_text(g, (int16_t)(62 - gj_gfx_text_width(num)), y, num, fg);
+        t7_text(g, (int16_t)(62 - (int16_t)t7_width(num)), y, num, fg);
     }
-    gj_gfx_hline(g, 0, 104, GJ_FB_W, 1);
-    gj_gfx_text_center(g, 32, 107, "OK NEXT", 1);
-    gj_gfx_text_center(g, 32, 117, "^ TABLE", 1);
+    gj_gfx_hline(g, 0, 103, GJ_FB_W, 1);
+    t7_center(g, 32, 106, "OK NEXT", 1);
+    t7_center(g, 32, 118, "^ TABLE", 1);
 }
 
 /* standings row label A1..A8 N1..N4 D8..D1 B1..B4 */
@@ -870,7 +882,7 @@ static void draw_game_over(GjGfx* g, const GjApp* app) {
                 order[j] = order[j + 1];
                 order[j + 1] = t;
             }
-    gj_gfx_text_center(g, 32, 4, "PULKA DONE", 1);
+    t7_center(g, 32, 3, "PULKA DONE", 1);
     gj_gfx_hline(g, 0, 13, GJ_FB_W, 1);
     for(uint8_t i = 0; i < GJ_PLAYERS; i++) {
         uint8_t s = order[i];
@@ -880,64 +892,69 @@ static void draw_game_over(GjGfx* g, const GjApp* app) {
         if(win) {
             gj_gfx_rrect(g, 2, (int16_t)(y - 1), 60, 12, 1);
             fg = 0;
-            gj_gfx_xbm(g, 5, (int16_t)(y + 2), 7, 5, crown7, 0);
+            gj_gfx_xbm(g, 3, (int16_t)(y + 2), 7, 5, crown7, 0);
+        } else {
+            char rk[2];
+            rk[0] = (char)('1' + i);
+            rk[1] = 0;
+            t7_text(g, 3, (int16_t)(y + 1), rk, fg);
         }
-        char row[16], num[6];
-        row[0] = (char)('1' + i);
-        row[1] = ' ';
-        row[2] = 0;
-        scat(row, seat_name(s));
-        gj_gfx_text(g, win ? 14 : 4, (int16_t)(y + 1), row, fg);
+        char num[6];
+        t7_text(g, 12, (int16_t)(y + 1), seat_name(s), fg);
         i2s(gm->totals[s], num);
-        gj_gfx_text(g, (int16_t)(62 - gj_gfx_text_width(num)), (int16_t)(y + 1), num, fg);
+        t7_text(g, (int16_t)(61 - (int16_t)t7_width(num)), (int16_t)(y + 1), num, fg);
     }
-    gj_gfx_hline(g, 0, 116, GJ_FB_W, 1);
-    gj_gfx_text_center(g, 32, 119, "OK MENU", 1);
+    gj_gfx_hline(g, 0, 114, GJ_FB_W, 1);
+    t7_center(g, 32, 118, "OK MENU", 1);
 }
 
 static void draw_about(GjGfx* g) {
-    gj_gfx_xbm(g, 6, 5, 7, 7, jo7, 1);
-    gj_gfx_text(g, 16, 5, "JOKERI", 1);
+    gj_gfx_xbm(g, 4, 5, 7, 7, jo7, 1);
+    t7_text(g, 14, 5, "JOKERI", 1);
+    t7_text(g, 44, 5, "V0.2", 1);
     gj_gfx_hline(g, 0, 16, GJ_FB_W, 1);
-    gj_gfx_text(g, 2, 22, "v0.2", 1);
-    gj_gfx_text(g, 2, 34, "24-deal pulka", 1);
-    gj_gfx_hline(g, 2, 46, 60, 1);
-    gj_gfx_text(g, 2, 50, "< > select", 1);
-    gj_gfx_text(g, 2, 60, "OK  play", 1);
-    gj_gfx_text(g, 2, 70, "^   table", 1);
-    gj_gfx_text(g, 2, 80, "back pause", 1);
-    gj_gfx_hline(g, 2, 92, 60, 1);
-    gj_gfx_text(g, 2, 96, "chart: <> pans", 1);
-    gj_gfx_text(g, 2, 106, "^v scrolls", 1);
-    gj_gfx_text_center(g, 32, 119, "agentic.ge", 1);
+    /* controls: icon column + short label */
+    t7_text(g, 2, 22, "<>", 1);
+    t7_text(g, 20, 22, "SELECT", 1);
+    t7_text(g, 2, 34, "OK", 1);
+    t7_text(g, 20, 34, "PLAY", 1);
+    t7_text(g, 2, 46, "^", 1);
+    t7_text(g, 20, 46, "TABLE", 1);
+    t7_text(g, 2, 58, "BACK", 1);
+    t7_text(g, 30, 58, "PAUSE", 1);
+    gj_gfx_hline(g, 2, 72, 60, 1);
+    t7_text(g, 2, 78, "CHART:", 1);
+    t7_text(g, 2, 90, "<> SEATS", 1);
+    t7_text(g, 2, 100, "^v DEALS", 1);
+    t7_center(g, 32, 118, "AGENTIC.GE", 1);
 }
 
 /* Back-button popup during play: Resume / Chart / Exit */
 static void draw_pause_menu(GjGfx* g, const GjApp* app) {
-    static const char* const rows[3] = {"Resume", "Chart", "Exit"};
-    modal(g, 8, 40, 48, 48, "PAUSED");
+    static const char* const rows[3] = {"RESUME", "CHART", "EXIT"};
+    modal(g, 8, 38, 48, 52, "PAUSED");
     for(uint8_t i = 0; i < 3; i++) {
-        int16_t ry = (int16_t)(52 + i * 11);
+        int16_t ry = (int16_t)(51 + i * 12);
         if(app->pause_sel == i) {
-            gj_gfx_rrect(g, 10, ry, 44, 10, 1);
-            gj_gfx_text(g, 14, (int16_t)(ry + 3), rows[i], 0);
+            gj_gfx_rrect(g, 10, ry, 44, 11, 1);
+            t7_text(g, 15, (int16_t)(ry + 2), rows[i], 0);
         } else {
-            gj_gfx_text(g, 14, (int16_t)(ry + 3), rows[i], 1);
+            t7_text(g, 15, (int16_t)(ry + 2), rows[i], 1);
         }
     }
 }
 
 static void draw_confirm(GjGfx* g, const GjApp* app) {
-    modal(g, 6, 46, 52, 36, "LEAVE?");
-    gj_gfx_text_center(g, 32, 60, "saved", 1);
+    modal(g, 4, 44, 56, 40, "LEAVE?");
+    t7_center(g, 32, 57, "SAVED", 1);
     if(app->confirm_sel == 0) {
-        gj_gfx_rrect(g, 10, 70, 20, 10, 1);
-        gj_gfx_text(g, 14, 71, "SAVE", 0);
-        gj_gfx_text(g, 38, 71, "STAY", 1);
+        gj_gfx_rrect(g, 6, 70, 26, 11, 1);
+        t7_text(g, 8, (int16_t)(72), "SAVE", 0);
+        t7_text(g, 36, (int16_t)(72), "STAY", 1);
     } else {
-        gj_gfx_text(g, 12, 71, "SAVE", 1);
-        gj_gfx_rrect(g, 34, 70, 20, 10, 1);
-        gj_gfx_text(g, 38, 71, "STAY", 0);
+        t7_text(g, 8, (int16_t)(72), "SAVE", 1);
+        gj_gfx_rrect(g, 33, 70, 26, 11, 1);
+        t7_text(g, 36, (int16_t)(72), "STAY", 0);
     }
 }
 
@@ -950,7 +967,7 @@ static void draw_lead_intro(GjGfx* g, const GjApp* app) {
     const char* verb = (ld == 0) ? "START" : "STARTS";
     int16_t nw = (int16_t)gj_gfx_text_big_width(nm);
     gj_gfx_text_big(g, (int16_t)(32 - nw / 2), 38, nm, 1);
-    gj_gfx_text_center(g, 32, 60, verb, 1);
+    t7_center(g, 32, 60, verb, 1);
     /* turn triangle pointing at that seat's table position */
     uint8_t dir = (ld == 2) ? 3 : (ld == 0) ? 2 : (ld == 1) ? 0 : 1;
     tri(g, 30, 72, dir, 1);
@@ -962,9 +979,9 @@ static void draw_lead_intro(GjGfx* g, const GjApp* app) {
         scat(buf, "-");
     else
         scat(buf, i2s(gm->bids[0], num));
-    gj_gfx_text_center(g, 32, 90, buf, 1);
-    gj_gfx_hline(g, 0, 116, GJ_FB_W, 1);
-    gj_gfx_text_center(g, 32, 119, "OK", 1);
+    t7_center(g, 32, 90, buf, 1);
+    gj_gfx_hline(g, 0, 114, GJ_FB_W, 1);
+    t7_center(g, 32, 118, "OK", 1);
 }
 
 /* ===================================================================== */
