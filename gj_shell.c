@@ -164,6 +164,7 @@ static void stage_intro_advance(GjApp* st) {
 static void enter_bidding(GjApp* st, const GjShellIo* io) {
     st->phase = PhaseBidding;
     st->bid_sel = 0;
+    st->bid_focus = 0; /* start on the selector */
     if(st->game.turn == 0) {
         normalize_bid_sel(st);
         st->wait_ticks = 0;
@@ -286,6 +287,7 @@ static void menu_continue(GjApp* st, const GjShellIo* io) {
 
     if(st->phase == PhaseBidding || st->phase == PhaseTrickPlay) {
         if(st->phase == PhaseBidding && st->game.turn == 0) normalize_bid_sel(st);
+        st->bid_focus = 0;
         st->wait_ticks = (st->game.turn != 0) ? pace_ticks(io) : 0;
     } else if(st->phase == PhaseTrumpSelect) {
         st->wait_ticks = (gj_trump_namer(&st->game) != 0) ? 24 : 0;
@@ -479,15 +481,33 @@ void gj_shell_input(GjApp* st, const GjShellIo* io, GjKey key) {
             break; /* bot's turn — driven by tick */
         }
         if(is_press) {
-            if(key == GjKeyUp || key == GjKeyRight)
-                bid_sel_step(st, +1);
-            else if(key == GjKeyDown || key == GjKeyLeft)
-                bid_sel_step(st, -1);
-            else if(key == GjKeyBack)
+            if(key == GjKeyBack) {
                 open_pause(st, PhaseBidding);
+            } else if(st->bid_focus == 0) {
+                /* selector: ◄ ► pick a value; Down dives into the hand to count */
+                if(key == GjKeyLeft)
+                    bid_sel_step(st, -1);
+                else if(key == GjKeyRight)
+                    bid_sel_step(st, +1);
+                else if(key == GjKeyDown) {
+                    st->bid_focus = 1;
+                    st->hand_sel = 0;
+                }
+            } else {
+                /* hand focus: ◄ ► scan every card (legality ignored); Up returns */
+                int n = st->game.hands[0].count;
+                if(key == GjKeyLeft && n > 0)
+                    st->hand_sel = (uint8_t)((st->hand_sel + n - 1) % n);
+                else if(key == GjKeyRight && n > 0)
+                    st->hand_sel = (uint8_t)((st->hand_sel + 1) % n);
+                else if(key == GjKeyUp)
+                    st->bid_focus = 0;
+            }
         } else if(is_ok) {
-            if(gj_bid_legal(&st->game, 0, (uint8_t)st->bid_sel) &&
-               gj_place_bid(&st->game, 0, (uint8_t)st->bid_sel)) {
+            if(st->bid_focus == 1) {
+                st->bid_focus = 0; /* OK from the hand just returns to the picker */
+            } else if(gj_bid_legal(&st->game, 0, (uint8_t)st->bid_sel) &&
+                      gj_place_bid(&st->game, 0, (uint8_t)st->bid_sel)) {
                 refresh_cache(st);
                 if(gj_bidding_done(&st->game))
                     enter_lead_intro(st);
@@ -642,6 +662,7 @@ void gj_shell_tick(GjApp* st, const GjShellIo* io) {
                     enter_lead_intro(st);
                 } else if(st->game.turn == 0) {
                     normalize_bid_sel(st);
+                    st->bid_focus = 0;
                     st->wait_ticks = 0;
                 } else {
                     st->wait_ticks = pace_ticks(io);

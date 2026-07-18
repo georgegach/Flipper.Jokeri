@@ -126,12 +126,18 @@ static const T7Glyph T7[] = {
     {'B', 5, {0x0F, 0x11, 0x11, 0x0F, 0x11, 0x11, 0x0F}},
     {'D', 5, {0x0F, 0x11, 0x11, 0x11, 0x11, 0x11, 0x0F}},
     {'E', 5, {0x1F, 0x01, 0x01, 0x0F, 0x01, 0x01, 0x1F}},
+    {'G', 5, {0x0E, 0x11, 0x01, 0x1D, 0x11, 0x11, 0x0E}},
+    {'H', 5, {0x11, 0x11, 0x11, 0x1F, 0x11, 0x11, 0x11}},
+    {'I', 5, {0x1F, 0x04, 0x04, 0x04, 0x04, 0x04, 0x1F}},
     {'J', 5, {0x10, 0x10, 0x10, 0x10, 0x10, 0x11, 0x0E}},
     {'K', 5, {0x11, 0x09, 0x05, 0x03, 0x05, 0x09, 0x11}},
     {'N', 5, {0x11, 0x11, 0x13, 0x15, 0x19, 0x11, 0x11}},
+    {'O', 5, {0x0E, 0x11, 0x11, 0x11, 0x11, 0x11, 0x0E}},
     {'Q', 5, {0x0E, 0x11, 0x11, 0x11, 0x15, 0x09, 0x16}},
+    {'R', 5, {0x0F, 0x11, 0x11, 0x0F, 0x05, 0x09, 0x11}},
     {'S', 5, {0x0E, 0x11, 0x01, 0x0E, 0x10, 0x11, 0x0E}},
     {'T', 5, {0x1F, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04}},
+    {'U', 5, {0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x0E}},
     {'W', 7, {0x49, 0x49, 0x49, 0x49, 0x49, 0x49, 0x36}},
     {'Y', 5, {0x11, 0x11, 0x0A, 0x04, 0x04, 0x04, 0x04}},
 };
@@ -390,7 +396,8 @@ static void draw_hand(GjGfx* g, const GjApp* app) {
         int16_t x = (int16_t)(k * 12);
         int16_t y = HAND_Y;
         bool sel = (app->hand_sel == i) &&
-                   (app->phase == PhaseTrickPlay || app->phase == PhaseBidding);
+                   (app->phase == PhaseTrickPlay ||
+                    (app->phase == PhaseBidding && app->bid_focus == 1));
         bool illegal = human_turn && !((legal >> i) & 1u);
         GjCard c = h->cards[i];
         uint8_t fg = 1;
@@ -411,29 +418,64 @@ static void draw_hand(GjGfx* g, const GjApp* app) {
     }
 }
 
+/* bidding, inline (no window, no dim): the centre carries the bid selector
+ * while the hand stays live below so you can dive down and count cards. When
+ * the selector has focus a ◄ number ► picker shows with a "down to count"
+ * hint; when the hand has focus the number stays for reference and an "up to
+ * pick" hint shows instead (the lifted hand card marks where focus is). */
+static void draw_bid_inline(GjGfx* g, const GjApp* app) {
+    const GjGame* gm = &app->game;
+    if(gm->turn != 0 || gm->bids[0] >= 0) { /* a bot is bidding */
+        t7_center(g, 32, 46, "BIDDING", 1);
+        return;
+    }
+    bool focus_bid = (app->bid_focus == 0);
+    if(!focus_bid) tri(g, 30, 22, 2, 1); /* up = back to the picker */
+    t7_center(g, 32, 30, "YOUR BID", 1);
+
+    char num[6];
+    i2s(app->bid_sel, num);
+    bool legal = gj_bid_legal(gm, 0, (uint8_t)app->bid_sel);
+    int16_t bw = (int16_t)gj_gfx_text_big_width(num);
+    int16_t bx = (int16_t)(32 - bw / 2);
+    gj_gfx_text_big(g, bx, 42, num, 1);
+    if(!legal) gj_gfx_hline(g, (int16_t)(bx - 3), 47, (int16_t)(bw + 6), 1);
+    if(focus_bid) { /* ◄ ► only while the picker holds focus */
+        tri(g, 15, 45, 1, 1);
+        tri(g, 46, 45, 0, 1);
+    }
+    t7_center(g, 32, 56, legal ? "OK SET" : "KHISHTI", 1);
+    if(focus_bid) tri(g, 30, 70, 3, 1); /* down = count your hand */
+}
+
 static void draw_play_base(GjGfx* g, const GjApp* app) {
     const GjGame* gm = &app->game;
     draw_top_bar(g, app);
-    bool result = (app->phase == PhaseTrickResult);
-    for(uint8_t s = 0; s < GJ_PLAYERS; s++) {
-        bool inv = result && s == app->last_trick_winner;
-        minicard(g, (int16_t)SLOT_X[s], (int16_t)SLOT_Y[s], gm->trick[s].card, gm->trick[s].kind, inv);
-        if(inv) /* crown the winner */
-            gj_gfx_xbm(g, (int16_t)(SLOT_X[s] + 2), (int16_t)(SLOT_Y[s] - 6), 7, 5, crown7, 1);
-    }
-    if(gm->trick[0].card == GJ_CARD_NONE) {
-        /* demanded-suit hint inside your empty drop slot */
-        if(gm->demand_kind == GjJokerDemandSuit && gm->led_suit < 4)
-            pip7(g, (int16_t)(SLOT_X[0] + 2), (int16_t)(SLOT_Y[0] + 3),
-                 (GjCard)(gm->led_suit * 9 + 3), 1);
-        /* play affordance: up-arrow at the slot's foot, dotted tail toward
-         * the hand (passes through the dashed bottom edge) */
-        if(app->phase == PhaseTrickPlay && gm->turn == 0 && app->sub == SubNone &&
-           !gj_trick_complete(gm)) {
-            tri(g, (int16_t)(SLOT_X[0] + 3), (int16_t)(SLOT_Y[0] + 15), 2, 1);
-            gj_gfx_pixel(g, (int16_t)(SLOT_X[0] + 5), (int16_t)(SLOT_Y[0] + 18), 1);
-            gj_gfx_pixel(g, (int16_t)(SLOT_X[0] + 5), (int16_t)(SLOT_Y[0] + 20), 1);
-            gj_gfx_pixel(g, (int16_t)(SLOT_X[0] + 5), (int16_t)(SLOT_Y[0] + 22), 1);
+    if(app->phase == PhaseBidding) {
+        draw_bid_inline(g, app);
+    } else {
+        bool result = (app->phase == PhaseTrickResult);
+        for(uint8_t s = 0; s < GJ_PLAYERS; s++) {
+            bool inv = result && s == app->last_trick_winner;
+            minicard(g, (int16_t)SLOT_X[s], (int16_t)SLOT_Y[s], gm->trick[s].card,
+                     gm->trick[s].kind, inv);
+            if(inv) /* crown the winner */
+                gj_gfx_xbm(g, (int16_t)(SLOT_X[s] + 2), (int16_t)(SLOT_Y[s] - 6), 7, 5, crown7, 1);
+        }
+        if(gm->trick[0].card == GJ_CARD_NONE) {
+            /* demanded-suit hint inside your empty drop slot */
+            if(gm->demand_kind == GjJokerDemandSuit && gm->led_suit < 4)
+                pip7(g, (int16_t)(SLOT_X[0] + 2), (int16_t)(SLOT_Y[0] + 3),
+                     (GjCard)(gm->led_suit * 9 + 3), 1);
+            /* play affordance: up-arrow at the slot's foot, dotted tail toward
+             * the hand (passes through the dashed bottom edge) */
+            if(app->phase == PhaseTrickPlay && gm->turn == 0 && app->sub == SubNone &&
+               !gj_trick_complete(gm)) {
+                tri(g, (int16_t)(SLOT_X[0] + 3), (int16_t)(SLOT_Y[0] + 15), 2, 1);
+                gj_gfx_pixel(g, (int16_t)(SLOT_X[0] + 5), (int16_t)(SLOT_Y[0] + 18), 1);
+                gj_gfx_pixel(g, (int16_t)(SLOT_X[0] + 5), (int16_t)(SLOT_Y[0] + 20), 1);
+                gj_gfx_pixel(g, (int16_t)(SLOT_X[0] + 5), (int16_t)(SLOT_Y[0] + 22), 1);
+            }
         }
     }
     draw_bottom_row(g, app);
@@ -443,21 +485,6 @@ static void draw_play_base(GjGfx* g, const GjApp* app) {
 /* ===================================================================== */
 /* modals over the play layout                                            */
 /* ===================================================================== */
-
-static void draw_bid_modal(GjGfx* g, const GjApp* app) {
-    const GjGame* gm = &app->game;
-    modal(g, 6, 44, 52, 40, "YOUR BID");
-    char num[6];
-    i2s(app->bid_sel, num);
-    bool legal = gj_bid_legal(gm, 0, (uint8_t)app->bid_sel);
-    int16_t bw = (int16_t)gj_gfx_text_big_width(num);
-    int16_t bx = (int16_t)(32 - bw / 2);
-    gj_gfx_text_big(g, bx, 58, num, 1);
-    if(!legal) gj_gfx_hline(g, (int16_t)(bx - 2), 65, (int16_t)(bw + 4), 1); /* strike */
-    tri(g, 10, 62, 1, 1);
-    tri(g, 51, 62, 0, 1);
-    gj_gfx_text_center(g, 32, 76, legal ? "OK SET" : "KHISHTI", 1);
-}
 
 static void draw_joker_menu(GjGfx* g, const GjApp* app) {
     const GjGame* gm = &app->game;
@@ -958,11 +985,8 @@ static void draw_phase(GjGfx* g, const GjApp* app, uint8_t phase) {
         draw_trump_reveal(g, app);
         break;
     case PhaseBidding:
+        /* inline bid selector + live hand (no window, no dim) */
         draw_play_base(g, app);
-        if(app->game.turn == 0 && app->game.bids[0] < 0) {
-            dim(g);
-            draw_bid_modal(g, app);
-        }
         break;
     case PhaseTrickPlay:
         draw_play_base(g, app);
