@@ -74,31 +74,15 @@ static const char* STAGE_NAMES[4] = {"ASCEND", "NINES", "DESCEND", "BLIND"};
 
 /* ---- glyph tables (verbatim from the deleted gj_icons.c) ------------ */
 
-static const uint8_t sp5[] = {0x04, 0x0E, 0x1F, 0x04, 0x0E};
-static const uint8_t cl5[] = {0x0A, 0x0E, 0x1F, 0x04, 0x0E};
-static const uint8_t he5[] = {0x0A, 0x15, 0x11, 0x0A, 0x04};
-static const uint8_t di5[] = {0x04, 0x0A, 0x11, 0x0A, 0x04};
-static const uint8_t sp7[] = {0x08, 0x1C, 0x3E, 0x7F, 0x7F, 0x08, 0x1C};
-static const uint8_t cl7[] = {0x08, 0x1C, 0x6B, 0x3E, 0x08, 0x08, 0x1C};
-static const uint8_t he7[] = {0x36, 0x49, 0x41, 0x22, 0x14, 0x08, 0x00};
-static const uint8_t di7[] = {0x08, 0x14, 0x22, 0x41, 0x22, 0x14, 0x08};
-static const uint8_t jo5[] = {0x04, 0x0E, 0x1F, 0x0A, 0x11};
+/* crafted 7x7 suits (mockup-exact, all filled) */
+static const uint8_t sp7[] = {0x08, 0x1C, 0x3E, 0x7F, 0x6B, 0x08, 0x1C};
+static const uint8_t cl7[] = {0x08, 0x1C, 0x2A, 0x7F, 0x2A, 0x08, 0x1C};
+static const uint8_t he7[] = {0x36, 0x7F, 0x7F, 0x7F, 0x3E, 0x1C, 0x08};
+static const uint8_t di7[] = {0x08, 0x1C, 0x3E, 0x7F, 0x3E, 0x1C, 0x08};
 static const uint8_t jo7[] = {0x08, 0x08, 0x7F, 0x3E, 0x1C, 0x36, 0x22};
 static const uint8_t nt7[] = {0x3F, 0x43, 0x45, 0x49, 0x51, 0x61, 0x7E};
 static const uint8_t crown7[] = {0x55, 0x55, 0x7F, 0x7F, 0x41}; /* 7x5 */
 
-static const uint8_t* suit5(uint8_t s) {
-    switch(s & 3u) {
-    case GjSuitSpades:
-        return sp5;
-    case GjSuitHearts:
-        return he5;
-    case GjSuitDiamonds:
-        return di5;
-    default:
-        return cl5;
-    }
-}
 static const uint8_t* suit7(uint8_t s) {
     switch(s & 3u) {
     case GjSuitSpades:
@@ -112,11 +96,75 @@ static const uint8_t* suit7(uint8_t s) {
     }
 }
 
-static void pip5(GjGfx* g, int16_t x, int16_t y, GjCard c, uint8_t color) {
-    gj_gfx_xbm(g, x, y, 5, 5, gj_is_joker(c) ? jo5 : suit5(gj_suit(c)), color);
-}
 static void pip7(GjGfx* g, int16_t x, int16_t y, GjCard c, uint8_t color) {
     gj_gfx_xbm(g, x, y, 7, 7, gj_is_joker(c) ? jo7 : suit7(gj_suit(c)), color);
+}
+
+/* ---- crafted 5x7 table font (mockup-exact) --------------------------- */
+/* Variable width: '1' and ':' are 1px (a bare bar keeps "10" inside an
+ * 11px card), '-' 3px, 'W' 7px, the rest 5px. 1px inter-glyph gap. */
+typedef struct {
+    char ch;
+    uint8_t w;
+    uint8_t rows[7];
+} T7Glyph;
+
+static const T7Glyph T7[] = {
+    {'0', 5, {0x0E, 0x11, 0x19, 0x15, 0x13, 0x11, 0x0E}}, /* slashed zero */
+    {'1', 1, {0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01}},
+    {'2', 5, {0x0E, 0x11, 0x10, 0x08, 0x04, 0x02, 0x1F}},
+    {'3', 5, {0x0E, 0x11, 0x10, 0x0C, 0x10, 0x11, 0x0E}},
+    {'4', 5, {0x10, 0x18, 0x14, 0x12, 0x1F, 0x10, 0x10}},
+    {'5', 5, {0x1F, 0x01, 0x0F, 0x10, 0x10, 0x11, 0x0E}},
+    {'6', 5, {0x0E, 0x01, 0x01, 0x0F, 0x11, 0x11, 0x0E}},
+    {'7', 5, {0x1F, 0x10, 0x08, 0x04, 0x02, 0x02, 0x02}},
+    {'8', 5, {0x0E, 0x11, 0x11, 0x0E, 0x11, 0x11, 0x0E}},
+    {'9', 5, {0x0E, 0x11, 0x11, 0x1E, 0x10, 0x10, 0x0E}},
+    {':', 1, {0x00, 0x00, 0x01, 0x00, 0x00, 0x01, 0x00}},
+    {'-', 3, {0x00, 0x00, 0x00, 0x07, 0x00, 0x00, 0x00}},
+    {'A', 5, {0x0E, 0x11, 0x11, 0x1F, 0x11, 0x11, 0x11}},
+    {'B', 5, {0x0F, 0x11, 0x11, 0x0F, 0x11, 0x11, 0x0F}},
+    {'D', 5, {0x0F, 0x11, 0x11, 0x11, 0x11, 0x11, 0x0F}},
+    {'E', 5, {0x1F, 0x01, 0x01, 0x0F, 0x01, 0x01, 0x1F}},
+    {'J', 5, {0x10, 0x10, 0x10, 0x10, 0x10, 0x11, 0x0E}},
+    {'K', 5, {0x11, 0x09, 0x05, 0x03, 0x05, 0x09, 0x11}},
+    {'N', 5, {0x11, 0x11, 0x13, 0x15, 0x19, 0x11, 0x11}},
+    {'Q', 5, {0x0E, 0x11, 0x11, 0x11, 0x15, 0x09, 0x16}},
+    {'S', 5, {0x0E, 0x11, 0x01, 0x0E, 0x10, 0x11, 0x0E}},
+    {'T', 5, {0x1F, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04}},
+    {'W', 7, {0x49, 0x49, 0x49, 0x49, 0x49, 0x49, 0x36}},
+    {'Y', 5, {0x11, 0x11, 0x0A, 0x04, 0x04, 0x04, 0x04}},
+};
+
+static const T7Glyph* t7_find(char ch) {
+    for(uint8_t i = 0; i < sizeof(T7) / sizeof(T7[0]); i++)
+        if(T7[i].ch == ch) return &T7[i];
+    return 0;
+}
+
+static uint16_t t7_width(const char* s) {
+    uint16_t w = 0;
+    for(; *s; s++) {
+        const T7Glyph* gl = t7_find(*s);
+        w = (uint16_t)(w + (gl ? gl->w : 3) + 1);
+    }
+    return (uint16_t)(w ? w - 1 : 0);
+}
+
+static void t7_text(GjGfx* g, int16_t x, int16_t y, const char* s, uint8_t color) {
+    for(; *s; s++) {
+        const T7Glyph* gl = t7_find(*s);
+        if(gl) {
+            gj_gfx_xbm(g, x, y, gl->w, 7, gl->rows, color);
+            x = (int16_t)(x + gl->w + 1);
+        } else {
+            x = (int16_t)(x + 4);
+        }
+    }
+}
+
+static void t7_center(GjGfx* g, int16_t cx, int16_t y, const char* s, uint8_t color) {
+    t7_text(g, (int16_t)(cx - t7_width(s) / 2), y, s, color);
 }
 
 /* diagonal hatch (card back) */
@@ -170,39 +218,64 @@ static void modal(GjGfx* g, int16_t x, int16_t y, int16_t w, int16_t h, const ch
 /* card faces                                                             */
 /* ===================================================================== */
 
-/* joker face: a plain big 'J' (6x10), centred in a w x h card box */
-static void joker_face(GjGfx* g, int16_t x, int16_t y, int16_t w, int16_t h, uint8_t fg) {
-    int16_t jw = (int16_t)gj_gfx_text_big_width("J");
-    gj_gfx_text_big(g, (int16_t)(x + (w - jw) / 2), (int16_t)(y + (h - 10) / 2), "J", fg);
+/* card geometry (every table card is 11x20, mockup-exact) */
+#define CARD_W 11
+#define CARD_H 20
+
+/* joker face: 5x7 'J' offset against a corner wedge. Joker 1 fills the NW
+ * corner (J sits low), joker 2 the SE corner (J sits high) — that wedge is
+ * the only thing telling the two jokers apart. `marked` hoists the J to the
+ * top so a play-kind marker fits underneath. */
+static void joker_card(GjGfx* g, int16_t x, int16_t y, GjCard c, bool marked, uint8_t fg) {
+    bool nw = (c == GJ_JOKER_1);
+    if(nw) {
+        for(uint8_t k = 0; k < 5; k++)
+            gj_gfx_hline(g, (int16_t)(x + 1), (int16_t)(y + 1 + k), (int16_t)(5 - k), fg);
+    } else {
+        for(uint8_t k = 0; k < 5; k++)
+            gj_gfx_hline(g, (int16_t)(x + CARD_W - 2 - k), (int16_t)(y + CARD_H - 6 + k),
+                         (int16_t)(k + 1), fg);
+    }
+    int16_t jy = marked ? 2 : (nw ? 9 : 4); /* centre of the empty space */
+    t7_text(g, (int16_t)(x + 3), (int16_t)(y + jy), "J", fg);
 }
 
-/* trick mini-card slot (12x16). empty -> dotted. */
+/* one 11x20 card face: 5x7 rank on top, 7x7 pip below (shared by the trick
+ * cross and the hand). */
+static void card_face(GjGfx* g, int16_t x, int16_t y, GjCard c, uint8_t fg, bool with_pip) {
+    const char* r = rank_str(c);
+    t7_text(g, (int16_t)(x + (CARD_W - (int16_t)t7_width(r)) / 2), (int16_t)(y + 2), r, fg);
+    if(with_pip) pip7(g, (int16_t)(x + 2), (int16_t)(y + 11), c, fg);
+}
+
+/* trick card slot (11x20). empty -> dashed frame (the "drop slot" look);
+ * it turns into the player's card the moment they submit one. */
 static void minicard(GjGfx* g, int16_t x, int16_t y, GjCard c, uint8_t kind, bool inv) {
     if(c == GJ_CARD_NONE) {
-        gj_gfx_dotted_frame(g, x, y, 12, 16);
+        gj_gfx_dotted_rframe(g, x, y, CARD_W, CARD_H);
         return;
     }
     uint8_t fg;
     if(inv) {
-        gj_gfx_rrect(g, x, y, 12, 16, 1);
+        gj_gfx_rrect(g, x, y, CARD_W, CARD_H, 1);
         fg = 0;
     } else {
-        gj_gfx_rframe(g, x, y, 12, 16, 1);
+        gj_gfx_rframe(g, x, y, CARD_W, CARD_H, 1);
         fg = 1;
     }
     bool marked = (kind == GjJokerUnderplay || kind == GjJokerDemandSuit ||
                    kind == GjJokerDemandTrump);
     if(gj_is_joker(c)) {
-        /* plain big J; hoisted to the top when a kind marker shares the box */
-        joker_face(g, x, (int16_t)(y + (marked ? -3 : 0)), 12, 16, fg);
+        joker_card(g, x, y, c, marked, fg);
     } else {
-        gj_gfx_text_center(g, (int16_t)(x + 6), (int16_t)(y + 2), rank_str(c), fg);
-        pip5(g, (int16_t)(x + 3), (int16_t)(y + 9), c, fg);
+        card_face(g, x, y, c, fg, true);
     }
-    if(kind == GjJokerUnderplay)
-        tri(g, (int16_t)(x + 4), (int16_t)(y + 11), 3, fg);
-    else if(marked)
-        gj_gfx_text(g, (int16_t)(x + 5), (int16_t)(y + 11), "!", fg);
+    if(kind == GjJokerUnderplay) {
+        tri(g, (int16_t)(x + 2), (int16_t)(y + 13), 3, fg);
+    } else if(marked) { /* demand — a small '!' */
+        gj_gfx_vline(g, (int16_t)(x + 4), (int16_t)(y + 13), 4, fg);
+        gj_gfx_pixel(g, (int16_t)(x + 4), (int16_t)(y + 18), fg);
+    }
 }
 
 /* ===================================================================== */
@@ -210,30 +283,13 @@ static void minicard(GjGfx* g, int16_t x, int16_t y, GjCard c, uint8_t kind, boo
 /* ===================================================================== */
 
 /* geometry — opponents compressed into a top W/N/E status bar; the trick is
- * played as a cross in/around a dashed rounded "drop slot" (your play target),
- * with a bottom row: flipped trump | deal counter | your bid:taken chip. */
-#define SLOT_W 12
-#define SLOT_H 16
-#define HAND_Y 104
+ * a cross of 11x20 cards. Every empty slot is a dashed 11x20 frame that turns
+ * into that player's card on submit; yours (S) doubles as the drop target. */
+#define HAND_Y 108
 
-/* trick card slots, seat order S,W,N,E. S sits inside the drop slot. */
-static const uint8_t SLOT_X[4] = {26, 6, 26, 46};
-static const uint8_t SLOT_Y[4] = {54, 36, 18, 36};
-
-/* dashed drop slot (your card's target), centred on S's card */
-#define DROP_X 24
-#define DROP_Y 52
-#define DROP_W 16
-#define DROP_H 20
-
-/* 7x9 upward arrow (play affordance): a stepped head over a 3px shaft */
-static void up_arrow(GjGfx* g, int16_t x, int16_t y) {
-    gj_gfx_pixel(g, (int16_t)(x + 3), y, 1);
-    gj_gfx_hline(g, (int16_t)(x + 2), (int16_t)(y + 1), 3, 1);
-    gj_gfx_hline(g, (int16_t)(x + 1), (int16_t)(y + 2), 5, 1);
-    gj_gfx_hline(g, x, (int16_t)(y + 3), 7, 1);
-    gj_gfx_rect(g, (int16_t)(x + 2), (int16_t)(y + 4), 3, 5, 1);
-}
+/* trick card slots, seat order S,W,N,E (mockup-exact) */
+static const uint8_t SLOT_X[4] = {27, 12, 27, 42};
+static const uint8_t SLOT_Y[4] = {61, 48, 35, 48};
 
 /* append "bid:taken" (bid '-' when unbid) to buf */
 static void bt_pair(char* buf, int8_t bid, uint8_t taken) {
@@ -246,11 +302,12 @@ static void bt_pair(char* buf, int8_t bid, uint8_t taken) {
     scat(buf, u2s(taken, num));
 }
 
-/* top status bar: opponents W/N/E, each with a bid:taken pair. Acting seat
- * gets an inverted label pill; the dealer gets a 2px dot left of its label. */
+/* top status bar (no rule underneath): opponents W/N/E as 5x7 labels with
+ * their bid:taken pair beneath. Acting seat gets an inverted label pill;
+ * the dealer gets a 2px dot left of its label. */
 static void draw_top_bar(GjGfx* g, const GjApp* app) {
     const GjGame* gm = &app->game;
-    static const uint8_t COL[3] = {11, 32, 53}; /* label centres for W,N,E */
+    static const uint8_t COL[3] = {12, 32, 52}; /* column centres for W,N,E */
     static const char* const LBL[3] = {"W", "N", "E"};
     static const uint8_t SEAT[3] = {1, 2, 3};
     for(uint8_t i = 0; i < 3; i++) {
@@ -258,70 +315,59 @@ static void draw_top_bar(GjGfx* g, const GjApp* app) {
         int16_t cx = (int16_t)COL[i];
         bool acting = (app->phase == PhaseTrickPlay || app->phase == PhaseBidding) &&
                       !gj_trick_complete(gm) && gm->turn == s;
-        if(acting) gj_gfx_rrect(g, (int16_t)(cx - 7), 0, 15, 7, 1);
-        gj_gfx_text_center(g, cx, 1, LBL[i], (uint8_t)(acting ? 0 : 1));
-        if(gm->dealer == s) gj_gfx_rect(g, (int16_t)(cx - 10), 2, 2, 2, 1);
+        if(acting) gj_gfx_rrect(g, (int16_t)(cx - 5), 0, 11, 9, 1);
+        t7_center(g, cx, 1, LBL[i], (uint8_t)(acting ? 0 : 1));
+        if(gm->dealer == s) gj_gfx_rect(g, (int16_t)(cx - 9), 3, 2, 2, 1);
         char pair[8];
         pair[0] = 0;
         bt_pair(pair, gm->bids[s], gm->tricks_taken[s]);
-        gj_gfx_text_center(g, cx, 7, pair, 1);
+        t7_center(g, cx, 10, pair, 1);
     }
-    gj_gfx_hline(g, 0, 13, GJ_FB_W, 1);
 }
 
-/* bottom info row: flipped trump (left) | deal d/24 (centre) | your
- * bid:taken chip (right, inverted). */
+/* bottom info row: flipped trump (left) and your plain bid:taken (right) */
 static void draw_bottom_row(GjGfx* g, const GjApp* app) {
     const GjGame* gm = &app->game;
-    char num[6];
-    /* left: trump indicator (K + suit pip, or no-trump glyph, or named pip) */
+    /* left: trump indicator (rank + suit pip, or no-trump glyph, or named pip) */
     if(gm->trump_suit == GJ_NO_TRUMP) {
-        gj_gfx_xbm(g, 3, 90, 7, 7, nt7, 1);
+        gj_gfx_xbm(g, 2, 94, 7, 7, nt7, 1);
     } else if(gm->trump_suit < 4) {
         if(gm->trump_card != GJ_CARD_NONE && !gj_is_joker(gm->trump_card)) {
             const char* r = rank_str(gm->trump_card);
-            gj_gfx_text(g, 3, 91, r, 1);
-            pip5(g, (int16_t)(3 + gj_gfx_text_width(r) + 1), 91, gm->trump_card, 1);
+            t7_text(g, 2, 94, r, 1);
+            pip7(g, (int16_t)(2 + t7_width(r) + 2), 94, gm->trump_card, 1);
         } else {
-            pip7(g, 3, 90, (GjCard)(gm->trump_suit * 9 + 3), 1);
+            pip7(g, 2, 94, (GjCard)(gm->trump_suit * 9 + 3), 1);
         }
     } /* GJ_SUIT_NONE -> nothing */
 
-    /* centre: deal counter d/24 */
-    char buf[8];
-    buf[0] = 0;
-    scat(buf, u2s((uint16_t)(gm->deal_index + 1), num));
-    scat(buf, "/");
-    scat(buf, u2s(GJ_NUM_DEALS, num));
-    gj_gfx_text_center(g, 32, 91, buf, 1);
-
-    /* right: your bid:taken chip, inverted */
-    char chip[8];
-    chip[0] = 0;
-    bt_pair(chip, gm->bids[0], gm->tricks_taken[0]);
-    int16_t cw = (int16_t)(gj_gfx_text_width(chip) + 4);
-    int16_t cxr = (int16_t)(GJ_FB_W - 1 - cw);
-    gj_gfx_rrect(g, cxr, 89, cw, 9, 1);
-    gj_gfx_text_center(g, (int16_t)(cxr + cw / 2), 91, chip, 0);
-    if(gm->dealer == 0) gj_gfx_rect(g, (int16_t)(cxr - 4), 91, 2, 2, 1);
+    /* right: your bid:taken, dealer dot leading when you deal */
+    char own[8];
+    own[0] = 0;
+    bt_pair(own, gm->bids[0], gm->tricks_taken[0]);
+    int16_t tx = (int16_t)(61 - (int16_t)t7_width(own));
+    t7_text(g, tx, 94, own, 1);
+    if(gm->dealer == 0) gj_gfx_rect(g, (int16_t)(tx - 5), 96, 2, 2, 1);
 }
 
 static void draw_hand(GjGfx* g, const GjApp* app) {
     const GjGame* gm = &app->game;
     const GjHand* h = &gm->hands[0];
     uint8_t n = h->count;
+    /* table edge above the hand; the lifted selected card pokes through it */
+    gj_gfx_hline(g, 0, 105, GJ_FB_W, 1);
     bool blind = gj_deal_is_blind(gm->deal_index) && gm->bids[0] < 0;
     if(blind) {
         /* hatched card backs + BLIND banner (never peek hands[0]) */
-        for(uint8_t i = 0; i < n && i < 4; i++) {
-            int16_t x = (int16_t)(8 + i * 13);
-            gj_gfx_rframe(g, x, HAND_Y, SLOT_W, 24, 1);
-            hatch(g, (int16_t)(x + 1), (int16_t)(HAND_Y + 1), 10, 22);
+        for(uint8_t i = 0; i < n && i < 5; i++) {
+            int16_t x = (int16_t)(i * 12);
+            gj_gfx_rframe(g, x, HAND_Y, CARD_W, CARD_H, 1);
+            hatch(g, (int16_t)(x + 1), (int16_t)(HAND_Y + 1), 9, 18);
         }
         int16_t bw = (int16_t)(gj_gfx_text_width("BLIND") + 8);
         int16_t bx = (int16_t)((GJ_FB_W - bw) / 2);
-        gj_gfx_rrect(g, bx, (int16_t)(HAND_Y + 7), bw, 11, 1);
-        gj_gfx_text_center(g, 32, (int16_t)(HAND_Y + 9), "BLIND", 0);
+        gj_gfx_rrect(g, bx, (int16_t)(HAND_Y + 5), bw, 11, 1);
+        gj_gfx_text_center(g, 32, (int16_t)(HAND_Y + 7), "BLIND", 0);
         return;
     }
     if(n == 0) return;
@@ -329,17 +375,19 @@ static void draw_hand(GjGfx* g, const GjApp* app) {
     bool human_turn = (app->phase == PhaseTrickPlay && gm->turn == 0);
     uint16_t legal = human_turn ? gj_legal_moves(gm, 0) : 0xFFFF;
 
-    /* sliding window of 4 centred on hand_sel */
+    /* sliding window of 5 full cards centred on hand_sel; one extra card
+     * renders clipped at the right edge as the overflow cue */
     uint8_t win = 0;
-    if(n > 4) {
-        if(app->hand_sel >= 2) win = (uint8_t)(app->hand_sel - 1);
-        if(win + 4 > n) win = (uint8_t)(n - 4);
+    if(n > 5) {
+        if(app->hand_sel >= 3) win = (uint8_t)(app->hand_sel - 2);
+        if(win + 5 > n) win = (uint8_t)(n - 5);
     }
-    uint8_t shown = (uint8_t)(n - win < 4 ? n - win : 4);
+    uint8_t shown = (uint8_t)(n - win < 5 ? n - win : 5);
+    uint8_t drawn = (uint8_t)(win + shown < n ? shown + 1 : shown);
 
-    for(uint8_t k = 0; k < shown; k++) {
+    for(uint8_t k = 0; k < drawn; k++) {
         uint8_t i = (uint8_t)(win + k);
-        int16_t x = (int16_t)(8 + k * 13);
+        int16_t x = (int16_t)(k * 12);
         int16_t y = HAND_Y;
         bool sel = (app->hand_sel == i) &&
                    (app->phase == PhaseTrickPlay || app->phase == PhaseBidding);
@@ -347,48 +395,47 @@ static void draw_hand(GjGfx* g, const GjApp* app) {
         GjCard c = h->cards[i];
         uint8_t fg = 1;
         if(sel) {
-            y -= 2;
-            gj_gfx_rrect(g, x, y, SLOT_W, 24, 1);
+            y -= 5;
+            gj_gfx_rrect(g, x, y, CARD_W, CARD_H, 1);
             fg = 0;
         } else if(illegal) {
-            gj_gfx_dotted_frame(g, x, y, SLOT_W, 24);
+            gj_gfx_dotted_rframe(g, x, y, CARD_W, CARD_H);
         } else {
-            gj_gfx_rframe(g, x, y, SLOT_W, 24, 1);
+            gj_gfx_rframe(g, x, y, CARD_W, CARD_H, 1);
         }
         if(gj_is_joker(c)) {
-            joker_face(g, x, y, SLOT_W, 24, fg);
+            joker_card(g, x, y, c, false, fg);
         } else {
-            gj_gfx_text_center(g, (int16_t)(x + 6), (int16_t)(y + 3), rank_str(c), fg);
-            if(sel || !illegal) pip5(g, (int16_t)(x + 3), (int16_t)(y + 14), c, fg);
+            card_face(g, x, y, c, fg, sel || !illegal);
         }
     }
-    /* overflow arrows, vertically centred on the hand row */
-    if(win > 0) tri(g, 1, (int16_t)(HAND_Y + 9), 1, 1);
-    if(win + shown < n) tri(g, 60, (int16_t)(HAND_Y + 9), 0, 1);
 }
 
 static void draw_play_base(GjGfx* g, const GjApp* app) {
     const GjGame* gm = &app->game;
     draw_top_bar(g, app);
-    /* dashed drop slot marks where your card lands */
-    gj_gfx_dotted_rframe(g, DROP_X, DROP_Y, DROP_W, DROP_H);
     bool result = (app->phase == PhaseTrickResult);
     for(uint8_t s = 0; s < GJ_PLAYERS; s++) {
-        GjCard c = gm->trick[s].card;
-        /* your empty slot is represented by the drop frame, not a dotted box */
-        if(s == 0 && c == GJ_CARD_NONE) continue;
         bool inv = result && s == app->last_trick_winner;
-        minicard(g, (int16_t)SLOT_X[s], (int16_t)SLOT_Y[s], c, gm->trick[s].kind, inv);
+        minicard(g, (int16_t)SLOT_X[s], (int16_t)SLOT_Y[s], gm->trick[s].card, gm->trick[s].kind, inv);
         if(inv) /* crown the winner */
-            gj_gfx_xbm(g, (int16_t)(SLOT_X[s] + 3), (int16_t)(SLOT_Y[s] - 6), 7, 5, crown7, 1);
+            gj_gfx_xbm(g, (int16_t)(SLOT_X[s] + 2), (int16_t)(SLOT_Y[s] - 6), 7, 5, crown7, 1);
     }
-    /* demanded-suit hint between the flanking cards */
-    if(gm->demand_kind == GjJokerDemandSuit && gm->led_suit < 4)
-        pip7(g, 29, 40, (GjCard)(gm->led_suit * 9 + 3), 1);
-    /* play affordance: arrow rising into the drop slot on your turn */
-    if(app->phase == PhaseTrickPlay && gm->turn == 0 && app->sub == SubNone &&
-       gm->trick[0].card == GJ_CARD_NONE && !gj_trick_complete(gm))
-        up_arrow(g, 29, 74);
+    if(gm->trick[0].card == GJ_CARD_NONE) {
+        /* demanded-suit hint inside your empty drop slot */
+        if(gm->demand_kind == GjJokerDemandSuit && gm->led_suit < 4)
+            pip7(g, (int16_t)(SLOT_X[0] + 2), (int16_t)(SLOT_Y[0] + 3),
+                 (GjCard)(gm->led_suit * 9 + 3), 1);
+        /* play affordance: up-arrow at the slot's foot, dotted tail toward
+         * the hand (passes through the dashed bottom edge) */
+        if(app->phase == PhaseTrickPlay && gm->turn == 0 && app->sub == SubNone &&
+           !gj_trick_complete(gm)) {
+            tri(g, (int16_t)(SLOT_X[0] + 3), (int16_t)(SLOT_Y[0] + 15), 2, 1);
+            gj_gfx_pixel(g, (int16_t)(SLOT_X[0] + 5), (int16_t)(SLOT_Y[0] + 18), 1);
+            gj_gfx_pixel(g, (int16_t)(SLOT_X[0] + 5), (int16_t)(SLOT_Y[0] + 20), 1);
+            gj_gfx_pixel(g, (int16_t)(SLOT_X[0] + 5), (int16_t)(SLOT_Y[0] + 22), 1);
+        }
+    }
     draw_bottom_row(g, app);
     draw_hand(g, app);
 }
@@ -634,7 +681,7 @@ static void draw_trump_select(GjGfx* g, const GjApp* app) {
         uint8_t shown = gm->hands[0].count < 3 ? gm->hands[0].count : 3;
         for(uint8_t i = 0; i < shown; i++)
             minicard(g, (int16_t)(8 + i * 16), 26, gm->hands[0].cards[i], GjPlayNormal, false);
-        gj_gfx_text_center(g, 32, 46, "3-CARD PEEK", 1);
+        gj_gfx_text_center(g, 32, 49, "3-CARD PEEK", 1);
     } else {
         char b[20];
         b[0] = 0;
@@ -719,31 +766,40 @@ static void standings_label(uint8_t d, char* out) {
     scat(out, u2s(n, num));
 }
 
+/* the Chart: 2-axis scrollable leaderboard in the 5x7 table font. A fixed
+ * deal-label column plus 2 of the 4 player columns (Left/Right pans,
+ * Up/Down scrolls deals). Cells are running totals through that deal;
+ * the pinned bottom bar always shows the exact current totals. */
 static void draw_standings(GjGfx* g, const GjApp* app) {
     const GjGame* gm = &app->game;
-    static const uint8_t COLR[4] = {28, 40, 52, 63}; /* right edges: You W N E */
-    /* header */
-    gj_gfx_rect(g, 0, 0, GJ_FB_W, 8, 1);
-    gj_gfx_text(g, 1, 1, "#", 0);
-    static const char* hd[4] = {"S", "W", "N", "E"};
-    for(uint8_t s = 0; s < 4; s++)
-        gj_gfx_text(g, (int16_t)(COLR[s] - gj_gfx_text_width(hd[s])), 1, hd[s], 0);
+    static const uint8_t COLR[2] = {38, 63}; /* right edges of the 2 columns */
+    static const char* const HD[4] = {"Y", "W", "N", "E"};
+    uint8_t xs = app->standings_xscroll > 2 ? 2 : app->standings_xscroll;
+    /* header: pan arrows in the corner + visible seat letters */
+    gj_gfx_rect(g, 0, 0, GJ_FB_W, 9, 1);
+    if(xs > 0) tri(g, 1, 2, 1, 0);
+    if(xs < 2) tri(g, 7, 2, 0, 0);
+    for(uint8_t k = 0; k < 2; k++) {
+        uint8_t s = (uint8_t)(xs + k);
+        t7_text(g, (int16_t)(COLR[k] - (int16_t)t7_width(HD[s])), 1, HD[s], 0);
+    }
 
     uint8_t scroll = app->standings_scroll;
-    for(uint8_t vis = 0; vis < 11; vis++) {
+    for(uint8_t vis = 0; vis < 12; vis++) {
         uint8_t d = (uint8_t)(scroll + vis);
         if(d >= GJ_NUM_DEALS) break;
-        int16_t y = (int16_t)(9 + vis * 8);
+        int16_t y = (int16_t)(10 + vis * 9);
         bool cur = (d == gm->deal_index);
         uint8_t fg = 1;
         if(cur) {
-            gj_gfx_rect(g, 0, y, GJ_FB_W, 8, 1);
+            gj_gfx_rect(g, 0, (int16_t)(y - 1), GJ_FB_W, 9, 1);
             fg = 0;
         }
         char lbl[6];
         standings_label(d, lbl);
-        gj_gfx_text(g, 0, y, lbl, fg);
-        for(uint8_t s = 0; s < 4; s++) {
+        t7_text(g, 1, y, lbl, fg);
+        for(uint8_t k = 0; k < 2; k++) {
+            uint8_t s = (uint8_t)(xs + k);
             char cell[8], num[6];
             if(d < gm->deal_index) {
                 int32_t cum = 0;
@@ -755,19 +811,21 @@ static void draw_standings(GjGfx* g, const GjApp* app) {
                 cell[0] = '-';
                 cell[1] = 0;
             }
-            gj_gfx_text(g, (int16_t)(COLR[s] - gj_gfx_text_width(cell)), y, cell, fg);
+            t7_text(g, (int16_t)(COLR[k] - (int16_t)t7_width(cell)), y, cell, fg);
         }
         if(d == 7 || d == 11 || d == 19)
-            for(int16_t px = 0; px < GJ_FB_W; px += 2) gj_gfx_pixel(g, px, (int16_t)(y + 7), cur ? 0 : 1);
+            for(int16_t px = 0; px < GJ_FB_W; px += 2)
+                gj_gfx_pixel(g, px, (int16_t)(y + 8), cur ? 0 : 1);
     }
     /* pinned totals */
     int16_t ty = 118;
-    gj_gfx_rect(g, 0, ty, GJ_FB_W, 8, 1);
-    gj_gfx_text(g, 0, (int16_t)(ty + 1), "T", 0);
-    for(uint8_t s = 0; s < 4; s++) {
+    gj_gfx_rect(g, 0, ty, GJ_FB_W, 10, 1);
+    t7_text(g, 1, (int16_t)(ty + 2), "T", 0);
+    for(uint8_t k = 0; k < 2; k++) {
+        uint8_t s = (uint8_t)(xs + k);
         char num[6];
         i2s(gm->totals[s], num);
-        gj_gfx_text(g, (int16_t)(COLR[s] - gj_gfx_text_width(num)), (int16_t)(ty + 1), num, 0);
+        t7_text(g, (int16_t)(COLR[k] - (int16_t)t7_width(num)), (int16_t)(ty + 2), num, 0);
     }
 }
 
@@ -816,11 +874,26 @@ static void draw_about(GjGfx* g) {
     gj_gfx_text(g, 2, 50, "< > select", 1);
     gj_gfx_text(g, 2, 60, "OK  play", 1);
     gj_gfx_text(g, 2, 70, "^   table", 1);
-    gj_gfx_text(g, 2, 80, "back exit", 1);
+    gj_gfx_text(g, 2, 80, "back pause", 1);
     gj_gfx_hline(g, 2, 92, 60, 1);
-    gj_gfx_text(g, 2, 96, "black:fill", 1);
-    gj_gfx_text(g, 2, 106, "red:outline", 1);
+    gj_gfx_text(g, 2, 96, "chart: <> pans", 1);
+    gj_gfx_text(g, 2, 106, "^v scrolls", 1);
     gj_gfx_text_center(g, 32, 119, "agentic.ge", 1);
+}
+
+/* Back-button popup during play: Resume / Chart / Exit */
+static void draw_pause_menu(GjGfx* g, const GjApp* app) {
+    static const char* const rows[3] = {"Resume", "Chart", "Exit"};
+    modal(g, 8, 40, 48, 48, "PAUSED");
+    for(uint8_t i = 0; i < 3; i++) {
+        int16_t ry = (int16_t)(52 + i * 11);
+        if(app->pause_sel == i) {
+            gj_gfx_rrect(g, 10, ry, 44, 10, 1);
+            gj_gfx_text(g, 14, (int16_t)(ry + 3), rows[i], 0);
+        } else {
+            gj_gfx_text(g, 14, (int16_t)(ry + 3), rows[i], 1);
+        }
+    }
 }
 
 static void draw_confirm(GjGfx* g, const GjApp* app) {
@@ -923,6 +996,10 @@ static void draw_phase(GjGfx* g, const GjApp* app, uint8_t phase) {
         /* handled by gj_render_frame (base + dim + modal); bare fallback */
         draw_confirm(g, app);
         break;
+    case PhasePause:
+        /* handled by gj_render_frame (base + dim + modal); bare fallback */
+        draw_pause_menu(g, app);
+        break;
     default:
         break;
     }
@@ -931,10 +1008,13 @@ static void draw_phase(GjGfx* g, const GjApp* app, uint8_t phase) {
 void gj_render_frame(GjGfx* g, const GjApp* app) {
     gj_gfx_clear(g);
     uint8_t phase = app->phase;
-    if(phase == PhaseConfirmExit) {
+    if(phase == PhaseConfirmExit || phase == PhasePause) {
         draw_phase(g, app, app->prev_phase);
         dim(g);
-        draw_confirm(g, app);
+        if(phase == PhaseConfirmExit)
+            draw_confirm(g, app);
+        else
+            draw_pause_menu(g, app);
     } else {
         draw_phase(g, app, phase);
     }

@@ -22,6 +22,7 @@ typedef enum {
     PhaseAbout,
     PhaseSplash, /* boot splash, auto-advance to Menu (appended: save compat) */
     PhaseLeadIntro, /* "YOU START"/"X STARTS" beat after bidding, before play */
+    PhasePause, /* Back during play: Resume / Chart / Exit (appended: save compat) */
 } GamePhase;
 
 typedef enum {
@@ -44,7 +45,9 @@ typedef struct {
     uint8_t suit_sel; /* suit picker 0..3 */
     uint8_t trump_sel; /* trump-select 0..3, 4 = no trump */
     uint8_t confirm_sel; /* 0 = yes, 1 = no */
+    uint8_t pause_sel; /* pause menu row: 0 resume, 1 chart, 2 exit */
     uint8_t standings_scroll; /* first visible deal row */
+    uint8_t standings_xscroll; /* first visible player column (chart h-scroll) */
     uint8_t pending_hand_idx; /* joker card awaiting popup confirmation */
     /* timed beats (25 ms ticks) */
     uint16_t wait_ticks;

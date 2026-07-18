@@ -17,7 +17,8 @@
 /* Bot pacing beat (25ms ticks): 18..29 -> ~0.45..0.75s between bot actions. */
 #define GJ_PACE_MIN 18u
 #define GJ_PACE_JITTER 12u
-#define GJ_STANDINGS_MAXSCROLL ((uint8_t)(GJ_NUM_DEALS - 6))
+#define GJ_STANDINGS_MAXSCROLL ((uint8_t)(GJ_NUM_DEALS - 12)) /* 12 visible 5x7 rows */
+#define GJ_STANDINGS_MAXXSCROLL 2u /* 4 player columns, 2 visible */
 #define GJ_SPLASH_TICKS 64u /* ~1.6s at 25ms */
 
 /* ---- io helpers (all hooks NULL-safe) ------------------------------- */
@@ -225,12 +226,30 @@ static void open_standings(GjApp* st, uint8_t from) {
     st->phase = PhaseStandings;
     uint8_t d = st->game.deal_index;
     st->standings_scroll = (d > GJ_STANDINGS_MAXSCROLL) ? GJ_STANDINGS_MAXSCROLL : d;
+    st->standings_xscroll = 0;
 }
 
 static void exit_confirm_from(GjApp* st, uint8_t from) {
     st->prev_phase = from;
     st->phase = PhaseConfirmExit;
     st->confirm_sel = 0;
+}
+
+/* Back during play: pause popup [Resume, Chart, Exit] over the table. */
+static void open_pause(GjApp* st, uint8_t from) {
+    st->prev_phase = from;
+    st->phase = PhasePause;
+    st->pause_sel = 0;
+}
+
+/* Exit from the pause menu: pack the RESUMABLE phase into the save (same
+ * trick as confirm_yes), then land on the menu. */
+static void pause_exit(GjApp* st, const GjShellIo* io) {
+    st->phase = st->prev_phase;
+    io_save(io, st);
+    st->save_available = true;
+    st->phase = PhaseMenu;
+    st->menu_sel = 0;
 }
 
 static void confirm_yes(GjApp* st, const GjShellIo* io) {
@@ -308,7 +327,7 @@ static void handle_trickplay_input(
                 open_standings(st, PhaseTrickPlay);
                 break;
             case GjKeyBack:
-                exit_confirm_from(st, PhaseTrickPlay);
+                open_pause(st, PhaseTrickPlay);
                 break;
             default:
                 break;
@@ -437,7 +456,7 @@ void gj_shell_input(GjApp* st, const GjShellIo* io, GjKey key) {
             else if(key == GjKeyRight)
                 st->trump_sel = (st->trump_sel == 4) ? 0 : (uint8_t)(st->trump_sel + 1);
             else if(key == GjKeyBack)
-                exit_confirm_from(st, PhaseTrumpSelect);
+                open_pause(st, PhaseTrumpSelect);
         } else if(is_ok) {
             gj_set_trump(&st->game, (st->trump_sel == 4) ? GJ_NO_TRUMP : st->trump_sel);
             st->phase = PhaseTrumpReveal;
@@ -456,7 +475,7 @@ void gj_shell_input(GjApp* st, const GjShellIo* io, GjKey key) {
 
     case PhaseBidding:
         if(st->game.turn != 0) {
-            if(is_press && key == GjKeyBack) exit_confirm_from(st, PhaseBidding);
+            if(is_press && key == GjKeyBack) open_pause(st, PhaseBidding);
             break; /* bot's turn — driven by tick */
         }
         if(is_press) {
@@ -465,7 +484,7 @@ void gj_shell_input(GjApp* st, const GjShellIo* io, GjKey key) {
             else if(key == GjKeyDown || key == GjKeyLeft)
                 bid_sel_step(st, -1);
             else if(key == GjKeyBack)
-                exit_confirm_from(st, PhaseBidding);
+                open_pause(st, PhaseBidding);
         } else if(is_ok) {
             if(gj_bid_legal(&st->game, 0, (uint8_t)st->bid_sel) &&
                gj_place_bid(&st->game, 0, (uint8_t)st->bid_sel)) {
@@ -506,11 +525,36 @@ void gj_shell_input(GjApp* st, const GjShellIo* io, GjKey key) {
                 if(st->standings_scroll > 0) st->standings_scroll--;
             } else if(key == GjKeyDown) {
                 if(st->standings_scroll < GJ_STANDINGS_MAXSCROLL) st->standings_scroll++;
+            } else if(key == GjKeyLeft) {
+                if(st->standings_xscroll > 0) st->standings_xscroll--;
+            } else if(key == GjKeyRight) {
+                if(st->standings_xscroll < GJ_STANDINGS_MAXXSCROLL) st->standings_xscroll++;
             } else if(key == GjKeyBack) {
                 st->phase = st->prev_phase;
             }
         } else if(is_ok) {
             st->phase = st->prev_phase;
+        }
+        break;
+
+    case PhasePause:
+        if(is_press) {
+            if(key == GjKeyUp) {
+                if(st->pause_sel > 0) st->pause_sel--;
+            } else if(key == GjKeyDown) {
+                if(st->pause_sel < 2) st->pause_sel++;
+            } else if(key == GjKeyBack) {
+                st->phase = st->prev_phase; /* resume */
+            }
+        } else if(is_ok) {
+            if(st->pause_sel == 0) {
+                st->phase = st->prev_phase; /* resume */
+            } else if(st->pause_sel == 1) {
+                /* chart; keeps prev_phase, so Back lands straight in play */
+                open_standings(st, st->prev_phase);
+            } else {
+                pause_exit(st, io);
+            }
         }
         break;
 
