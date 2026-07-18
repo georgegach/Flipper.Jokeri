@@ -72,6 +72,19 @@ void gj_gfx_dotted_frame(GjGfx* g, int16_t x, int16_t y, int16_t w, int16_t h) {
     }
 }
 
+void gj_gfx_dotted_rframe(GjGfx* g, int16_t x, int16_t y, int16_t w, int16_t h) {
+    if(w <= 2 || h <= 2) return;
+    /* edges inset 1px like gj_gfx_rframe, plotted every other pixel */
+    for(int16_t i = 1; i < w - 1; i += 2) {
+        gj_gfx_pixel(g, (int16_t)(x + i), y, 1);
+        gj_gfx_pixel(g, (int16_t)(x + i), (int16_t)(y + h - 1), 1);
+    }
+    for(int16_t j = 1; j < h - 1; j += 2) {
+        gj_gfx_pixel(g, x, (int16_t)(y + j), 1);
+        gj_gfx_pixel(g, (int16_t)(x + w - 1), (int16_t)(y + j), 1);
+    }
+}
+
 void gj_gfx_invert_rect(GjGfx* g, int16_t x, int16_t y, int16_t w, int16_t h) {
     for(int16_t j = 0; j < h; j++) {
         int16_t yy = (int16_t)(y + j);

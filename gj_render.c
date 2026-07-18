@@ -152,12 +152,6 @@ static void tri(GjGfx* g, int16_t x, int16_t y, uint8_t dir, uint8_t color) {
     }
 }
 
-/* 7x7 filled disc token with a white 'D' (dealer marker) */
-static void dealer_disc(GjGfx* g, int16_t x, int16_t y) {
-    gj_gfx_rrect(g, x, y, 7, 7, 1);
-    gj_gfx_text(g, (int16_t)(x + 1), y, "D", 0);
-}
-
 /* checkerboard dim of the whole frame (modal backdrop) */
 static void dim(GjGfx* g) {
     for(int16_t y = 0; y < GJ_FB_H; y++)
@@ -215,104 +209,101 @@ static void minicard(GjGfx* g, int16_t x, int16_t y, GjCard c, uint8_t kind, boo
 /* status strip + table + hand (the play layout)                          */
 /* ===================================================================== */
 
-/* geometry — a calm cross: N top, W/E flanking an empty centre, S (you) above
- * the hand. Generous margins; seat tags are lean "bid/taken" (position names
- * the seat) with a dealer disc + turn triangle as the only per-seat icons. */
+/* geometry — opponents compressed into a top W/N/E status bar; the trick is
+ * played as a cross in/around a dashed rounded "drop slot" (your play target),
+ * with a bottom row: flipped trump | deal counter | your bid:taken chip. */
 #define SLOT_W 12
 #define SLOT_H 16
 #define HAND_Y 104
 
-static const uint8_t SLOT_X[4] = {26, 4, 26, 48}; /* S, W, N, E */
-static const uint8_t SLOT_Y[4] = {82, 50, 16, 50};
+/* trick card slots, seat order S,W,N,E. S sits inside the drop slot. */
+static const uint8_t SLOT_X[4] = {26, 6, 26, 46};
+static const uint8_t SLOT_Y[4] = {54, 36, 18, 36};
 
-static void draw_status(GjGfx* g, const GjApp* app) {
-    const GjGame* gm = &app->game;
-    char buf[10], num[6];
-    /* deal counter d/24, left */
-    u2s((uint16_t)(gm->deal_index + 1), num);
-    buf[0] = 0;
-    scat(buf, num);
-    scat(buf, "/");
-    u2s(GJ_NUM_DEALS, num);
-    scat(buf, num);
-    gj_gfx_text(g, 3, 2, buf, 1);
-    /* trump pip, right */
-    if(gm->trump_suit != GJ_SUIT_NONE) {
-        if(gm->trump_suit == GJ_NO_TRUMP)
-            gj_gfx_xbm(g, 54, 1, 7, 7, nt7, 1);
-        else
-            pip7(g, 54, 1, (GjCard)(gm->trump_suit * 9 + 3), 1); /* any card of the suit */
-    }
+/* dashed drop slot (your card's target), centred on S's card */
+#define DROP_X 24
+#define DROP_Y 52
+#define DROP_W 16
+#define DROP_H 20
+
+/* 7x9 upward arrow (play affordance): a stepped head over a 3px shaft */
+static void up_arrow(GjGfx* g, int16_t x, int16_t y) {
+    gj_gfx_pixel(g, (int16_t)(x + 3), y, 1);
+    gj_gfx_hline(g, (int16_t)(x + 2), (int16_t)(y + 1), 3, 1);
+    gj_gfx_hline(g, (int16_t)(x + 1), (int16_t)(y + 2), 5, 1);
+    gj_gfx_hline(g, x, (int16_t)(y + 3), 7, 1);
+    gj_gfx_rect(g, (int16_t)(x + 2), (int16_t)(y + 4), 3, 5, 1);
 }
 
-/* one seat's info: lean "bid/taken" tag, dealer disc, turn triangle. Position
- * names the seat, so no letter. Tag sits under N and the flanking W/E cards,
- * and to the left of your own (S) card so it never crowds the hand. */
-static void draw_seat_info(GjGfx* g, const GjApp* app, uint8_t s) {
-    const GjGame* gm = &app->game;
-    bool acting = (app->phase == PhaseTrickPlay || app->phase == PhaseBidding) &&
-                  !gj_trick_complete(gm) && gm->turn == s;
-    bool dealer = (gm->dealer == s);
-
-    char tag[8], num[6];
-    tag[0] = 0;
-    if(gm->bids[s] < 0)
-        scat(tag, "-");
+/* append "bid:taken" (bid '-' when unbid) to buf */
+static void bt_pair(char* buf, int8_t bid, uint8_t taken) {
+    char num[6];
+    if(bid < 0)
+        scat(buf, "-");
     else
-        scat(tag, i2s(gm->bids[s], num));
-    scat(tag, "/");
-    scat(tag, u2s(gm->tricks_taken[s], num));
-    int16_t tw = (int16_t)gj_gfx_text_width(tag);
+        scat(buf, i2s(bid, num));
+    scat(buf, ":");
+    scat(buf, u2s(taken, num));
+}
 
-    int16_t tx, ty; /* tag top-left */
-    switch(s) {
-    case 2: /* N: centred under the top card */
-        tx = (int16_t)(32 - tw / 2);
-        ty = 33;
-        break;
-    case 1: /* W: under the left card */
-        tx = 4;
-        ty = 67;
-        break;
-    case 3: /* E: under the right card, right-aligned */
-        tx = (int16_t)(60 - tw);
-        ty = 67;
-        break;
-    default: /* S = you: left of your card */
-        tx = 4;
-        ty = 86;
-        break;
+/* top status bar: opponents W/N/E, each with a bid:taken pair. Acting seat
+ * gets an inverted label pill; the dealer gets a 2px dot left of its label. */
+static void draw_top_bar(GjGfx* g, const GjApp* app) {
+    const GjGame* gm = &app->game;
+    static const uint8_t COL[3] = {11, 32, 53}; /* label centres for W,N,E */
+    static const char* const LBL[3] = {"W", "N", "E"};
+    static const uint8_t SEAT[3] = {1, 2, 3};
+    for(uint8_t i = 0; i < 3; i++) {
+        uint8_t s = SEAT[i];
+        int16_t cx = (int16_t)COL[i];
+        bool acting = (app->phase == PhaseTrickPlay || app->phase == PhaseBidding) &&
+                      !gj_trick_complete(gm) && gm->turn == s;
+        if(acting) gj_gfx_rrect(g, (int16_t)(cx - 7), 0, 15, 7, 1);
+        gj_gfx_text_center(g, cx, 1, LBL[i], (uint8_t)(acting ? 0 : 1));
+        if(gm->dealer == s) gj_gfx_rect(g, (int16_t)(cx - 10), 2, 2, 2, 1);
+        char pair[8];
+        pair[0] = 0;
+        bt_pair(pair, gm->bids[s], gm->tricks_taken[s]);
+        gj_gfx_text_center(g, cx, 7, pair, 1);
     }
-    gj_gfx_text(g, tx, ty, tag, 1);
+    gj_gfx_hline(g, 0, 13, GJ_FB_W, 1);
+}
 
-    /* turn triangle points toward the table centre; dealer disc trails. Both
-     * are placed on the side of the tag that has room (edges stay clear). */
-    uint8_t dir = (s == 2) ? 3 : (s == 0) ? 2 : (s == 1) ? 0 : 1;
-    if(s == 3) { /* E: markers to the left of the right-aligned tag */
-        int16_t mx = (int16_t)(tx - 2);
-        if(acting) {
-            mx -= 5;
-            tri(g, mx, (int16_t)(ty + 1), dir, 1);
+/* bottom info row: flipped trump (left) | deal d/24 (centre) | your
+ * bid:taken chip (right, inverted). */
+static void draw_bottom_row(GjGfx* g, const GjApp* app) {
+    const GjGame* gm = &app->game;
+    char num[6];
+    /* left: trump indicator (K + suit pip, or no-trump glyph, or named pip) */
+    if(gm->trump_suit == GJ_NO_TRUMP) {
+        gj_gfx_xbm(g, 3, 90, 7, 7, nt7, 1);
+    } else if(gm->trump_suit < 4) {
+        if(gm->trump_card != GJ_CARD_NONE && !gj_is_joker(gm->trump_card)) {
+            const char* r = rank_str(gm->trump_card);
+            gj_gfx_text(g, 3, 91, r, 1);
+            pip5(g, (int16_t)(3 + gj_gfx_text_width(r) + 1), 91, gm->trump_card, 1);
+        } else {
+            pip7(g, 3, 90, (GjCard)(gm->trump_suit * 9 + 3), 1);
         }
-        if(dealer) {
-            mx -= 9;
-            dealer_disc(g, mx, ty);
-        }
-    } else if(s == 0) { /* S: markers to the right of your card */
-        int16_t mx = 42;
-        if(acting) {
-            tri(g, mx, (int16_t)(ty + 1), dir, 1);
-            mx += 6;
-        }
-        if(dealer) dealer_disc(g, mx, ty);
-    } else { /* N, W: markers to the right of the tag */
-        int16_t mx = (int16_t)(tx + tw + 2);
-        if(acting) {
-            tri(g, mx, (int16_t)(ty + 1), dir, 1);
-            mx += 6;
-        }
-        if(dealer) dealer_disc(g, mx, ty);
-    }
+    } /* GJ_SUIT_NONE -> nothing */
+
+    /* centre: deal counter d/24 */
+    char buf[8];
+    buf[0] = 0;
+    scat(buf, u2s((uint16_t)(gm->deal_index + 1), num));
+    scat(buf, "/");
+    scat(buf, u2s(GJ_NUM_DEALS, num));
+    gj_gfx_text_center(g, 32, 91, buf, 1);
+
+    /* right: your bid:taken chip, inverted */
+    char chip[8];
+    chip[0] = 0;
+    bt_pair(chip, gm->bids[0], gm->tricks_taken[0]);
+    int16_t cw = (int16_t)(gj_gfx_text_width(chip) + 4);
+    int16_t cxr = (int16_t)(GJ_FB_W - 1 - cw);
+    gj_gfx_rrect(g, cxr, 89, cw, 9, 1);
+    gj_gfx_text_center(g, (int16_t)(cxr + cw / 2), 91, chip, 0);
+    if(gm->dealer == 0) gj_gfx_rect(g, (int16_t)(cxr - 4), 91, 2, 2, 1);
 }
 
 static void draw_hand(GjGfx* g, const GjApp* app) {
@@ -378,19 +369,27 @@ static void draw_hand(GjGfx* g, const GjApp* app) {
 
 static void draw_play_base(GjGfx* g, const GjApp* app) {
     const GjGame* gm = &app->game;
-    draw_status(g, app);
+    draw_top_bar(g, app);
+    /* dashed drop slot marks where your card lands */
+    gj_gfx_dotted_rframe(g, DROP_X, DROP_Y, DROP_W, DROP_H);
     bool result = (app->phase == PhaseTrickResult);
     for(uint8_t s = 0; s < GJ_PLAYERS; s++) {
+        GjCard c = gm->trick[s].card;
+        /* your empty slot is represented by the drop frame, not a dotted box */
+        if(s == 0 && c == GJ_CARD_NONE) continue;
         bool inv = result && s == app->last_trick_winner;
-        minicard(g, (int16_t)SLOT_X[s], (int16_t)SLOT_Y[s], gm->trick[s].card, gm->trick[s].kind, inv);
-        draw_seat_info(g, app, s);
-        if(inv) { /* crown the winner */
+        minicard(g, (int16_t)SLOT_X[s], (int16_t)SLOT_Y[s], c, gm->trick[s].kind, inv);
+        if(inv) /* crown the winner */
             gj_gfx_xbm(g, (int16_t)(SLOT_X[s] + 3), (int16_t)(SLOT_Y[s] - 6), 7, 5, crown7, 1);
-        }
     }
-    /* demanded-suit hint in the empty table centre */
+    /* demanded-suit hint between the flanking cards */
     if(gm->demand_kind == GjJokerDemandSuit && gm->led_suit < 4)
-        pip7(g, 28, 54, (GjCard)(gm->led_suit * 9 + 3), 1);
+        pip7(g, 29, 40, (GjCard)(gm->led_suit * 9 + 3), 1);
+    /* play affordance: arrow rising into the drop slot on your turn */
+    if(app->phase == PhaseTrickPlay && gm->turn == 0 && app->sub == SubNone &&
+       gm->trick[0].card == GJ_CARD_NONE && !gj_trick_complete(gm))
+        up_arrow(g, 29, 74);
+    draw_bottom_row(g, app);
     draw_hand(g, app);
 }
 
@@ -596,10 +595,12 @@ static void draw_trump_reveal(GjGfx* g, const GjApp* app) {
     gj_gfx_text_center(g, 32, 8, "TRUMP", 1);
     gj_gfx_hline(g, 8, 18, 48, 1);
     if(gm->trump_suit == GJ_NO_TRUMP) {
+        gj_gfx_dotted_rframe(g, 15, 25, 34, 34);
         gj_gfx_rframe(g, 20, 30, 24, 24, 1);
         gj_gfx_xbm(g, 28, 38, 7, 7, nt7, 1);
         gj_gfx_text_center(g, 32, 62, "NO TRUMP", 1);
     } else if(gm->trump_suit < 4) {
+        gj_gfx_dotted_rframe(g, 15, 23, 34, 44);
         if(gm->trump_card != GJ_CARD_NONE && !gj_is_joker(gm->trump_card))
             big_card(g, 20, 28, gm->trump_card);
         else {
@@ -885,14 +886,20 @@ static void draw_phase(GjGfx* g, const GjApp* app, uint8_t phase) {
         break;
     case PhaseBidding:
         draw_play_base(g, app);
-        if(app->game.turn == 0 && app->game.bids[0] < 0) draw_bid_modal(g, app);
+        if(app->game.turn == 0 && app->game.bids[0] < 0) {
+            dim(g);
+            draw_bid_modal(g, app);
+        }
         break;
     case PhaseTrickPlay:
         draw_play_base(g, app);
-        if(app->sub == SubJokerMenu)
+        if(app->sub == SubJokerMenu) {
+            dim(g);
             draw_joker_menu(g, app);
-        else if(app->sub == SubJokerSuit)
+        } else if(app->sub == SubJokerSuit) {
+            dim(g);
             draw_suit_picker(g, app);
+        }
         break;
     case PhaseTrickResult:
         draw_play_base(g, app);
