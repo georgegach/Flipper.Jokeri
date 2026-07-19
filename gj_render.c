@@ -160,9 +160,21 @@ static const T7Glyph T7[] = {
     {'Z', 5, {0x1F, 0x10, 0x08, 0x04, 0x02, 0x01, 0x1F}},
 };
 
+/* O(1) glyph lookup: a char->index map built once from T7 itself (so it can't
+ * drift from the table). Single render thread -> the lazy build is safe. */
 static const T7Glyph* t7_find(char ch) {
-    for(uint8_t i = 0; i < sizeof(T7) / sizeof(T7[0]); i++)
-        if(T7[i].ch == ch) return &T7[i];
+    static int8_t idx[128];
+    static bool built = false;
+    if(!built) {
+        for(int i = 0; i < 128; i++) idx[i] = -1;
+        for(int i = 0; i < (int)(sizeof(T7) / sizeof(T7[0])); i++) {
+            unsigned char c = (unsigned char)T7[i].ch;
+            if(c < 128) idx[c] = (int8_t)i;
+        }
+        built = true;
+    }
+    unsigned char c = (unsigned char)ch;
+    if(c < 128 && idx[c] >= 0) return &T7[idx[c]];
     return 0;
 }
 
@@ -224,10 +236,15 @@ static void tri(GjGfx* g, int16_t x, int16_t y, uint8_t dir, uint8_t color) {
     }
 }
 
-/* checkerboard dim of the whole frame (modal backdrop) */
+/* checkerboard dim of the whole frame (modal backdrop). Byte-wise: even rows
+ * set x=1,3,5,7 (0xAA), odd rows x=0,2,4,6 (0x55) — identical to the old
+ * per-pixel loop, 4x fewer ops and no bounds checks. */
 static void dim(GjGfx* g) {
-    for(int16_t y = 0; y < GJ_FB_H; y++)
-        for(int16_t x = ((y & 1) ? 0 : 1); x < GJ_FB_W; x += 2) gj_gfx_pixel(g, x, y, 1);
+    for(int y = 0; y < GJ_FB_H; y++) {
+        uint8_t m = (y & 1) ? 0x55u : 0xAAu;
+        uint8_t* row = &g->fb[y * (GJ_FB_W / 8)];
+        for(int b = 0; b < GJ_FB_W / 8; b++) row[b] |= m;
+    }
 }
 
 /* rounded panel with a black title bar; content starts at y+11 */

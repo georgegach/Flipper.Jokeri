@@ -24,11 +24,48 @@ void gj_gfx_pixel(GjGfx* g, int16_t x, int16_t y, uint8_t color) {
 }
 
 void gj_gfx_hline(GjGfx* g, int16_t x, int16_t y, int16_t w, uint8_t color) {
-    for(int16_t i = 0; i < w; i++) gj_gfx_pixel(g, (int16_t)(x + i), y, color);
+    if(w <= 0 || y < 0 || y >= GJ_FB_H) return;
+    int16_t x0 = x, x1 = (int16_t)(x + w - 1); /* inclusive */
+    if(x0 < 0) x0 = 0;
+    if(x1 >= GJ_FB_W) x1 = GJ_FB_W - 1;
+    if(x0 > x1) return;
+    uint8_t* row = &g->fb[y * (GJ_FB_W / 8)];
+    int b0 = x0 >> 3, b1 = x1 >> 3;
+    uint8_t head = (uint8_t)(0xFFu << (x0 & 7)); /* bits >= (x0&7) */
+    uint8_t tail = (uint8_t)(0xFFu >> (7 - (x1 & 7))); /* bits <= (x1&7) */
+    if(b0 == b1) {
+        uint8_t m = (uint8_t)(head & tail);
+        if(color)
+            row[b0] |= m;
+        else
+            row[b0] &= (uint8_t)~m;
+        return;
+    }
+    if(color) {
+        row[b0] |= head;
+        for(int b = b0 + 1; b < b1; b++) row[b] = 0xFFu;
+        row[b1] |= tail;
+    } else {
+        row[b0] &= (uint8_t)~head;
+        for(int b = b0 + 1; b < b1; b++) row[b] = 0x00u;
+        row[b1] &= (uint8_t)~tail;
+    }
 }
 
 void gj_gfx_vline(GjGfx* g, int16_t x, int16_t y, int16_t h, uint8_t color) {
-    for(int16_t i = 0; i < h; i++) gj_gfx_pixel(g, x, (int16_t)(y + i), color);
+    if(h <= 0 || x < 0 || x >= GJ_FB_W) return;
+    int16_t y0 = y, y1 = (int16_t)(y + h - 1);
+    if(y0 < 0) y0 = 0;
+    if(y1 >= GJ_FB_H) y1 = GJ_FB_H - 1;
+    uint8_t bit = (uint8_t)(1u << (x & 7));
+    int idx = y0 * (GJ_FB_W / 8) + (x >> 3);
+    for(int16_t yy = y0; yy <= y1; yy++) {
+        if(color)
+            g->fb[idx] |= bit;
+        else
+            g->fb[idx] &= (uint8_t)~bit;
+        idx += GJ_FB_W / 8;
+    }
 }
 
 void gj_gfx_rect(GjGfx* g, int16_t x, int16_t y, int16_t w, int16_t h, uint8_t color) {
@@ -88,18 +125,31 @@ void gj_gfx_dotted_rframe(GjGfx* g, int16_t x, int16_t y, int16_t w, int16_t h) 
 }
 
 void gj_gfx_invert_rect(GjGfx* g, int16_t x, int16_t y, int16_t w, int16_t h) {
-    for(int16_t j = 0; j < h; j++) {
-        int16_t yy = (int16_t)(y + j);
-        if(yy < 0 || yy >= GJ_FB_H) continue;
-        for(int16_t i = 0; i < w; i++) {
-            int16_t xx = (int16_t)(x + i);
-            if(xx < 0 || xx >= GJ_FB_W) continue;
-            int idx = yy * (GJ_FB_W / 8) + (xx >> 3);
-            g->fb[idx] ^= (uint8_t)(1u << (xx & 7));
+    if(w <= 0 || h <= 0) return;
+    int16_t x0 = x, x1 = (int16_t)(x + w - 1), y0 = y, y1 = (int16_t)(y + h - 1);
+    if(x0 < 0) x0 = 0;
+    if(x1 >= GJ_FB_W) x1 = GJ_FB_W - 1;
+    if(y0 < 0) y0 = 0;
+    if(y1 >= GJ_FB_H) y1 = GJ_FB_H - 1;
+    if(x0 > x1 || y0 > y1) return;
+    int b0 = x0 >> 3, b1 = x1 >> 3;
+    uint8_t head = (uint8_t)(0xFFu << (x0 & 7));
+    uint8_t tail = (uint8_t)(0xFFu >> (7 - (x1 & 7)));
+    for(int16_t yy = y0; yy <= y1; yy++) {
+        uint8_t* row = &g->fb[yy * (GJ_FB_W / 8)];
+        if(b0 == b1) {
+            row[b0] ^= (uint8_t)(head & tail);
+            continue;
         }
+        row[b0] ^= head;
+        for(int b = b0 + 1; b < b1; b++) row[b] ^= 0xFFu;
+        row[b1] ^= tail;
     }
 }
 
+/* Blit a 1-bit sprite. Only SET source bits touch the framebuffer (OR for
+ * color 1, AND-NOT for color 0). Iterates set bits only (ctz) and writes the
+ * dest byte directly — no per-pixel call. Pixel-identical to the old loop. */
 void gj_gfx_xbm(
     GjGfx* g,
     int16_t x,
@@ -108,38 +158,34 @@ void gj_gfx_xbm(
     int16_t h,
     const uint8_t* xbm,
     uint8_t color) {
+    if(w <= 0 || h <= 0) return;
     int stride = (w + 7) / 8;
     for(int16_t j = 0; j < h; j++) {
-        for(int16_t i = 0; i < w; i++) {
-            uint8_t byte = xbm[j * stride + (i >> 3)];
-            if((byte >> (i & 7)) & 1u) gj_gfx_pixel(g, (int16_t)(x + i), (int16_t)(y + j), color);
+        int16_t yy = (int16_t)(y + j);
+        if(yy < 0 || yy >= GJ_FB_H) continue;
+        uint8_t* row = &g->fb[yy * (GJ_FB_W / 8)];
+        const uint8_t* src = &xbm[j * stride];
+        for(int sb = 0; sb < stride; sb++) {
+            unsigned bits = src[sb];
+            while(bits) {
+                int b = __builtin_ctz(bits);
+                bits &= bits - 1u; /* clear lowest set bit */
+                int col = sb * 8 + b;
+                if(col >= w) break; /* padding bits past the sprite width */
+                int16_t xx = (int16_t)(x + col);
+                if(xx < 0 || xx >= GJ_FB_W) continue;
+                uint8_t bit = (uint8_t)(1u << (xx & 7));
+                if(color)
+                    row[xx >> 3] |= bit;
+                else
+                    row[xx >> 3] &= (uint8_t)~bit;
+            }
         }
     }
 }
 
-/* ---- text ----------------------------------------------------------- */
-
-uint16_t gj_gfx_text_width(const char* s) {
-    uint16_t n = 0;
-    for(const char* p = s; *p; p++) n++;
-    if(n == 0) return 0;
-    return (uint16_t)(n * GJ_FONT_ADV - 1); /* drop trailing gap */
-}
-
-void gj_gfx_text(GjGfx* g, int16_t x, int16_t y, const char* s, uint8_t color) {
-    int16_t cx = x;
-    uint8_t rows[GJ_FONT_H];
-    for(const char* p = s; *p; p++) {
-        gj_font_glyph(*p, rows);
-        for(int r = 0; r < GJ_FONT_H; r++) {
-            uint8_t m = rows[r];
-            if(!m) continue;
-            for(int c = 0; c < GJ_FONT_W; c++)
-                if((m >> c) & 1u) gj_gfx_pixel(g, (int16_t)(cx + c), (int16_t)(y + r), color);
-        }
-        cx = (int16_t)(cx + GJ_FONT_ADV);
-    }
-}
+/* ---- text (only the 2x heading face survives; the 1x face was retired in
+ * favour of the crafted 5x7 T7 font in gj_render.c) -------------------- */
 
 uint16_t gj_gfx_text_big_width(const char* s) {
     uint16_t n = 0;

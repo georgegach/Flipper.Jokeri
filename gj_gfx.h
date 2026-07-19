@@ -46,15 +46,12 @@ void gj_gfx_xbm(
     const uint8_t* xbm,
     uint8_t color);
 
-/* ---- text (gj_font.c: 3x5 ASCII 32..126, 1px spacing => 4px advance) ---- */
+/* ---- text: the 2x heading face only (the 1x 3x5 face was retired; on-table
+ * text uses the crafted 5x7 T7 font in gj_render.c). gj_font.c: 3x5 glyph
+ * source, ASCII 32..126, 1px spacing => 4px advance (x2 for headings). ---- */
 #define GJ_FONT_W 3
 #define GJ_FONT_H 5
 #define GJ_FONT_ADV 4
-void gj_gfx_text(GjGfx* g, int16_t x, int16_t y, const char* s, uint8_t color); /* y = top */
-uint16_t gj_gfx_text_width(const char* s);
-static inline void gj_gfx_text_center(GjGfx* g, int16_t cx, int16_t y, const char* s, uint8_t c) {
-    gj_gfx_text(g, (int16_t)(cx - gj_gfx_text_width(s) / 2), y, s, c);
-}
 /* 2x-scaled text for headings (6x10 glyphs). */
 void gj_gfx_text_big(GjGfx* g, int16_t x, int16_t y, const char* s, uint8_t color);
 uint16_t gj_gfx_text_big_width(const char* s);
