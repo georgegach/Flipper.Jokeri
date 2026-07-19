@@ -328,9 +328,10 @@ static void minicard(GjGfx* g, int16_t x, int16_t y, GjCard c, uint8_t kind, boo
  * into that player's card on submit; yours (S) doubles as the drop target. */
 #define HAND_Y 108
 
-/* trick card slots, seat order S,W,N,E (mockup-exact) */
+/* trick card slots, seat order S,W,N,E. Your (S) card sits 4px lower than the
+ * mockup so there's clearer air between it and North's card. */
 static const uint8_t SLOT_X[4] = {27, 12, 27, 42};
-static const uint8_t SLOT_Y[4] = {61, 48, 35, 48};
+static const uint8_t SLOT_Y[4] = {65, 48, 35, 48};
 
 /* append "taken:bid" (bid '-' when unbid) to buf */
 static void bt_pair(char* buf, int8_t bid, uint8_t taken) {
