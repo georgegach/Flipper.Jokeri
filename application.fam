@@ -3,7 +3,7 @@ App(
     name="Georgian Joker",
     apptype=FlipperAppType.EXTERNAL,
     entry_point="georgian_joker_app",
-    stack_size=2 * 1024,
+    stack_size=4 * 1024,
     requires=["gui", "storage"],
     fap_author="@georgegach",
     fap_category="Games",

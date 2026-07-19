@@ -22,6 +22,15 @@ typedef struct {
     GjGfx gfx; /* framebuffer, drawn by gj_render_frame */
 } GjState;
 
+#define TAG "GJ"
+
+/* Deferred storage op: the shell's io_* hooks run under the app mutex (which
+ * the render callback also needs), so they must NEVER touch the SD card — a
+ * blocking storage_* call there freezes the whole UI. Instead they update the
+ * RAM snapshot + set a pending op, and the main loop flushes it to the card
+ * AFTER releasing the mutex. */
+typedef enum { PendingNone = 0, PendingWrite, PendingDelete } PendingIo;
+
 typedef struct {
     GjState* state;
     FuriMutex* mutex;
@@ -29,28 +38,46 @@ typedef struct {
     ViewPort* view_port;
     Gui* gui;
     Storage* storage; /* RECORD_STORAGE, held for app lifetime */
-    GjSaveFile save_buf; /* scratch for save/load (kept off the stack) */
+    GjSaveFile save_buf; /* validated RAM snapshot; source for load, sink for save */
+    bool save_buf_valid; /* save_buf holds a usable snapshot */
+    PendingIo pending_io; /* deferred SD op, flushed outside the mutex */
+    uint32_t dropped_inputs; /* input events dropped on a full queue */
 } AppCtx;
 
-/* ---- GjShellIo bridge ----------------------------------------------- */
+/* ---- GjShellIo bridge (all run under the app mutex -> NO storage I/O) --- */
 static uint32_t io_rng(void* ctx) {
     (void)ctx;
     return furi_hal_random_get();
 }
+/* Pack the snapshot NOW (pause_exit/confirm_yes rewrite app->phase transiently
+ * before calling this), then defer the actual write. */
 static void io_save(void* ctx, const GjApp* app) {
     AppCtx* c = ctx;
     gj_save_pack(&c->save_buf, app);
-    gj_save_write(c->storage, &c->save_buf);
+    c->save_buf_valid = true;
+    c->pending_io = PendingWrite;
 }
+/* Serve Continue from the RAM snapshot — never a blocking SD read under lock. */
 static bool io_load(void* ctx, GjApp* app) {
     AppCtx* c = ctx;
-    if(!gj_save_read(c->storage, &c->save_buf)) return false;
+    if(!c->save_buf_valid) return false;
     gj_save_unpack(&c->save_buf, app);
     return true;
 }
 static void io_save_delete(void* ctx) {
     AppCtx* c = ctx;
-    gj_save_delete(c->storage);
+    c->save_buf_valid = false;
+    c->pending_io = PendingDelete;
+}
+
+/* Flush a deferred storage op to the SD card. MUST be called with the mutex
+ * released (storage_* can block). */
+static void io_flush(AppCtx* c, PendingIo op) {
+    if(op == PendingWrite) {
+        gj_save_write(c->storage, &c->save_buf);
+    } else if(op == PendingDelete) {
+        gj_save_delete(c->storage);
+    }
 }
 
 /* ---- input mapping -------------------------------------------------- */
@@ -90,21 +117,31 @@ static void render_callback(Canvas* canvas, void* context) {
 
 static void input_callback(InputEvent* event, void* context) {
     furi_assert(context);
-    FuriMessageQueue* queue = context;
+    AppCtx* ctx = context;
     /* Only enqueue events map_key accepts (Short taps / Long holds); drop
      * Press/Release/Repeat so the 8-slot queue never floods. */
-    if(event->type == InputTypeShort || event->type == InputTypeLong) {
-        furi_message_queue_put(queue, event, FuriWaitForever);
+    if(event->type != InputTypeShort && event->type != InputTypeLong) return;
+    /* Non-blocking put: if the app thread is stalled and the queue is full,
+     * DROP the event rather than block the input service thread forever
+     * (FuriWaitForever there wedges all buttons -> "force restart"). */
+    if(furi_message_queue_put(ctx->queue, event, 0) != FuriStatusOk) {
+        ctx->dropped_inputs++;
     }
 }
 
 /* ---- entry point ---------------------------------------------------- */
 int32_t georgian_joker_app(void* p) {
     UNUSED(p);
+    FURI_LOG_I(TAG, "start");
 
     AppCtx* ctx = malloc(sizeof(AppCtx));
+    if(!ctx) return 255;
     memset(ctx, 0, sizeof(AppCtx));
     ctx->state = malloc(sizeof(GjState));
+    if(!ctx->state) {
+        free(ctx);
+        return 255;
+    }
     memset(ctx->state, 0, sizeof(GjState));
     ctx->mutex = furi_mutex_alloc(FuriMutexTypeNormal);
     ctx->queue = furi_message_queue_alloc(8, sizeof(InputEvent));
@@ -118,12 +155,15 @@ int32_t georgian_joker_app(void* p) {
         .ctx = ctx,
     };
 
-    gj_shell_init(&ctx->state->app, gj_save_exists_valid(ctx->storage));
+    /* One SD read at boot, before the loop (no mutex held) -> the RAM snapshot
+     * that io_load serves Continue from without ever blocking under the mutex. */
+    ctx->save_buf_valid = gj_save_read(ctx->storage, &ctx->save_buf);
+    gj_shell_init(&ctx->state->app, ctx->save_buf_valid);
 
     ctx->view_port = view_port_alloc();
     view_port_set_orientation(ctx->view_port, ViewPortOrientationVertical);
     view_port_draw_callback_set(ctx->view_port, render_callback, ctx);
-    view_port_input_callback_set(ctx->view_port, input_callback, ctx->queue);
+    view_port_input_callback_set(ctx->view_port, input_callback, ctx);
 
     ctx->gui = furi_record_open(RECORD_GUI);
     gui_add_view_port(ctx->gui, ctx->view_port, GuiLayerFullscreen);
@@ -139,10 +179,17 @@ int32_t georgian_joker_app(void* p) {
             gj_shell_tick(&ctx->state->app, &io);
         }
         bool running = ctx->state->app.running;
+        PendingIo pending = ctx->pending_io;
+        ctx->pending_io = PendingNone;
         furi_mutex_release(ctx->mutex);
+
+        io_flush(ctx, pending); /* SD op, mutex released */
         view_port_update(ctx->view_port);
         if(!running) break;
     }
+
+    if(ctx->dropped_inputs)
+        FURI_LOG_W(TAG, "dropped %lu inputs", (unsigned long)ctx->dropped_inputs);
 
     /* teardown — symmetric with alloc */
     view_port_enabled_set(ctx->view_port, false);
@@ -154,5 +201,6 @@ int32_t georgian_joker_app(void* p) {
     furi_mutex_free(ctx->mutex);
     free(ctx->state);
     free(ctx);
+    FURI_LOG_I(TAG, "exit");
     return 0;
 }

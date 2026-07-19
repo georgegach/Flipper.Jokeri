@@ -660,6 +660,38 @@ void gj_shell_input(GjApp* st, const GjShellIo* io, GjKey key) {
     }
 }
 
+/* ---- bot-move safety nets ------------------------------------------- */
+/* A rejected bot bid/play would leave turn != 0 forever (input is accepted
+ * only when turn == 0) -> hard soft-lock. These place a guaranteed-legal
+ * fallback so the game can never wedge, and bump recover_count so tests catch
+ * any AI that ever needs the net. Unreachable while gj_ai_* is correct. */
+static bool place_bid_safe(GjApp* st, uint8_t seat, int8_t b) {
+    if(b >= 0 && gj_place_bid(&st->game, seat, (uint8_t)b)) return true;
+    uint8_t cards = st->game.cards_this_deal;
+    for(uint8_t v = 0; v <= cards; v++) {
+        if(gj_bid_legal(&st->game, seat, v) && gj_place_bid(&st->game, seat, v)) {
+            if(st->recover_count < 255) st->recover_count++;
+            return true;
+        }
+    }
+    return false; /* no legal bid exists at all (impossible) */
+}
+
+static bool play_card_safe(GjApp* st, uint8_t seat, const GjAiPlay* p) {
+    if(gj_play_card(&st->game, seat, p->hand_idx, p->kind, p->demand_suit)) return true;
+    uint16_t mask = gj_legal_moves(&st->game, seat);
+    for(uint8_t i = 0; i < GJ_MAX_HAND; i++) {
+        if(!((mask >> i) & 1u)) continue;
+        GjCard c = st->game.hands[seat].cards[i];
+        uint8_t kind = gj_is_joker(c) ? GjJokerUnderplay : GjPlayNormal;
+        if(gj_play_card(&st->game, seat, i, kind, 0)) {
+            if(st->recover_count < 255) st->recover_count++;
+            return true;
+        }
+    }
+    return false; /* no legal move exists at all (impossible) */
+}
+
 /* ---- timed beats & bot moves (one call per 25ms frame) -------------- */
 void gj_shell_tick(GjApp* st, const GjShellIo* io) {
     switch(st->phase) {
@@ -696,7 +728,10 @@ void gj_shell_tick(GjApp* st, const GjShellIo* io) {
                 int8_t b = gj_deal_is_blind(st->game.mode, st->game.deal_index) ?
                                gj_ai_bid_blind(&st->game, seat) :
                                gj_ai_bid(&st->game, seat);
-                gj_place_bid(&st->game, seat, (uint8_t)b);
+                if(!place_bid_safe(st, seat, b)) {
+                    st->wait_ticks = 40; /* nothing legal (impossible): retry, UI stays alive */
+                    break;
+                }
                 refresh_cache(st);
                 if(gj_bidding_done(&st->game)) {
                     enter_lead_intro(st);
@@ -717,7 +752,10 @@ void gj_shell_tick(GjApp* st, const GjShellIo* io) {
             if(st->wait_ticks == 0) {
                 GjAiPlay p;
                 gj_ai_choose_card(&st->game, st->game.turn, &p);
-                gj_play_card(&st->game, st->game.turn, p.hand_idx, p.kind, p.demand_suit);
+                if(!play_card_safe(st, st->game.turn, &p)) {
+                    st->wait_ticks = 40; /* nothing legal (impossible): retry, UI stays alive */
+                    break;
+                }
                 if(gj_trick_complete(&st->game)) {
                     st->last_trick_winner = gj_trick_best_seat(&st->game);
                     st->phase = PhaseTrickResult;

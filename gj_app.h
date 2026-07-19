@@ -64,6 +64,7 @@ typedef struct {
     /* flags */
     bool save_available; /* valid save on SD -> Continue shown */
     bool running; /* false = exit app */
+    uint8_t recover_count; /* times a rejected bot move forced a fallback (0 = healthy) */
     /* cached status-bar strings (re-rendered on state change, not per frame) */
     char str_deal[12]; /* e.g. "D07/24" */
     char str_bid[16]; /* e.g. "B:2 T:1" */
