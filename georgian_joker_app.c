@@ -168,7 +168,15 @@ int32_t georgian_joker_app(void* p) {
     ctx->gui = furi_record_open(RECORD_GUI);
     gui_add_view_port(ctx->gui, ctx->view_port, GuiLayerFullscreen);
 
+    /* Repaint only when the state actually changed. gj_render_frame is a pure
+     * function of GjApp, so a CRC of GjApp is a valid "dirty" signal. This is
+     * the freeze fix: the fullscreen canvas_draw_xbm blit costs ~20ms on the
+     * M4, and calling it every 25ms tick pegged the GUI thread at ~95% CPU and
+     * starved the system into a hang. Now the blit runs only on a real change,
+     * so a static screen (menu, a picker, your turn) is ~0% CPU. */
     InputEvent event;
+    uint16_t last_sig = 0;
+    bool have_sig = false;
     for(;;) {
         FuriStatus status = furi_message_queue_get(ctx->queue, &event, 25);
         furi_mutex_acquire(ctx->mutex, FuriWaitForever);
@@ -181,10 +189,16 @@ int32_t georgian_joker_app(void* p) {
         bool running = ctx->state->app.running;
         PendingIo pending = ctx->pending_io;
         ctx->pending_io = PendingNone;
+        /* CRC the state under the lock (this thread is its only writer). */
+        uint16_t sig = gj_crc16(&ctx->state->app, sizeof(GjApp));
         furi_mutex_release(ctx->mutex);
 
         io_flush(ctx, pending); /* SD op, mutex released */
-        view_port_update(ctx->view_port);
+        if(!have_sig || sig != last_sig) {
+            last_sig = sig;
+            have_sig = true;
+            view_port_update(ctx->view_port); /* repaint only on change */
+        }
         if(!running) break;
     }
 
