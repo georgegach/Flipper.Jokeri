@@ -22,8 +22,14 @@ typedef enum {
     PhaseAbout,
     PhaseSplash, /* boot splash, auto-advance to Menu (appended: save compat) */
     PhaseLeadIntro, /* "YOU START"/"X STARTS" beat after bidding, before play */
-    PhasePause, /* Back during play: Resume / Chart / Exit (appended: save compat) */
+    PhasePause, /* Back during play: Resume / Chart / Rules / Exit (appended) */
+    PhaseRules, /* scrollable rules text; from menu or pause (appended) */
 } GamePhase;
+
+/* Rules screen text geometry (shared so the shell can clamp scroll without
+ * knowing the text, which lives in gj_render.c). */
+#define GJ_RULES_LINES 79
+#define GJ_RULES_VISIBLE 14
 
 typedef enum {
     SubNone = 0,
@@ -46,7 +52,9 @@ typedef struct {
     uint8_t suit_sel; /* suit picker 0..3 */
     uint8_t trump_sel; /* trump-select 0..3, 4 = no trump */
     uint8_t confirm_sel; /* 0 = yes, 1 = no */
-    uint8_t pause_sel; /* pause menu row: 0 resume, 1 chart, 2 exit */
+    uint8_t pause_sel; /* pause menu row: 0 resume, 1 chart, 2 rules, 3 exit */
+    uint8_t new_mode; /* GjMode chosen at the menu, pending overwrite confirm */
+    uint8_t rules_scroll; /* first visible line on the Rules screen */
     uint8_t standings_scroll; /* first visible deal row */
     uint8_t standings_xscroll; /* first visible player column (chart h-scroll) */
     uint8_t pending_hand_idx; /* joker card awaiting popup confirmation */

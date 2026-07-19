@@ -123,6 +123,7 @@ static const T7Glyph T7[] = {
     {':', 1, {0x00, 0x00, 0x01, 0x00, 0x00, 0x01, 0x00}},
     {'-', 3, {0x00, 0x00, 0x00, 0x07, 0x00, 0x00, 0x00}},
     {'.', 1, {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01}},
+    {',', 2, {0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x01}},
     {'/', 5, {0x10, 0x10, 0x08, 0x04, 0x02, 0x01, 0x01}},
     {'+', 5, {0x00, 0x04, 0x04, 0x1F, 0x04, 0x04, 0x00}},
     {'?', 5, {0x0E, 0x11, 0x10, 0x08, 0x04, 0x00, 0x04}},
@@ -379,7 +380,7 @@ static void draw_hand(GjGfx* g, const GjApp* app) {
     uint8_t n = h->count;
     /* table edge above the hand; the lifted selected card pokes through it */
     gj_gfx_hline(g, 0, 105, GJ_FB_W, 1);
-    bool blind = gj_deal_is_blind(gm->deal_index) && gm->bids[0] < 0;
+    bool blind = gj_deal_is_blind(gm->mode, gm->deal_index) && gm->bids[0] < 0;
     if(blind) {
         /* hatched card backs + BLIND banner (never peek hands[0]) */
         for(uint8_t i = 0; i < n && i < 5; i++) {
@@ -548,72 +549,78 @@ static void draw_suit_picker(GjGfx* g, const GjApp* app) {
 /* full-screen phases                                                     */
 /* ===================================================================== */
 
-static void draw_splash(GjGfx* g, const GjApp* app) {
-    static const char* const ART[32] = {
-        "........##....................##........",
-        ".......###....................###.......",
-        ".......####..................####.......",
-        ".......######..............######.......",
-        "........#######..........#######........",
-        ".........########......########.........",
-        "..........####################..........",
-        ".........######################.........",
-        "........########################........",
-        "........########################........",
-        "..........####################..........",
-        ".........######################.........",
-        ".........######################.........",
-        ".........######################.........",
-        ".........######################.........",
-        ".........####....######....####.........",
-        ".........####....######....####.........",
-        ".........####....######....####.........",
-        ".........####....######....####.........",
-        ".........######################.........",
-        ".........######################.........",
-        ".........##########..##########.........",
-        ".........##########..##########.........",
-        ".........##########..##########.........",
-        ".........######################.........",
-        ".........######################.........",
-        ".........######################.........",
-        ".........#####............#####.........",
-        ".........######################.........",
-        ".........######################.........",
-        "..........####################..........",
-        "...........##################...........",
-    };
-    int16_t ax = 12, ay = 4;
-    for(int16_t r = 0; r < 32; r++)
-        for(int16_t c = 0; c < 40; c++)
-            if(ART[r][c] == '#') gj_gfx_pixel(g, (int16_t)(ax + c), (int16_t)(ay + r), 1);
-
-    int16_t tw = (int16_t)gj_gfx_text_big_width("JOKER");
-    gj_gfx_text_big(g, (int16_t)(32 - tw / 2), 44, "JOKER", 1);
-    gj_gfx_hline(g, 10, 62, 44, 1);
-
-    /* three loading dots filling as wait_ticks runs down (~64 tick boot) */
-    uint16_t wt = app->wait_ticks;
-    uint8_t filled = (uint8_t)(3 - (wt / 16 > 3 ? 3 : wt / 16));
-    for(uint8_t i = 0; i < 3; i++) {
-        int16_t dx = (int16_t)(24 + i * 8);
-        if(i < filled)
-            gj_gfx_rect(g, dx, 74, 4, 4, 1);
-        else
-            gj_gfx_frame(g, dx, 74, 4, 4, 1);
+/* Bresenham line (for the splash's rotated cards; nothing else needs it) */
+static void line(GjGfx* g, int16_t x0, int16_t y0, int16_t x1, int16_t y1) {
+    int16_t dx = (int16_t)(x1 - x0), dy = (int16_t)(y1 - y0);
+    int16_t sx = (dx < 0) ? -1 : 1, sy = (dy < 0) ? -1 : 1;
+    if(dx < 0) dx = (int16_t)-dx;
+    if(dy < 0) dy = (int16_t)-dy;
+    int16_t err = (int16_t)(dx - dy);
+    for(;;) {
+        gj_gfx_pixel(g, x0, y0, 1);
+        if(x0 == x1 && y0 == y1) break;
+        int16_t e2 = (int16_t)(2 * err);
+        if(e2 > -dy) {
+            err = (int16_t)(err - dy);
+            x0 = (int16_t)(x0 + sx);
+        }
+        if(e2 < dx) {
+            err = (int16_t)(err + dx);
+            y0 = (int16_t)(y0 + sy);
+        }
     }
-    t7_center(g, 32, 106, "V0.2", 1);
-    t7_center(g, 32, 118, "AGENTIC.GE", 1);
+}
+
+/* One joker-card outline rotated by fixed-point (cs,sn)=(cos,sin)*256 about a
+ * bottom-centre pivot, with a joker pip near the top — a card held in a fan. */
+static void splash_card(GjGfx* g, int16_t px, int16_t py, int cs, int sn) {
+    static const int16_t cx[4] = {-10, 10, 10, -10}; /* BL BR TR TL */
+    static const int16_t cy[4] = {0, 0, -34, -34};
+    int16_t X[4], Y[4];
+    for(uint8_t i = 0; i < 4; i++) {
+        X[i] = (int16_t)(px + (cx[i] * cs - cy[i] * sn) / 256);
+        Y[i] = (int16_t)(py + (cx[i] * sn + cy[i] * cs) / 256);
+    }
+    for(uint8_t i = 0; i < 4; i++) line(g, X[i], Y[i], X[(i + 1) & 3], Y[(i + 1) & 3]);
+    int16_t jx = (int16_t)(px + (0 * cs - (-24) * sn) / 256);
+    int16_t jy = (int16_t)(py + (0 * sn + (-24) * cs) / 256);
+    gj_gfx_xbm(g, (int16_t)(jx - 3), (int16_t)(jy - 3), 7, 7, jo7, 1);
+}
+
+/* Georgian "ჯოკერი" — best-effort 7x13 mkhedruli glyphs (jani/oni/kani/eni/
+ * rae/ini). Native review welcome; letterforms are approximate pixel art. */
+static void draw_splash(GjGfx* g, const GjApp* app) {
+    (void)app;
+    /* two joker cards fanned ~30 deg between them, pivot near the fingertips */
+    splash_card(g, 32, 80, 247, -66); /* left card, -15 deg */
+    splash_card(g, 32, 80, 247, 66); /* right card, +15 deg */
+
+    static const uint8_t JANI[13] = {0x1C, 0x22, 0x22, 0x1C, 0x08, 0x3E, 0x08,
+                                     0x08, 0x08, 0x08, 0x1C, 0x00, 0x00};
+    static const uint8_t ONI[13] = {0x40, 0x20, 0x2E, 0x31, 0x21, 0x21, 0x21,
+                                    0x31, 0x2E, 0x00, 0x00, 0x00, 0x00};
+    static const uint8_t KANI[13] = {0x01, 0x01, 0x1D, 0x21, 0x21, 0x1D, 0x21,
+                                     0x21, 0x1D, 0x00, 0x00, 0x00, 0x00};
+    static const uint8_t ENI[13] = {0x1E, 0x21, 0x20, 0x3C, 0x21, 0x21, 0x21,
+                                    0x1E, 0x00, 0x00, 0x00, 0x00, 0x00};
+    static const uint8_t RAE[13] = {0x02, 0x02, 0x1E, 0x22, 0x22, 0x1E, 0x02,
+                                    0x02, 0x02, 0x00, 0x00, 0x00, 0x00};
+    static const uint8_t INI[13] = {0x0E, 0x11, 0x11, 0x11, 0x0E, 0x08, 0x08,
+                                    0x08, 0x0C, 0x00, 0x00, 0x00, 0x00};
+    const uint8_t* geo[6] = {JANI, ONI, KANI, ENI, RAE, INI};
+    for(uint8_t i = 0; i < 6; i++)
+        gj_gfx_xbm(g, (int16_t)(6 + i * 9), 96, 7, 13, geo[i], 1);
 }
 
 static void draw_menu(GjGfx* g, const GjApp* app) {
     /* logo pip row (menu text in the crafted 5x7 table font, uppercase) */
     gj_gfx_xbm(g, 4, 5, 7, 7, jo7, 1);
-    t7_text(g, 14, 5, "GEORGIAN", 1);
-    t7_text(g, 14, 14, "JOKER", 1);
-    gj_gfx_hline(g, 0, 24, GJ_FB_W, 1);
+    t7_text(g, 14, 6, "JOKERI", 1);
+    gj_gfx_hline(g, 0, 20, GJ_FB_W, 1);
 
-    const char* labels[3];
+    /* actions must match gj_shell.c PhaseMenu: [Continue], Standard, Quick
+     * Nines, Only Nines, Rules, About. */
+    const char* labels[6];
     uint8_t n = 0;
     char cont[16], num[6];
     if(app->save_available) {
@@ -622,11 +629,15 @@ static void draw_menu(GjGfx* g, const GjApp* app) {
         scat(cont, u2s((uint16_t)(app->game.deal_index + 1), num));
         labels[n++] = cont;
     }
-    labels[n++] = "NEW PULKA";
+    labels[n++] = "STANDARD";
+    labels[n++] = "QUICK 9S";
+    labels[n++] = "ONLY 9S";
+    labels[n++] = "RULES";
     labels[n++] = "ABOUT";
+
+    int16_t top = (int16_t)(24 + (6 - n) * 7); /* nudge a shorter list to centre */
     for(uint8_t i = 0; i < n; i++) {
-        int16_t y = (int16_t)(34 + i * 15);
-        /* centered in the pill; the inverted pill alone marks selection */
+        int16_t y = (int16_t)(top + i * 14);
         if(app->menu_sel == i) {
             gj_gfx_rrect(g, 2, y, 60, 13, 1);
             t7_center(g, 32, (int16_t)(y + 3), labels[i], 0);
@@ -636,6 +647,41 @@ static void draw_menu(GjGfx* g, const GjApp* app) {
     }
     gj_gfx_hline(g, 0, 116, GJ_FB_W, 1);
     t7_center(g, 32, 119, "OK SELECT", 1);
+}
+
+/* ---- Rules screen (scrollable, from menu or pause) ------------------- */
+static const char* const RULES[] = {
+    "GEORGIAN",  "JOKER",     "",          "4 SEATS:",  "YOU + 3",   "BOTS.",
+    "",          "GOAL",      "BID THE",   "TRICKS",    "YOU WILL",  "WIN, THEN",
+    "WIN THEM.", "",          "MODES",     "STANDARD:", "24 DEALS",  "1-8 UP,",
+    "X4 NINES,", "8-1 DOWN,", "X4 BLIND.", "QUICK 9S:", "4 NINES.",  "ONLY 9S:",
+    "24 NINES.", "",          "TRUMP",     "UP TO 8:",  "FLIP TOP",  "CARD.",
+    "NINES:",    "LEFT OF",   "DEALER",    "NAMES IT.", "",          "BIDDING",
+    "NAME THE",  "TRICKS",    "YOU WIN.",  "KHISHTI:",  "DEALER",    "BIDS LAST",
+    "AND CANT",  "MAKE THE",  "SUM EQUAL", "THE CARDS", "DEALT.",    "",
+    "SCORING",   "MEET BID:", "10 EACH",   "PLUS 50.",  "BID 0 GET", "0: GET 50.",
+    "MISS: 10",  "EACH WON.", "9 OF 9:",   "900!",      "",          "JOKERS",
+    "2 JOKERS",  "REPLACE",   "BLACK 6S.", "ALWAYS OK", "TO PLAY.",  "LEAD ONE:",
+    "TAKE,",     "DEMAND A",  "SUIT OR",   "TRUMP, OR", "UNDERPLAY.","",
+    "BLIND 9S",  "BID FIRST", "THEN SEE",  "YOUR HAND.", "",         "JOKER.",
+    "AGENTIC.GE",
+};
+
+static void draw_rules(GjGfx* g, const GjApp* app) {
+    _Static_assert(sizeof(RULES) / sizeof(RULES[0]) == GJ_RULES_LINES, "rules line count");
+    uint8_t total = GJ_RULES_LINES;
+    uint8_t scroll = app->rules_scroll;
+    if(scroll > total) scroll = total;
+    /* header bar */
+    gj_gfx_rect(g, 0, 0, GJ_FB_W, 9, 1);
+    t7_text(g, 2, 1, "RULES", 0);
+    if(scroll > 0) tri(g, 56, 2, 2, 0); /* more above */
+    if(scroll + GJ_RULES_VISIBLE < total) tri(g, 56, 122, 3, 1); /* more below */
+    for(uint8_t i = 0; i < GJ_RULES_VISIBLE; i++) {
+        uint8_t li = (uint8_t)(scroll + i);
+        if(li >= total) break;
+        t7_text(g, 2, (int16_t)(11 + i * 8), RULES[li], 1);
+    }
 }
 
 static void draw_stage_rail(GjGfx* g, int16_t y, uint8_t stage) {
@@ -652,18 +698,19 @@ static void draw_stage_rail(GjGfx* g, int16_t y, uint8_t stage) {
 
 static void draw_stage_intro(GjGfx* g, const GjApp* app) {
     const GjGame* gm = &app->game;
-    uint8_t stage = gj_deal_stage(gm->deal_index) & 3u;
+    uint8_t stage = gj_deal_stage(gm->mode, gm->deal_index) & 3u;
     char buf[16], num[6];
     buf[0] = 0;
     scat(buf, "DEAL ");
     scat(buf, u2s((uint16_t)(gm->deal_index + 1), num));
-    scat(buf, "/24");
+    scat(buf, "/");
+    scat(buf, u2s(gj_mode_num_deals(gm->mode), num));
     t7_center(g, 32, 14, buf, 1);
     int16_t tw = (int16_t)gj_gfx_text_big_width(STAGE_NAMES[stage]);
     gj_gfx_text_big(g, (int16_t)(32 - tw / 2), 34, STAGE_NAMES[stage], 1);
     draw_stage_rail(g, 58, stage);
     buf[0] = 0;
-    scat(buf, u2s(gj_deal_cards_for(gm->deal_index), num));
+    scat(buf, u2s(gj_deal_cards_for(gm->mode, gm->deal_index), num));
     scat(buf, " CARDS");
     t7_center(g, 32, 72, buf, 1);
     buf[0] = 0;
@@ -699,7 +746,7 @@ static void draw_trump_reveal(GjGfx* g, const GjApp* app) {
             gj_gfx_rframe(g, 20, 28, 24, 34, 1);
             pip7(g, 28, 40, (GjCard)(gm->trump_suit * 9 + 3), 1);
         }
-        if(gj_deal_trump_is_named(gm->deal_index)) {
+        if(gj_deal_trump_is_named(gm->mode, gm->deal_index)) {
             char b[20];
             b[0] = 0;
             scat(b, "BY ");
@@ -717,7 +764,7 @@ static void draw_trump_select(GjGfx* g, const GjApp* app) {
     const GjGame* gm = &app->game;
     t7_center(g, 32, 4, "PICK TRUMP", 1);
     gj_gfx_hline(g, 4, 16, 56, 1);
-    bool blind = gj_deal_is_blind(gm->deal_index);
+    bool blind = gj_deal_is_blind(gm->mode, gm->deal_index);
     uint8_t namer = gj_trump_namer(gm);
     if(blind) {
         gj_gfx_rrect(g, 10, 26, 44, 13, 1);
@@ -780,16 +827,22 @@ static void draw_deal_score(GjGfx* g, const GjApp* app) {
     t7_center(g, 32, 118, "^ TABLE", 1);
 }
 
-/* standings row label A1..A8 N1..N4 D8..D1 B1..B4 */
-static void standings_label(uint8_t d, char* out) {
+/* standings row label. Standard: A1..A8 N1..N4 D8..D1 B1..B4. Nines-only
+ * modes: N1..Nx (every deal is a nine). */
+static void standings_label(uint8_t mode, uint8_t d, char* out) {
     char num[6];
-    uint8_t stage = gj_deal_stage(d);
     char letter;
     uint16_t n;
-    switch(stage) {
+    if(mode != GjModeStandard) {
+        out[0] = 'N';
+        out[1] = 0;
+        scat(out, u2s((uint16_t)(d + 1), num));
+        return;
+    }
+    switch(gj_deal_stage(mode, d)) {
     case GjStageAscending:
         letter = 'A';
-        n = gj_deal_cards_for(d);
+        n = gj_deal_cards_for(mode, d);
         break;
     case GjStageNines:
         letter = 'N';
@@ -797,7 +850,7 @@ static void standings_label(uint8_t d, char* out) {
         break;
     case GjStageDescending:
         letter = 'D';
-        n = gj_deal_cards_for(d);
+        n = gj_deal_cards_for(mode, d);
         break;
     default:
         letter = 'B';
@@ -827,10 +880,11 @@ static void draw_standings(GjGfx* g, const GjApp* app) {
         t7_text(g, (int16_t)(COLR[k] - (int16_t)t7_width(HD[s])), 1, HD[s], 0);
     }
 
+    uint8_t ndeals = gj_mode_num_deals(gm->mode);
     uint8_t scroll = app->standings_scroll;
     for(uint8_t vis = 0; vis < 12; vis++) {
         uint8_t d = (uint8_t)(scroll + vis);
-        if(d >= GJ_NUM_DEALS) break;
+        if(d >= ndeals) break;
         int16_t y = (int16_t)(10 + vis * 9);
         bool cur = (d == gm->deal_index);
         uint8_t fg = 1;
@@ -839,7 +893,7 @@ static void draw_standings(GjGfx* g, const GjApp* app) {
             fg = 0;
         }
         char lbl[6];
-        standings_label(d, lbl);
+        standings_label(gm->mode, d, lbl);
         t7_text(g, 1, y, lbl, fg);
         for(uint8_t k = 0; k < 2; k++) {
             uint8_t s = (uint8_t)(xs + k);
@@ -856,7 +910,7 @@ static void draw_standings(GjGfx* g, const GjApp* app) {
             }
             t7_text(g, (int16_t)(COLR[k] - (int16_t)t7_width(cell)), y, cell, fg);
         }
-        if(d == 7 || d == 11 || d == 19)
+        if(gm->mode == GjModeStandard && (d == 7 || d == 11 || d == 19))
             for(int16_t px = 0; px < GJ_FB_W; px += 2)
                 gj_gfx_pixel(g, px, (int16_t)(y + 8), cur ? 0 : 1);
     }
@@ -922,19 +976,22 @@ static void draw_about(GjGfx* g) {
     t7_text(g, 20, 46, "TABLE", 1);
     t7_text(g, 2, 58, "BACK", 1);
     t7_text(g, 30, 58, "PAUSE", 1);
-    gj_gfx_hline(g, 2, 72, 60, 1);
-    t7_text(g, 2, 78, "CHART:", 1);
-    t7_text(g, 2, 90, "<> SEATS", 1);
-    t7_text(g, 2, 100, "^v DEALS", 1);
-    t7_center(g, 32, 118, "AGENTIC.GE", 1);
+    gj_gfx_hline(g, 2, 70, 60, 1);
+    t7_text(g, 2, 76, "CHART:", 1);
+    t7_text(g, 2, 86, "<> SEATS", 1);
+    t7_text(g, 2, 96, "^v DEALS", 1);
+    gj_gfx_hline(g, 2, 108, 60, 1);
+    /* canonical site: joker.agentic.ge (two lines so it fits 64px) */
+    t7_center(g, 32, 112, "JOKER.", 1);
+    t7_center(g, 32, 120, "AGENTIC.GE", 1);
 }
 
-/* Back-button popup during play: Resume / Chart / Exit */
+/* Back-button popup during play: Resume / Chart / Rules / Exit */
 static void draw_pause_menu(GjGfx* g, const GjApp* app) {
-    static const char* const rows[3] = {"RESUME", "CHART", "EXIT"};
-    modal(g, 8, 38, 48, 52, "PAUSED");
-    for(uint8_t i = 0; i < 3; i++) {
-        int16_t ry = (int16_t)(51 + i * 12);
+    static const char* const rows[4] = {"RESUME", "CHART", "RULES", "EXIT"};
+    modal(g, 8, 30, 48, 64, "PAUSED");
+    for(uint8_t i = 0; i < 4; i++) {
+        int16_t ry = (int16_t)(43 + i * 12);
         if(app->pause_sel == i) {
             gj_gfx_rrect(g, 10, ry, 44, 11, 1);
             t7_text(g, 15, (int16_t)(ry + 2), rows[i], 0);
@@ -1033,6 +1090,9 @@ static void draw_phase(GjGfx* g, const GjApp* app, uint8_t phase) {
         break;
     case PhaseAbout:
         draw_about(g);
+        break;
+    case PhaseRules:
+        draw_rules(g, app);
         break;
     case PhaseSplash:
         draw_splash(g, app);

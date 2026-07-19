@@ -15,27 +15,34 @@
 #include "gj_engine.h"
 
 /* ---- Schedule ------------------------------------------------------- */
-/* 1..8 ascending, 4x nine, 8..1 descending, 4x blind nine. */
+/* Standard pulka: 1..8 ascending, 4x nine, 8..1 descending, 4x blind nine.
+ * Quick/Only Nines are all nine-card named-trump deals (never blind). */
 static const uint8_t gj_schedule[GJ_NUM_DEALS] = {
     1, 2, 3, 4, 5, 6, 7, 8, 9, 9, 9, 9, 8, 7, 6, 5, 4, 3, 2, 1, 9, 9, 9, 9};
 
-uint8_t gj_deal_cards_for(uint8_t deal_index) {
-    return (deal_index < GJ_NUM_DEALS) ? gj_schedule[deal_index] : 0;
+uint8_t gj_mode_num_deals(uint8_t mode) {
+    return (mode == GjModeQuickNines) ? 4 : GJ_NUM_DEALS;
 }
 
-uint8_t gj_deal_stage(uint8_t deal_index) {
+uint8_t gj_deal_cards_for(uint8_t mode, uint8_t deal_index) {
+    if(deal_index >= gj_mode_num_deals(mode)) return 0;
+    return (mode == GjModeStandard) ? gj_schedule[deal_index] : 9;
+}
+
+uint8_t gj_deal_stage(uint8_t mode, uint8_t deal_index) {
+    if(mode != GjModeStandard) return GjStageNines; /* nines-only modes */
     if(deal_index < 8) return GjStageAscending;
     if(deal_index < 12) return GjStageNines;
     if(deal_index < 20) return GjStageDescending;
     return GjStageBlindNines;
 }
 
-bool gj_deal_is_blind(uint8_t deal_index) {
-    return gj_deal_stage(deal_index) == GjStageBlindNines;
+bool gj_deal_is_blind(uint8_t mode, uint8_t deal_index) {
+    return gj_deal_stage(mode, deal_index) == GjStageBlindNines;
 }
 
-bool gj_deal_trump_is_named(uint8_t deal_index) {
-    return gj_deal_cards_for(deal_index) == 9;
+bool gj_deal_trump_is_named(uint8_t mode, uint8_t deal_index) {
+    return gj_deal_cards_for(mode, deal_index) == 9;
 }
 
 /* ---- Shuffle -------------------------------------------------------- */
@@ -70,8 +77,9 @@ void gj_hand_sort(GjHand* h) {
 }
 
 /* ---- Lifecycle ------------------------------------------------------ */
-void gj_game_init(GjGame* g, uint8_t first_dealer) {
+void gj_game_init(GjGame* g, uint8_t first_dealer, uint8_t mode) {
     memset(g, 0, sizeof(*g));
+    g->mode = (mode < GJ_MODE_COUNT) ? mode : GjModeStandard;
     g->dealer = first_dealer;
     for(uint8_t s = 0; s < GJ_PLAYERS; s++) {
         g->bids[s] = -1;
@@ -85,7 +93,7 @@ void gj_game_init(GjGame* g, uint8_t first_dealer) {
 }
 
 void gj_deal_begin(GjGame* g, GjRngFn rng, void* ctx) {
-    uint8_t cards = gj_deal_cards_for(g->deal_index);
+    uint8_t cards = gj_deal_cards_for(g->mode, g->deal_index);
     g->cards_this_deal = cards;
 
     /* build the 36-card deck: ids 0..35 minus 0 (6s) and 27 (6c), + jokers */
@@ -453,7 +461,7 @@ void gj_deal_score(GjGame* g) {
 }
 
 bool gj_game_over(const GjGame* g) {
-    return g->deal_index >= GJ_NUM_DEALS;
+    return g->deal_index >= gj_mode_num_deals(g->mode);
 }
 
 uint8_t gj_winner(const GjGame* g) {

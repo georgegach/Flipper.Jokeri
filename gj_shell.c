@@ -17,7 +17,6 @@
 /* Bot pacing beat (25ms ticks): 18..29 -> ~0.45..0.75s between bot actions. */
 #define GJ_PACE_MIN 18u
 #define GJ_PACE_JITTER 12u
-#define GJ_STANDINGS_MAXSCROLL ((uint8_t)(GJ_NUM_DEALS - 12)) /* 12 visible 5x7 rows */
 #define GJ_STANDINGS_MAXXSCROLL 2u /* 4 player columns, 2 visible */
 #define GJ_SPLASH_TICKS 64u /* ~1.6s at 25ms */
 
@@ -57,7 +56,7 @@ static void refresh_cache(GjApp* app) {
     if(d < 10) *p++ = '0';
     p = put_uint(p, d);
     *p++ = '/';
-    p = put_uint(p, (unsigned)GJ_NUM_DEALS);
+    p = put_uint(p, (unsigned)gj_mode_num_deals(g->mode));
     *p = '\0';
     /* str_bid: "B:-" or "B:%d T:%u" -> e.g. "B:2 T:1" */
     p = app->str_bid;
@@ -143,13 +142,13 @@ static void begin_deal(GjApp* st, const GjShellIo* io) {
     refresh_cache(st);
 }
 
-static void start_new_pulka(GjApp* st, const GjShellIo* io) {
-    gj_game_init(&st->game, (uint8_t)(io_rng(io) % GJ_PLAYERS));
+static void start_new_pulka(GjApp* st, const GjShellIo* io, uint8_t mode) {
+    gj_game_init(&st->game, (uint8_t)(io_rng(io) % GJ_PLAYERS), mode);
     begin_deal(st, io);
 }
 
 static void stage_intro_advance(GjApp* st) {
-    if(gj_deal_trump_is_named(st->game.deal_index)) {
+    if(gj_deal_trump_is_named(st->game.mode, st->game.deal_index)) {
         st->phase = PhaseTrumpSelect;
         st->trump_sel = 0;
         /* bot namer: short beat, then tick performs the pick */
@@ -222,18 +221,43 @@ static void trick_result_advance(GjApp* st, const GjShellIo* io) {
     }
 }
 
+/* 12 rows of the 5x7 chart fit at once; scroll past that. Mode-aware: a
+ * 4-deal Quick Nines game never scrolls. */
+static uint8_t standings_maxscroll(const GjGame* g) {
+    uint8_t n = gj_mode_num_deals(g->mode);
+    return (n > 12u) ? (uint8_t)(n - 12u) : 0u;
+}
+
 static void open_standings(GjApp* st, uint8_t from) {
     st->prev_phase = from;
     st->phase = PhaseStandings;
     uint8_t d = st->game.deal_index;
-    st->standings_scroll = (d > GJ_STANDINGS_MAXSCROLL) ? GJ_STANDINGS_MAXSCROLL : d;
+    uint8_t mx = standings_maxscroll(&st->game);
+    st->standings_scroll = (d > mx) ? mx : d;
     st->standings_xscroll = 0;
+}
+
+/* Rules text screen, reachable from the menu and the pause popup. */
+static void open_rules(GjApp* st, uint8_t from) {
+    st->prev_phase = from;
+    st->phase = PhaseRules;
+    st->rules_scroll = 0;
 }
 
 static void exit_confirm_from(GjApp* st, uint8_t from) {
     st->prev_phase = from;
     st->phase = PhaseConfirmExit;
     st->confirm_sel = 0;
+}
+
+/* Start a new game in `mode`; a live save prompts an overwrite confirm. */
+static void new_game(GjApp* st, const GjShellIo* io, uint8_t mode) {
+    if(st->save_available) {
+        st->new_mode = mode;
+        exit_confirm_from(st, PhaseMenu); /* overwrite-save confirm */
+    } else {
+        start_new_pulka(st, io, mode);
+    }
 }
 
 /* Back during play: pause popup [Resume, Chart, Exit] over the table. */
@@ -255,10 +279,10 @@ static void pause_exit(GjApp* st, const GjShellIo* io) {
 
 static void confirm_yes(GjApp* st, const GjShellIo* io) {
     if(st->prev_phase == PhaseMenu) {
-        /* overwrite-save confirm */
+        /* overwrite-save confirm -> start the pending mode */
         io_save_delete(io);
         st->save_available = false;
-        start_new_pulka(st, io);
+        start_new_pulka(st, io, st->new_mode);
     } else {
         /* save & exit confirm: pack the RESUMABLE phase, not ConfirmExit,
          * so Continue lands back in play instead of a dangling dialog */
@@ -419,7 +443,9 @@ void gj_shell_input(GjApp* st, const GjShellIo* io, GjKey key) {
 
     switch(st->phase) {
     case PhaseMenu: {
-        uint8_t count = st->save_available ? 3 : 2;
+        /* actions in display order: Continue (save only), Standard, Quick
+         * Nines, Only Nines, Rules, About. menu_sel indexes VISIBLE rows. */
+        uint8_t count = st->save_available ? 6 : 5;
         if(is_press) {
             if(key == GjKeyUp) {
                 if(st->menu_sel > 0) st->menu_sel--;
@@ -429,18 +455,26 @@ void gj_shell_input(GjApp* st, const GjShellIo* io, GjKey key) {
                 st->running = false;
             }
         } else if(is_ok) {
-            if(st->save_available) {
-                if(st->menu_sel == 0)
-                    menu_continue(st, io);
-                else if(st->menu_sel == 1)
-                    exit_confirm_from(st, PhaseMenu); /* overwrite-save confirm */
-                else
-                    st->phase = PhaseAbout;
-            } else {
-                if(st->menu_sel == 0)
-                    start_new_pulka(st, io);
-                else
-                    st->phase = PhaseAbout;
+            uint8_t act = st->save_available ? st->menu_sel : (uint8_t)(st->menu_sel + 1);
+            switch(act) {
+            case 0:
+                menu_continue(st, io);
+                break;
+            case 1:
+                new_game(st, io, GjModeStandard);
+                break;
+            case 2:
+                new_game(st, io, GjModeQuickNines);
+                break;
+            case 3:
+                new_game(st, io, GjModeOnlyNines);
+                break;
+            case 4:
+                open_rules(st, PhaseMenu);
+                break;
+            default:
+                st->phase = PhaseAbout;
+                break;
             }
         }
         break;
@@ -544,7 +578,7 @@ void gj_shell_input(GjApp* st, const GjShellIo* io, GjKey key) {
             if(key == GjKeyUp) {
                 if(st->standings_scroll > 0) st->standings_scroll--;
             } else if(key == GjKeyDown) {
-                if(st->standings_scroll < GJ_STANDINGS_MAXSCROLL) st->standings_scroll++;
+                if(st->standings_scroll < standings_maxscroll(&st->game)) st->standings_scroll++;
             } else if(key == GjKeyLeft) {
                 if(st->standings_xscroll > 0) st->standings_xscroll--;
             } else if(key == GjKeyRight) {
@@ -562,7 +596,7 @@ void gj_shell_input(GjApp* st, const GjShellIo* io, GjKey key) {
             if(key == GjKeyUp) {
                 if(st->pause_sel > 0) st->pause_sel--;
             } else if(key == GjKeyDown) {
-                if(st->pause_sel < 2) st->pause_sel++;
+                if(st->pause_sel < 3) st->pause_sel++;
             } else if(key == GjKeyBack) {
                 st->phase = st->prev_phase; /* resume */
             }
@@ -572,9 +606,27 @@ void gj_shell_input(GjApp* st, const GjShellIo* io, GjKey key) {
             } else if(st->pause_sel == 1) {
                 /* chart; keeps prev_phase, so Back lands straight in play */
                 open_standings(st, st->prev_phase);
+            } else if(st->pause_sel == 2) {
+                open_rules(st, st->prev_phase); /* Back returns to the pause target */
             } else {
                 pause_exit(st, io);
             }
+        }
+        break;
+
+    case PhaseRules:
+        if(is_press) {
+            if(key == GjKeyUp) {
+                if(st->rules_scroll > 0) st->rules_scroll--;
+            } else if(key == GjKeyDown) {
+                uint8_t mx = (GJ_RULES_LINES > GJ_RULES_VISIBLE) ?
+                                 (uint8_t)(GJ_RULES_LINES - GJ_RULES_VISIBLE) : 0u;
+                if(st->rules_scroll < mx) st->rules_scroll++;
+            } else if(key == GjKeyBack) {
+                st->phase = st->prev_phase;
+            }
+        } else if(is_ok) {
+            st->phase = st->prev_phase;
         }
         break;
 
@@ -627,7 +679,7 @@ void gj_shell_tick(GjApp* st, const GjShellIo* io) {
             if(st->wait_ticks > 0) st->wait_ticks--;
             if(st->wait_ticks == 0) {
                 uint8_t namer = gj_trump_namer(&st->game);
-                bool blind = gj_deal_is_blind(st->game.deal_index);
+                bool blind = gj_deal_is_blind(st->game.mode, st->game.deal_index);
                 gj_set_trump(&st->game, gj_ai_pick_trump(&st->game, namer, blind));
                 st->phase = PhaseTrumpReveal;
                 st->wait_ticks = 48;
@@ -641,7 +693,7 @@ void gj_shell_tick(GjApp* st, const GjShellIo* io) {
             if(st->wait_ticks > 0) st->wait_ticks--;
             if(st->wait_ticks == 0) {
                 uint8_t seat = st->game.turn;
-                int8_t b = gj_deal_is_blind(st->game.deal_index) ?
+                int8_t b = gj_deal_is_blind(st->game.mode, st->game.deal_index) ?
                                gj_ai_bid_blind(&st->game, seat) :
                                gj_ai_bid(&st->game, seat);
                 gj_place_bid(&st->game, seat, (uint8_t)b);

@@ -68,14 +68,21 @@ static inline uint8_t gj_rank(GjCard c) {
 /* ---- Structure of the pulka ----------------------------------------- */
 #define GJ_PLAYERS 4 /* seat 0 = human (South), 1 = West, 2 = North, 3 = East */
 #define GJ_MAX_HAND 9
-#define GJ_NUM_DEALS 24
+#define GJ_NUM_DEALS 24 /* longest pulka; array sizing. Actual length is per-mode. */
 
 enum { GjStageAscending = 0, GjStageNines = 1, GjStageDescending = 2, GjStageBlindNines = 3 };
 
-uint8_t gj_deal_cards_for(uint8_t deal_index); /* schedule 1..8,9x4,8..1,9x4 */
-uint8_t gj_deal_stage(uint8_t deal_index);
-bool gj_deal_is_blind(uint8_t deal_index); /* stage == BlindNines */
-bool gj_deal_trump_is_named(uint8_t deal_index); /* true for all 9-card deals */
+/* Game modes. Standard = the traditional 24-deal pulka. Quick Nines = the
+ * four named-trump nine-card deals (N1..N4) only. Only Nines = 24 nine-card
+ * deals. Schedule/length below all key off the mode. */
+enum { GjModeStandard = 0, GjModeQuickNines = 1, GjModeOnlyNines = 2 };
+#define GJ_MODE_COUNT 3
+
+uint8_t gj_mode_num_deals(uint8_t mode); /* Standard/OnlyNines 24, QuickNines 4 */
+uint8_t gj_deal_cards_for(uint8_t mode, uint8_t deal_index); /* Standard 1..8,9x4,8..1,9x4 */
+uint8_t gj_deal_stage(uint8_t mode, uint8_t deal_index);
+bool gj_deal_is_blind(uint8_t mode, uint8_t deal_index); /* stage == BlindNines */
+bool gj_deal_trump_is_named(uint8_t mode, uint8_t deal_index); /* true for all 9-card deals */
 
 /* ---- Hands, plays, tricks ------------------------------------------- */
 typedef struct {
@@ -104,7 +111,8 @@ typedef struct {
  * payload (gj_save.h) — do not add pointers or implicit-size types. */
 typedef struct {
     /* pulka progress */
-    uint8_t deal_index; /* 0..GJ_NUM_DEALS-1; == GJ_NUM_DEALS when game over */
+    uint8_t mode; /* GjMode* — fixed at game start; drives schedule + length */
+    uint8_t deal_index; /* 0..num_deals-1; == num_deals when game over */
     uint8_t dealer; /* seat, rotates clockwise every deal */
     /* current deal */
     uint8_t cards_this_deal;
@@ -135,7 +143,7 @@ typedef uint32_t (*GjRngFn)(void* ctx);
 void gj_shuffle(GjCard* deck, uint8_t n, GjRngFn rng, void* ctx);
 
 /* ---- Lifecycle -------------------------------------------------------- */
-void gj_game_init(GjGame* g, uint8_t first_dealer);
+void gj_game_init(GjGame* g, uint8_t first_dealer, uint8_t mode);
 /* Shuffles a fresh 36-card deck, deals 4*cards clockwise starting left of
  * dealer, sorts hands, sets trump (flip) for <=8-card deals or leaves
  * trump_suit = GJ_SUIT_NONE for 9-card deals. Resets trick/bid/counting
