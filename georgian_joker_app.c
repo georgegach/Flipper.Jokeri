@@ -189,8 +189,15 @@ int32_t georgian_joker_app(void* p) {
         bool running = ctx->state->app.running;
         PendingIo pending = ctx->pending_io;
         ctx->pending_io = PendingNone;
-        /* CRC the state under the lock (this thread is its only writer). */
+        /* CRC the state under the lock (this thread is its only writer). Exclude
+         * wait_ticks: the renderer never reads it, so a countdown (bot pacing,
+         * splash, timed beats) must NOT trigger the ~20ms fullscreen blit — that
+         * was still pegging the GUI thread during bot turns. Zeroing it here is
+         * safe: the render thread is blocked on the mutex we still hold. */
+        uint16_t wt = ctx->state->app.wait_ticks;
+        ctx->state->app.wait_ticks = 0;
         uint16_t sig = gj_crc16(&ctx->state->app, sizeof(GjApp));
+        ctx->state->app.wait_ticks = wt;
         furi_mutex_release(ctx->mutex);
 
         io_flush(ctx, pending); /* SD op, mutex released */

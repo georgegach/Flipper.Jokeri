@@ -1,8 +1,10 @@
 /* gj_render.c — the whole vertical 64x128 UI (see gj_render.h).
  *
- * Furi-free: libc-only + project headers. Pure function of GjApp; animation
- * comes only from app->wait_ticks. Draws every GamePhase / UiSub into a GjGfx
- * framebuffer the Flipper blits raw (canvas_draw_xbm) and WASM re-exports.
+ * Furi-free: libc-only + project headers. Pure function of GjApp. Note the
+ * frame does NOT depend on app->wait_ticks (no animation reads it) — the
+ * Flipper wrapper relies on this to skip the fullscreen blit while a timer
+ * counts down. Draws every GamePhase / UiSub into a GjGfx framebuffer the
+ * Flipper blits raw (canvas_draw_xbm) and WASM re-exports.
  *
  * Suit convention: black suits (spades/clubs) filled pips, red (hearts/
  * diamonds) outline pips — encoded in the 5x5/7x7 glyph tables below.
