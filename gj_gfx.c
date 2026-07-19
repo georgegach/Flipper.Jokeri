@@ -7,6 +7,8 @@
 #include "gj_font.h"
 #include <string.h>
 
+_Static_assert(sizeof(GjGfx) == 1024, "framebuffer must stay 64x128/8 bytes");
+
 void gj_gfx_clear(GjGfx* g) {
     memset(g->fb, 0, GJ_FB_BYTES);
 }

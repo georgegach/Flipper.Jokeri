@@ -14,6 +14,10 @@
 #include "gj_ai.h"
 #include "gj_shell.h"
 
+/* GjApp is heap on device (not on the 2/4KB stack), but keep it bounded so a
+ * stray field can't balloon it unnoticed. Currently 330 B. */
+_Static_assert(sizeof(GjApp) <= 336, "GjApp over its RAM budget");
+
 /* Bot pacing beat (25ms ticks): 18..29 -> ~0.45..0.75s between bot actions. */
 #define GJ_PACE_MIN 18u
 #define GJ_PACE_JITTER 12u
