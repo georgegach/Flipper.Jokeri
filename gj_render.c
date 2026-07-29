@@ -691,13 +691,14 @@ static const char* const RULES[] = {
     "X4 NINES,", "8-1 DOWN,", "X4 BLIND.", "QUICK 9S:",  "4 NINES.",  "",
     "TRUMP",     "UP TO 8:",  "FLIP TOP",  "CARD.",      "NINES:",    "LEFT OF",
     "DEALER",    "NAMES IT.", "",          "BIDDING",    "NAME THE",  "TRICKS",
-    "YOU WIN.",  "KHISHTI:",  "DEALER",    "BIDS LAST",  "AND CANT",  "MAKE THE",
+    "YOU WIN.",  "HOOK:",     "DEALER",    "BIDS LAST",  "AND CANT",  "MAKE THE",
     "SUM EQUAL", "THE CARDS", "DEALT.",    "",           "SCORING",   "MEET BID:",
-    "10 EACH",   "PLUS 50.",  "BID 0 GET", "0: GET 50.", "MISS: 10",  "EACH WON.",
-    "9 OF 9:",   "900!",      "",          "JOKERS",     "2 JOKERS",  "REPLACE",
-    "BLACK 6S.", "ALWAYS OK", "TO PLAY.",  "LEAD ONE:",  "TAKE,",     "DEMAND A",
-    "SUIT OR",   "TRUMP, OR", "UNDERPLAY.", "",          "BLIND 9S",  "BID FIRST",
-    "THEN SEE",  "YOUR HAND.", "",         "JOKER.",     "AGENTIC.GE",
+    "50 EACH",   "PLUS 50.",  "SWEEP ALL:", "100 EACH.", "BID 0 GET", "0: GET 50.",
+    "MISS: 10",  "EACH WON.", "KHISHTI:",  "BID BUT",    "TAKE NONE", "-200.",
+    "",          "JOKERS",    "2 JOKERS",  "REPLACE",    "BLACK 6S.", "ALWAYS OK",
+    "TO PLAY.",  "LEAD ONE:", "TAKE,",     "DEMAND A",   "SUIT OR",   "TRUMP, OR",
+    "UNDERPLAY.", "",         "BLIND 9S",  "BID FIRST",  "THEN SEE",  "YOUR HAND.",
+    "",          "JOKER.",    "AGENTIC.GE",
 };
 
 static void draw_rules(GjGfx* g, const GjApp* app) {

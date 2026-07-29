@@ -19,9 +19,9 @@
  *   one wins. H3 an underplay-led Joker wins the trick only if no card of
  *   the named suit and no trump was played. H4 leading a Joker as underplay
  *   names a suit that others must follow (without the highest-card demand).
- * - Scoring: bid 0 & took 0 -> 50; bid 0 & took M -> M*10; exact bid N ->
- *   N*10+50; failed bid -> took*10 (no negative variant); bid 9 & took 9 in
- *   a 9-card deal -> 900.
+ * - Scoring: bid 0 & took 0 -> 50; exact bid N -> N*50+50; bid and take EVERY
+ *   trick of the deal -> cards*100 (so 9 of 9 -> 900, 8 of 8 -> 800); any
+ *   other miss -> took*10; bid >=1 and took 0 -> khishti, a flat -200.
  */
 #pragma once
 
@@ -178,6 +178,11 @@ void gj_trick_finish(GjGame* g);
 bool gj_deal_done(const GjGame* g); /* all tricks of the deal played */
 
 /* ---- Scoring ---------------------------------------------------------- */
+/* Khishti (ხიშტი, "bayonet"): bid one or more tricks and take none. NB the
+ * repo also calls the dealer's forbidden-bid rule a khishti/hook — different
+ * thing, same word; this is the scoring penalty. */
+#define GJ_KHISHTI (-200)
+
 int16_t gj_score_for(uint8_t bid, uint8_t took, uint8_t cards_dealt);
 /* Fill deal_scores[deal_index], update totals, advance deal_index, rotate
  * dealer. Call once when gj_deal_done(). */

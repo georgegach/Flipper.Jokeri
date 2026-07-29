@@ -441,11 +441,15 @@ bool gj_deal_done(const GjGame* g) {
 }
 
 /* ---- Scoring -------------------------------------------------------- */
+/* Standard Georgian table (as counted on jok.ge). Order matters: khishti
+ * outranks the generic miss, and the all-tricks sweep outranks the flat
+ * exact-bid bonus. The two agree at bid 1 in a 1-card deal (both 100). */
 int16_t gj_score_for(uint8_t bid, uint8_t took, uint8_t cards_dealt) {
-    if(bid == 9 && took == 9 && cards_dealt == 9) return 900;
-    if(bid == 0) return took == 0 ? (int16_t)50 : (int16_t)(took * 10);
-    if(took == bid) return (int16_t)(bid * 10 + 50);
-    return (int16_t)(took * 10);
+    if(bid > 0 && took == 0) return GJ_KHISHTI; /* bid, took none */
+    if(took != bid) return (int16_t)(took * 10); /* over/under, incl. broken 0 */
+    if(bid == 0) return 50; /* clean pass */
+    if(bid == cards_dealt) return (int16_t)(bid * 100); /* swept the deal */
+    return (int16_t)(bid * 50 + 50);
 }
 
 void gj_deal_score(GjGame* g) {
