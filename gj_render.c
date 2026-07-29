@@ -652,8 +652,8 @@ static void draw_menu(GjGfx* g, const GjApp* app) {
     gj_gfx_hline(g, 0, 20, GJ_FB_W, 1);
 
     /* actions must match gj_shell.c PhaseMenu: [Continue], Standard, Quick
-     * Nines, Only Nines, Rules, About. */
-    const char* labels[6];
+     * Nines, Rules, About. */
+    const char* labels[5];
     uint8_t n = 0;
     char cont[16], num[6];
     if(app->save_available) {
@@ -664,11 +664,12 @@ static void draw_menu(GjGfx* g, const GjApp* app) {
     }
     labels[n++] = "STANDARD";
     labels[n++] = "QUICK 9S";
-    labels[n++] = "ONLY 9S";
     labels[n++] = "RULES";
     labels[n++] = "ABOUT";
 
-    int16_t top = (int16_t)(24 + (6 - n) * 7); /* nudge a shorter list to centre */
+    /* centre the n rows (14px pitch, 13px tall) between the two rules at
+     * y=20 and y=116: top = 21 + (95 - (14n - 1)) / 2. */
+    int16_t top = (int16_t)(69 - n * 7);
     for(uint8_t i = 0; i < n; i++) {
         int16_t y = (int16_t)(top + i * 14);
         if(app->menu_sel == i) {
@@ -684,20 +685,19 @@ static void draw_menu(GjGfx* g, const GjApp* app) {
 
 /* ---- Rules screen (scrollable, from menu or pause) ------------------- */
 static const char* const RULES[] = {
-    "GEORGIAN",  "JOKER",     "",          "4 SEATS:",  "YOU + 3",   "BOTS.",
-    "",          "GOAL",      "BID THE",   "TRICKS",    "YOU WILL",  "WIN, THEN",
-    "WIN THEM.", "",          "MODES",     "STANDARD:", "24 DEALS",  "1-8 UP,",
-    "X4 NINES,", "8-1 DOWN,", "X4 BLIND.", "QUICK 9S:", "4 NINES.",  "ONLY 9S:",
-    "24 NINES.", "",          "TRUMP",     "UP TO 8:",  "FLIP TOP",  "CARD.",
-    "NINES:",    "LEFT OF",   "DEALER",    "NAMES IT.", "",          "BIDDING",
-    "NAME THE",  "TRICKS",    "YOU WIN.",  "KHISHTI:",  "DEALER",    "BIDS LAST",
-    "AND CANT",  "MAKE THE",  "SUM EQUAL", "THE CARDS", "DEALT.",    "",
-    "SCORING",   "MEET BID:", "10 EACH",   "PLUS 50.",  "BID 0 GET", "0: GET 50.",
-    "MISS: 10",  "EACH WON.", "9 OF 9:",   "900!",      "",          "JOKERS",
-    "2 JOKERS",  "REPLACE",   "BLACK 6S.", "ALWAYS OK", "TO PLAY.",  "LEAD ONE:",
-    "TAKE,",     "DEMAND A",  "SUIT OR",   "TRUMP, OR", "UNDERPLAY.","",
-    "BLIND 9S",  "BID FIRST", "THEN SEE",  "YOUR HAND.", "",         "JOKER.",
-    "AGENTIC.GE",
+    "GEORGIAN",  "JOKER",     "",          "4 SEATS:",   "YOU + 3",   "BOTS.",
+    "",          "GOAL",      "BID THE",   "TRICKS",     "YOU WILL",  "WIN, THEN",
+    "WIN THEM.", "",          "MODES",     "STANDARD:",  "24 DEALS",  "1-8 UP,",
+    "X4 NINES,", "8-1 DOWN,", "X4 BLIND.", "QUICK 9S:",  "4 NINES.",  "",
+    "TRUMP",     "UP TO 8:",  "FLIP TOP",  "CARD.",      "NINES:",    "LEFT OF",
+    "DEALER",    "NAMES IT.", "",          "BIDDING",    "NAME THE",  "TRICKS",
+    "YOU WIN.",  "KHISHTI:",  "DEALER",    "BIDS LAST",  "AND CANT",  "MAKE THE",
+    "SUM EQUAL", "THE CARDS", "DEALT.",    "",           "SCORING",   "MEET BID:",
+    "10 EACH",   "PLUS 50.",  "BID 0 GET", "0: GET 50.", "MISS: 10",  "EACH WON.",
+    "9 OF 9:",   "900!",      "",          "JOKERS",     "2 JOKERS",  "REPLACE",
+    "BLACK 6S.", "ALWAYS OK", "TO PLAY.",  "LEAD ONE:",  "TAKE,",     "DEMAND A",
+    "SUIT OR",   "TRUMP, OR", "UNDERPLAY.", "",          "BLIND 9S",  "BID FIRST",
+    "THEN SEE",  "YOUR HAND.", "",         "JOKER.",     "AGENTIC.GE",
 };
 
 static void draw_rules(GjGfx* g, const GjApp* app) {
@@ -860,8 +860,8 @@ static void draw_deal_score(GjGfx* g, const GjApp* app) {
     t7_center(g, 32, 118, "^ TABLE", 1);
 }
 
-/* standings row label. Standard: A1..A8 N1..N4 D8..D1 B1..B4. Nines-only
- * modes: N1..Nx (every deal is a nine). */
+/* standings row label. Standard: A1..A8 N1..N4 D8..D1 B1..B4. Quick Nines:
+ * N1..N4 (every deal is a nine). */
 static void standings_label(uint8_t mode, uint8_t d, char* out) {
     char num[6];
     char letter;

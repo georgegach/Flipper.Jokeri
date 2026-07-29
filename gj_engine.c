@@ -16,7 +16,7 @@
 
 /* ---- Schedule ------------------------------------------------------- */
 /* Standard pulka: 1..8 ascending, 4x nine, 8..1 descending, 4x blind nine.
- * Quick/Only Nines are all nine-card named-trump deals (never blind). */
+ * Quick Nines is all nine-card named-trump deals (never blind). */
 static const uint8_t gj_schedule[GJ_NUM_DEALS] = {
     1, 2, 3, 4, 5, 6, 7, 8, 9, 9, 9, 9, 8, 7, 6, 5, 4, 3, 2, 1, 9, 9, 9, 9};
 
@@ -30,7 +30,7 @@ uint8_t gj_deal_cards_for(uint8_t mode, uint8_t deal_index) {
 }
 
 uint8_t gj_deal_stage(uint8_t mode, uint8_t deal_index) {
-    if(mode != GjModeStandard) return GjStageNines; /* nines-only modes */
+    if(mode != GjModeStandard) return GjStageNines; /* Quick Nines */
     if(deal_index < 8) return GjStageAscending;
     if(deal_index < 12) return GjStageNines;
     if(deal_index < 20) return GjStageDescending;

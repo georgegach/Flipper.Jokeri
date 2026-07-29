@@ -73,12 +73,12 @@ static inline uint8_t gj_rank(GjCard c) {
 enum { GjStageAscending = 0, GjStageNines = 1, GjStageDescending = 2, GjStageBlindNines = 3 };
 
 /* Game modes. Standard = the traditional 24-deal pulka. Quick Nines = the
- * four named-trump nine-card deals (N1..N4) only. Only Nines = 24 nine-card
- * deals. Schedule/length below all key off the mode. */
-enum { GjModeStandard = 0, GjModeQuickNines = 1, GjModeOnlyNines = 2 };
-#define GJ_MODE_COUNT 3
+ * four named-trump nine-card deals (N1..N4) only. Schedule/length below all
+ * key off the mode. */
+enum { GjModeStandard = 0, GjModeQuickNines = 1 };
+#define GJ_MODE_COUNT 2
 
-uint8_t gj_mode_num_deals(uint8_t mode); /* Standard/OnlyNines 24, QuickNines 4 */
+uint8_t gj_mode_num_deals(uint8_t mode); /* Standard 24, QuickNines 4 */
 uint8_t gj_deal_cards_for(uint8_t mode, uint8_t deal_index); /* Standard 1..8,9x4,8..1,9x4 */
 uint8_t gj_deal_stage(uint8_t mode, uint8_t deal_index);
 bool gj_deal_is_blind(uint8_t mode, uint8_t deal_index); /* stage == BlindNines */

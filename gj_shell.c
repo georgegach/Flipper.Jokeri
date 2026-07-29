@@ -448,8 +448,8 @@ void gj_shell_input(GjApp* st, const GjShellIo* io, GjKey key) {
     switch(st->phase) {
     case PhaseMenu: {
         /* actions in display order: Continue (save only), Standard, Quick
-         * Nines, Only Nines, Rules, About. menu_sel indexes VISIBLE rows. */
-        uint8_t count = st->save_available ? 6 : 5;
+         * Nines, Rules, About. menu_sel indexes VISIBLE rows. */
+        uint8_t count = st->save_available ? 5 : 4;
         if(is_press) {
             if(key == GjKeyUp) {
                 if(st->menu_sel > 0) st->menu_sel--;
@@ -471,9 +471,6 @@ void gj_shell_input(GjApp* st, const GjShellIo* io, GjKey key) {
                 new_game(st, io, GjModeQuickNines);
                 break;
             case 3:
-                new_game(st, io, GjModeOnlyNines);
-                break;
-            case 4:
                 open_rules(st, PhaseMenu);
                 break;
             default:

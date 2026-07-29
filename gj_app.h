@@ -28,7 +28,7 @@ typedef enum {
 
 /* Rules screen text geometry (shared so the shell can clamp scroll without
  * knowing the text, which lives in gj_render.c). */
-#define GJ_RULES_LINES 79
+#define GJ_RULES_LINES 77
 #define GJ_RULES_VISIBLE 14
 
 typedef enum {
