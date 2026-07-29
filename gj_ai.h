@@ -21,13 +21,14 @@ typedef struct {
  * 0 if 5+; two or more low trumps (below Q) +1 once. Exposed for tests. */
 int gj_ai_hand_value_x2(const GjHand* h, uint8_t trump_suit);
 
-/* Sighted bid: clamp(value/2, 0, cards) with the dealer khishti dodge
- * (rich half-trick remainder -> +1, else -1; clamped and re-checked).
- * Must always return a gj_bid_legal() value. */
+/* Sighted bid: half-tricks rounded to NEAREST and clamped to 0..cards, but
+ * forced to 0 unless the hand holds a solid winner (joker or trump >= Q) —
+ * the khishti guard. Dealer hook dodge walks down first. Must always return
+ * a gj_bid_legal() value. */
 int8_t gj_ai_bid(const GjGame* g, uint8_t seat);
 
 /* Blind bid (Blind Nines): does NOT look at the hand. Deterministic
- * position-salted prior around cards/4, khishti-legal for the dealer. */
+ * position-salted prior alternating 3/2, legal for the dealer. */
 int8_t gj_ai_bid_blind(const GjGame* g, uint8_t seat);
 
 /* Trump naming for 9-card deals (house rule H5). If blind, chooses with

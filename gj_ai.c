@@ -169,19 +169,43 @@ int gj_ai_hand_value_x2(const GjHand* h, uint8_t trump_suit) {
 
 /* ---- bidding --------------------------------------------------------- */
 
+/* Assets that win a trick almost however the deal runs: jokers and the top
+ * trumps. Off-suit aces are deliberately NOT solid — they get trumped, and
+ * counting them measurably raises khishti (see the retune note in
+ * docs/GAME_DESIGN.md "AI blueprint"). */
+static int solid_winners(const GjHand* h, uint8_t trump) {
+    int n = 0;
+    for(uint8_t i = 0; i < h->count; i++) {
+        GjCard c = h->cards[i];
+        if(gj_is_joker(c)) {
+            n++;
+        } else if(is_trump_card(c, trump) && gj_rank(c) >= GJ_RANK_Q) {
+            n++;
+        }
+    }
+    return n;
+}
+
 int8_t gj_ai_bid(const GjGame* g, uint8_t seat) {
     int cards = (int)g->cards_this_deal;
-    int value_x2 = gj_ai_hand_value_x2(&g->hands[seat], g->trump_suit);
-    int base = clampi(value_x2 / 2, 0, cards);
+    const GjHand* h = &g->hands[seat];
+    int value_x2 = gj_ai_hand_value_x2(h, g->trump_suit);
+    /* Round the half-trick count to NEAREST, not down: an exact bid pays
+     * bid*50+50, so shading a trick off costs far more than the miss it
+     * dodges. Only safe because of the khishti guard below. */
+    int base = (value_x2 + 1) / 2;
+    /* Khishti guard: promising a trick you cannot cash is -200 where a pass
+     * banks +50. Never bid without at least one solid winner. */
+    if(base >= 1 && solid_winners(h, g->trump_suit) == 0) base = 0;
+    base = clampi(base, 0, cards);
     if(gj_bid_legal(g, seat, (uint8_t)base)) return (int8_t)base; /* non-dealer always legal */
-    /* Dealer khishti dodge: rich half-trick remainder rounds up, else down;
-     * then walk outward until a legal bid is found (one is guaranteed). */
-    int dir = (value_x2 & 1) ? 1 : -1;
+    /* Dealer hook dodge: walk DOWN first — a lower bid is easier to fill, and
+     * stepping to 0 dodges khishti outright. Some value is always legal. */
     for(int d = 1; d <= cards; d++) {
-        int c1 = base + dir * d;
-        if(c1 >= 0 && c1 <= cards && gj_bid_legal(g, seat, (uint8_t)c1)) return (int8_t)c1;
-        int c2 = base - dir * d;
-        if(c2 >= 0 && c2 <= cards && gj_bid_legal(g, seat, (uint8_t)c2)) return (int8_t)c2;
+        int lo = base - d;
+        if(lo >= 0 && gj_bid_legal(g, seat, (uint8_t)lo)) return (int8_t)lo;
+        int hi = base + d;
+        if(hi <= cards && gj_bid_legal(g, seat, (uint8_t)hi)) return (int8_t)hi;
     }
     return (int8_t)base; /* unreachable */
 }
@@ -189,9 +213,12 @@ int8_t gj_ai_bid(const GjGame* g, uint8_t seat) {
 int8_t gj_ai_bid_blind(const GjGame* g, uint8_t seat) {
     /* No hand knowledge: a deterministic, position-salted prior around
      * cards/4 (== 2 for the nine-card blind deals), nudged to 3 on a salt
-     * hit so seats vary. Dealer walks to the nearest khishti-legal value. */
+     * hit. The salt hits every OTHER seat rather than one in four: nine
+     * tricks rarely split 2/2/2/3, so spreading the table's bids across 2
+     * and 3 fits the real split better and outscores a uniform 2 even though
+     * it khishtis slightly more. Dealer walks to the nearest legal value. */
     int cards = (int)g->cards_this_deal;
-    int base = ((seat + g->deal_index) % 4 == 0) ? 3 : 2;
+    int base = ((seat + g->deal_index) % 2 == 0) ? 3 : 2;
     base = clampi(base, 0, cards);
     if(gj_bid_legal(g, seat, (uint8_t)base)) return (int8_t)base;
     for(int d = 1; d <= cards; d++) {
