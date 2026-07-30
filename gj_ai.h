@@ -26,6 +26,13 @@ int gj_ai_hand_value_x2(const GjHand* h, uint8_t trump_suit);
  * the khishti guard. Dealer hook dodge walks down first. Must always return
  * a gj_bid_legal() value. */
 int8_t gj_ai_bid(const GjGame* g, uint8_t seat);
+/* Same, with the difficulty given explicitly instead of read from the game.
+ * Exists so tests/bench_bid.c can play two levels against each other in the
+ * SAME pulka — difficulty is per-game state, so a head-to-head needs this. */
+int8_t gj_ai_bid_at(const GjGame* g, uint8_t seat, uint8_t difficulty);
+/* Levels: Easy truncates the hand value and drops the khishti guard (-87 per
+ * pulka vs Normal). Normal is the tuned bot. Hard adds a table-pressure shade
+ * but is currently only +0.3 vs Normal — see the note in gj_ai.c. */
 
 /* Blind bid (Blind Nines): does NOT look at the hand. Deterministic
  * position-salted prior alternating 3/2, legal for the dealer. */

@@ -112,6 +112,7 @@ typedef struct {
 typedef struct {
     /* pulka progress */
     uint8_t mode; /* GjMode* — fixed at game start; drives schedule + length */
+    uint8_t difficulty; /* GjDiff* — refreshed per deal from settings */
     uint8_t deal_index; /* 0..num_deals-1; == num_deals when game over */
     uint8_t dealer; /* seat, rotates clockwise every deal */
     /* current deal */
@@ -192,6 +193,7 @@ int16_t gj_score_for(uint8_t bid, uint8_t took, uint8_t cards_dealt, int16_t khi
  * setting at the start of every deal, which is what makes the preference take
  * effect immediately while keeping a single deal's scoring self-consistent. */
 void gj_set_khishti(GjGame* g, int16_t khishti);
+void gj_set_difficulty(GjGame* g, uint8_t difficulty);
 /* Fill deal_scores[deal_index], update totals, advance deal_index, rotate
  * dealer. Call once when gj_deal_done(). */
 void gj_deal_score(GjGame* g);

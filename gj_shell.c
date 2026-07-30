@@ -149,6 +149,7 @@ static void begin_deal(GjApp* st, const GjShellIo* io) {
      * makes a settings change take effect immediately while keeping one deal's
      * scoring self-consistent. */
     gj_set_khishti(&st->game, st->khishti_opt == GjKhishti500 ? GJ_KHISHTI_HARSH : GJ_KHISHTI);
+    gj_set_difficulty(&st->game, st->difficulty);
     gj_deal_begin(&st->game, io ? io->rng : 0, io ? io->ctx : 0);
     st->phase = PhaseStageIntro;
     st->sub = SubNone;

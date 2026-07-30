@@ -6,6 +6,7 @@
  * tallies (played_per_suit/jokers_seen/ace_seen). Never another seat's hand.
  * Fully deterministic — no RNG anywhere. */
 #include "gj_ai.h"
+#include "gj_settings_core.h" /* GjDiff* */
 
 #define AI_COST_MAX 1000 /* > any real card_cost (~108); avoids <limits.h> */
 
@@ -186,14 +187,29 @@ static int solid_winners(const GjHand* h, uint8_t trump) {
     return n;
 }
 
+/* Tricks the rest of the table has already claimed this deal. Only bids
+ * actually placed count; -1 is "not yet bid". Visible information. */
+static int bids_so_far(const GjGame* g, uint8_t seat) {
+    int sum = 0;
+    for(uint8_t s = 0; s < GJ_PLAYERS; s++) {
+        if(s == seat) continue;
+        if(g->bids[s] >= 0) sum += g->bids[s];
+    }
+    return sum;
+}
+
 int8_t gj_ai_bid(const GjGame* g, uint8_t seat) {
+    return gj_ai_bid_at(g, seat, g->difficulty);
+}
+
+int8_t gj_ai_bid_at(const GjGame* g, uint8_t seat, uint8_t difficulty) {
     int cards = (int)g->cards_this_deal;
     const GjHand* h = &g->hands[seat];
     int value_x2 = gj_ai_hand_value_x2(h, g->trump_suit);
     /* Round the half-trick count to NEAREST, not down: an exact bid pays
      * bid*50+50, so shading a trick off costs far more than the miss it
      * dodges. Only safe because of the khishti guard below. */
-    int base = (value_x2 + 1) / 2;
+    int base = (difficulty == GjDiffEasy) ? value_x2 / 2 : (value_x2 + 1) / 2;
     /* Khishti guard: promising a trick you cannot cash costs the penalty where
      * a pass banks +50. Never bid without at least one solid winner.
      *
@@ -202,7 +218,25 @@ int8_t gj_ai_bid(const GjGame* g, uint8_t seat) {
      * cost 136 points per pulka and 2.5pp of made contracts to save 4 khishti
      * per 1000 deals. Over-shading is far more expensive than khishti under
      * this score table, at either penalty. */
-    if(base >= 1 && solid_winners(h, g->trump_suit) == 0) base = 0;
+    if(difficulty != GjDiffEasy && base >= 1 && solid_winners(h, g->trump_suit) == 0)
+        base = 0;
+
+    /* Hard: table pressure. Bids go in turn order, so a later seat sees what
+     * the others have claimed; when the table is CLEARLY oversubscribed
+     * somebody must miss, so shade off a trick to make it less likely to be
+     * us. Visible information only, per the gj_ai.h contract.
+     *
+     * HONEST STATUS: this is worth +0.3 points per pulka against Normal on a
+     * holdout range — neutral, not an improvement. A symmetric version that
+     * also nudged UP when the table was underbid measured -72, collapsing
+     * made% from 56 to 51, and was dropped. Hard is therefore NOT yet a
+     * genuinely stronger bot; the card-counting and opponent-modelling work
+     * (GJ-022) is still open. Kept because it is harmless and the level has
+     * to exist for the setting. */
+    if(difficulty == GjDiffHard && base >= 1) {
+        int claimed = bids_so_far(g, seat);
+        if(claimed + base > cards + 1) base--; /* clearly oversubscribed only */
+    }
     base = clampi(base, 0, cards);
     if(gj_bid_legal(g, seat, (uint8_t)base)) return (int8_t)base; /* non-dealer always legal */
     /* Dealer hook dodge: walk DOWN first — a lower bid is easier to fill, and

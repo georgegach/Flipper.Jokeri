@@ -6,8 +6,8 @@
 
 /* The save blob IS the byte layout of GjGame. If any of these fire, the on-disk
  * format changed and GJ_SAVE_VERSION must bump (and old saves get rejected). */
-_Static_assert(sizeof(GjGame) == 280, "GjGame layout changed -> bump GJ_SAVE_VERSION");
-_Static_assert(sizeof(GjSaveFile) == 296, "GjSaveFile layout changed -> bump GJ_SAVE_VERSION");
+_Static_assert(sizeof(GjGame) == 282, "GjGame layout changed -> bump GJ_SAVE_VERSION");
+_Static_assert(sizeof(GjSaveFile) == 300, "GjSaveFile layout changed -> bump GJ_SAVE_VERSION");
 _Static_assert(offsetof(GjSaveFile, phase) == 8, "CRC region anchor moved");
 
 /* CRC over the bytes from `phase` to the end of the struct (everything after

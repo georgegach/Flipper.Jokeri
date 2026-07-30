@@ -81,6 +81,7 @@ void gj_game_init(GjGame* g, uint8_t first_dealer, uint8_t mode) {
     memset(g, 0, sizeof(*g));
     g->mode = (mode < GJ_MODE_COUNT) ? mode : GjModeStandard;
     g->khishti = GJ_KHISHTI;
+    g->difficulty = 1; /* GjDiffNormal; gj_settings_core.h owns the enum */
     g->dealer = first_dealer;
     for(uint8_t s = 0; s < GJ_PLAYERS; s++) {
         g->bids[s] = -1;
@@ -494,4 +495,8 @@ uint16_t gj_crc16(const void* data, uint32_t len) {
 
 void gj_set_khishti(GjGame* g, int16_t khishti) {
     g->khishti = khishti;
+}
+
+void gj_set_difficulty(GjGame* g, uint8_t difficulty) {
+    g->difficulty = difficulty;
 }
