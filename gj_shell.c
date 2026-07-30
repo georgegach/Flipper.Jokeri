@@ -664,8 +664,8 @@ void gj_shell_input(GjApp* st, const GjShellIo* io, GjKey key) {
                 if(st->rules_scroll > 0) st->rules_scroll--;
             } else if(key == GjKeyDown) {
                 uint16_t total = gj_rules_lines(st->lang);
-                uint8_t mx = (total > GJ_RULES_VISIBLE) ?
-                                 (uint8_t)(total - GJ_RULES_VISIBLE) : 0u;
+                uint8_t vis = gj_rules_visible(st->lang);
+                uint8_t mx = (total > vis) ? (uint8_t)(total - vis) : 0u;
                 if(st->rules_scroll < mx) st->rules_scroll++;
             } else if(key == GjKeyBack) {
                 st->phase = st->prev_phase;

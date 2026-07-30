@@ -13,15 +13,26 @@
 #include "gj_gfx.h"
 #include "gj_app.h"
 
+/* Height of the table font's cell. 10, not 7: ASCII uses the top 7 (cap box)
+ * but Mkhedruli is four-level — 14 letters ascend to cap height and 16 descend
+ * below the baseline. */
+#define GJ_T7_CELL_MAX 10
+
+/* Height of the table font's cell. 10, not 7: ASCII uses the top 7 (the cap
+ * box) but Mkhedruli is four-level — 14 letters ascend to cap height and 16
+ * descend below the baseline. */
+#define GJ_T7_CELL_MAX 10
+
 /* Dispatches on app->phase / app->sub and draws the complete frame. */
 void gj_render_frame(GjGfx* g, const GjApp* app);
 
 #ifdef GJ_TESTING
-/* Test-only window onto the private 5x7 table font, so tests can freeze the
- * glyph shapes and measure string widths without a screen that shows them.
- * Fills rows[0..6] (bit c = column c, LSB leftmost) and *w with the advance
- * width; returns false for a codepoint the table has no glyph for. */
-bool gj_render_glyph(uint16_t cp, uint8_t rows[7], uint8_t* w);
+/* Test-only window onto the private table font, so tests can freeze the glyph
+ * shapes and measure strings without a screen that shows them. Fills
+ * rows[0..*h-1] (bit c = column c, LSB leftmost) plus the glyph's ink width,
+ * row count and offset inside the cell. False if there is no such glyph. */
+bool gj_render_glyph(uint16_t cp, uint8_t rows[GJ_T7_CELL_MAX], uint8_t* w, uint8_t* h,
+                     uint8_t* top);
 /* Rendered width in pixels of a UTF-8 string, same metric the renderer uses. */
 uint16_t gj_render_text_width(const char* s);
 #endif

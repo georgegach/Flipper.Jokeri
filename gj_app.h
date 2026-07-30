@@ -28,9 +28,9 @@ typedef enum {
     PhaseSettings, /* language / khishti / bots (appended: save compat) */
 } GamePhase;
 
-/* Rules screen geometry. The line COUNT is per-language and lives in
- * gj_i18n.c (gj_rules_lines); only the visible-window height is fixed. */
-#define GJ_RULES_VISIBLE 14
+/* Rules screen geometry is entirely per-language now (gj_i18n.c): Georgian
+ * descends, so it needs a taller pitch and fits fewer lines. See
+ * gj_rules_lines / gj_rules_pitch / gj_rules_visible. */
 
 typedef enum {
     SubNone = 0,

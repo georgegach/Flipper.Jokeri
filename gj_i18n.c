@@ -123,21 +123,21 @@ static const char* const EN[GjStrCount] = {
     [GjStrAgentic] = "AGENTIC.GE",
 };
 
-/* Georgian. DRAFT by a non-native speaker, sized to the measured pixel
- * budgets rather than translated literally — the screen is 64px and the face
- * advances 6px per letter, so a full-width label is ~10 glyphs and several of
- * these are deliberately abbreviated. Entries left NULL fall back to English.
- * Terms wanting a native check are marked (?). tests/test_i18n.c asserts every
- * one of these fits the screen. */
+/* Georgian. Sized against the real pixel budgets: the screen is 64px and the
+ * Anbani Pixel Mkhedruli is proportional at 3-5px, so most whole words fit.
+ * Only three sites still force an abbreviation — the two 24px confirm buttons
+ * and the 39px pause rows. Entries left NULL fall back to English. Terms still
+ * wanting a native check are marked (?); tests/test_i18n.c asserts every one
+ * fits its site. */
 static const char* const KA[GjStrCount] = {
     /* menu */
     [GjStrJokeri] = "ჯოკერი",
     [GjStrCont] = "გაგრძ. დ",
-    [GjStrStandard] = "სტანდ.",       /* სტანდარტული is 65px, over budget */
+    [GjStrStandard] = "სტანდარტული",
     [GjStrQuick9s] = "სწრაფი 9",
     [GjStrRules] = "წესები",
     [GjStrAbout] = "შესახებ",
-    [GjStrSettings] = "პარამეტრი",
+    [GjStrSettings] = "პარამეტრები",
     [GjStrLangRow] = "ენა",
     [GjStrLangEnName] = "EN",
     [GjStrLangKaName] = "KA",
@@ -170,7 +170,7 @@ static const char* const KA[GjStrCount] = {
     [GjStrTrump] = "კოზირი",
     [GjStrNoTrump] = "უკოზირო",
     [GjStrNt] = "უკ",
-    [GjStrFlipped] = "ამოვიდა",       /* (?) "came up" */
+    [GjStrFlipped] = "ამოტრიალდა", /* (?) "turned up" */
     [GjStrBy] = "",                   /* Georgian puts the seat first */
     [GjStrPickTrump] = "კოზირი?",
     [GjStrPicks] = " ირჩევს",
@@ -303,4 +303,12 @@ const char* gj_rules_line(uint8_t lang, uint16_t line) {
 
 bool gj_rules_line_is_khishti(const char* line) {
     return line[0] == GJ_RULES_KHISHTI[0] && line[1] == 0;
+}
+
+uint8_t gj_rules_pitch(uint8_t lang) {
+    return (lang == GjLangKa) ? 11u : 8u;
+}
+
+uint8_t gj_rules_visible(uint8_t lang) {
+    return (lang == GjLangKa) ? 10u : 14u;
 }
