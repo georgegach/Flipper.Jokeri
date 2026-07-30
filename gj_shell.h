@@ -31,6 +31,9 @@ typedef struct {
     void (*save)(void* ctx, const GjApp* app); /* autosave points */
     bool (*load)(void* ctx, GjApp* app); /* Continue: restore into app */
     void (*save_delete)(void* ctx); /* on GameOver / declined resume */
+    /* Preferences live in their own file (see gj_settings_core.h): the game
+     * save is deleted at game over and has no write path from the menu. */
+    void (*settings_save)(void* ctx, const GjApp* app);
     void* ctx;
 } GjShellIo;
 

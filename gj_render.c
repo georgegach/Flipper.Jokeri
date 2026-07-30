@@ -758,20 +758,21 @@ static void draw_menu(GjGfx* g, const GjApp* app) {
     gj_gfx_hline(g, 0, 20, GJ_FB_W, 1);
 
     /* actions must match gj_shell.c PhaseMenu: [Continue], Standard, Quick
-     * Nines, Rules, About. */
-    const char* labels[5];
+     * Nines, Rules, About, Settings. */
+    const char* labels[6];
     uint8_t n = 0;
-    char cont[16], num[6];
+    char cont[24], num[6];
     if(app->save_available) {
         cont[0] = 0;
-        scat(cont, "CONT D");
+        scat(cont, gj_str(app->lang, GjStrCont));
         scat(cont, u2s((uint16_t)(app->game.deal_index + 1), num));
         labels[n++] = cont;
     }
-    labels[n++] = "STANDARD";
-    labels[n++] = "QUICK 9S";
-    labels[n++] = "RULES";
-    labels[n++] = "ABOUT";
+    labels[n++] = gj_str(app->lang, GjStrStandard);
+    labels[n++] = gj_str(app->lang, GjStrQuick9s);
+    labels[n++] = gj_str(app->lang, GjStrRules);
+    labels[n++] = gj_str(app->lang, GjStrAbout);
+    labels[n++] = gj_str(app->lang, GjStrSettings);
 
     /* centre the n rows (14px pitch, 13px tall) between the two rules at
      * y=20 and y=116: top = 21 + (95 - (14n - 1)) / 2. */
@@ -1173,6 +1174,53 @@ static void draw_lead_intro(GjGfx* g, const GjApp* app) {
 /* dispatch                                                               */
 /* ===================================================================== */
 
+/* ---- Settings screen (from the menu) --------------------------------- */
+/* Deliberately its own function, not folded into draw_phase: that frame is
+ * already ~336B against the 384B/frame gate in tests/stack_check.sh. */
+static void draw_settings(GjGfx* g, const GjApp* app) {
+    uint8_t lang = app->lang;
+    /* header bar, matching the Rules screen */
+    gj_gfx_rect(g, 0, 0, GJ_FB_W, 9, 1);
+    t7_text(g, 2, 1, gj_str(lang, GjStrSettings), 0);
+
+    static const uint16_t LBL[3] = {GjStrLangRow, GjStrKhishtiWarn, GjStrBotsRow};
+    const uint16_t lang_vals[GJ_LANG_COUNT] = {GjStrLangEnName, GjStrLangKaName};
+    const uint16_t diff_vals[GJ_DIFF_COUNT] = {GjStrDiffEasy, GjStrDiffNormal, GjStrDiffHard};
+    char num[6];
+    char kh[8];
+
+    for(uint8_t row = 0; row < 3; row++) {
+        int16_t y = (int16_t)(18 + row * 26);
+        bool sel = (app->settings_sel == row);
+        /* label */
+        t7_text(g, 4, y, gj_str(lang, LBL[row]), 1);
+        /* value, in a pill when the row has focus, with < > chevrons */
+        const char* val;
+        if(row == 0) {
+            val = gj_str(lang, lang_vals[app->lang % GJ_LANG_COUNT]);
+        } else if(row == 1) {
+            kh[0] = 0;
+            scat(kh, "-");
+            scat(kh, u2s((uint16_t)(app->khishti_opt == GjKhishti500 ? 500 : 200), num));
+            val = kh;
+        } else {
+            val = gj_str(lang, diff_vals[app->difficulty % GJ_DIFF_COUNT]);
+        }
+        int16_t vw = (int16_t)t7_width(val);
+        int16_t vy = (int16_t)(y + 11);
+        if(sel) {
+            gj_gfx_rrect(g, 2, (int16_t)(vy - 2), 60, 12, 1);
+            t7_center(g, 32, vy, val, 0);
+            tri(g, 4, (int16_t)(vy + 1), 0, 0); /* left chevron */
+            tri(g, 58, (int16_t)(vy + 1), 1, 0); /* right chevron */
+        } else {
+            t7_text(g, (int16_t)(32 - vw / 2), vy, val, 1);
+        }
+    }
+    gj_gfx_hline(g, 0, 116, GJ_FB_W, 1);
+    t7_center(g, 32, 119, gj_str(lang, GjStrOk), 1);
+}
+
 static void draw_phase(GjGfx* g, const GjApp* app, uint8_t phase) {
     switch((GamePhase)phase) {
     case PhaseMenu:
@@ -1218,6 +1266,9 @@ static void draw_phase(GjGfx* g, const GjApp* app, uint8_t phase) {
         break;
     case PhaseAbout:
         draw_about(g, app);
+        break;
+    case PhaseSettings:
+        draw_settings(g, app);
         break;
     case PhaseRules:
         draw_rules(g, app);

@@ -16,6 +16,7 @@
 #include "gj_render.h" /* gj_render_frame -> GjGfx framebuffer */
 #include "gj_gfx.h"
 #include "gj_save.h"
+#include "gj_settings.h"
 
 typedef struct {
     GjApp app; /* shared shell state, guarded by mutex */
@@ -41,6 +42,9 @@ typedef struct {
     GjSaveFile save_buf; /* validated RAM snapshot; source for load, sink for save */
     bool save_buf_valid; /* save_buf holds a usable snapshot */
     PendingIo pending_io; /* deferred SD op, flushed outside the mutex */
+    GjSettings cfg_buf; /* RAM image of the preferences file */
+    bool pending_settings; /* separate slot: pending_io holds ONE op, and a
+                            * settings write must not clobber a game write */
     uint32_t dropped_inputs; /* input events dropped on a full queue */
 } AppCtx;
 
@@ -69,15 +73,22 @@ static void io_save_delete(void* ctx) {
     c->save_buf_valid = false;
     c->pending_io = PendingDelete;
 }
+/* Preferences live in their own file, so they get their own deferred slot. */
+static void io_settings_save(void* ctx, const GjApp* app) {
+    AppCtx* c = ctx;
+    gj_settings_pack(&c->cfg_buf, app->lang, app->khishti_opt, app->difficulty);
+    c->pending_settings = true;
+}
 
 /* Flush a deferred storage op to the SD card. MUST be called with the mutex
  * released (storage_* can block). */
-static void io_flush(AppCtx* c, PendingIo op) {
+static void io_flush(AppCtx* c, PendingIo op, bool cfg) {
     if(op == PendingWrite) {
         gj_save_write(c->storage, &c->save_buf);
     } else if(op == PendingDelete) {
         gj_save_delete(c->storage);
     }
+    if(cfg) gj_settings_write(c->storage, &c->cfg_buf);
 }
 
 /* ---- input mapping -------------------------------------------------- */
@@ -152,6 +163,7 @@ int32_t georgian_joker_app(void* p) {
         .save = io_save,
         .load = io_load,
         .save_delete = io_save_delete,
+    .settings_save = io_settings_save,
         .ctx = ctx,
     };
 
@@ -159,6 +171,12 @@ int32_t georgian_joker_app(void* p) {
      * that io_load serves Continue from without ever blocking under the mutex. */
     ctx->save_buf_valid = gj_save_read(ctx->storage, &ctx->save_buf);
     gj_shell_init(&ctx->state->app, ctx->save_buf_valid);
+    /* Preferences: a missing or rejected file just means defaults, which is
+     * also the correct first-run behaviour. Applied AFTER gj_shell_init so it
+     * cannot be clobbered by the reset. */
+    if(!gj_settings_read(ctx->storage, &ctx->cfg_buf)) gj_settings_defaults(&ctx->cfg_buf);
+    gj_settings_unpack(&ctx->cfg_buf, &ctx->state->app.lang, &ctx->state->app.khishti_opt,
+                       &ctx->state->app.difficulty);
 
     ctx->view_port = view_port_alloc();
     view_port_set_orientation(ctx->view_port, ViewPortOrientationVertical);
@@ -189,6 +207,8 @@ int32_t georgian_joker_app(void* p) {
         bool running = ctx->state->app.running;
         PendingIo pending = ctx->pending_io;
         ctx->pending_io = PendingNone;
+        bool cfg_pending = ctx->pending_settings;
+        ctx->pending_settings = false;
         /* CRC the state under the lock (this thread is its only writer). Exclude
          * wait_ticks: the renderer never reads it, so a countdown (bot pacing,
          * splash, timed beats) must NOT trigger the ~20ms fullscreen blit — that
@@ -200,7 +220,7 @@ int32_t georgian_joker_app(void* p) {
         ctx->state->app.wait_ticks = wt;
         furi_mutex_release(ctx->mutex);
 
-        io_flush(ctx, pending); /* SD op, mutex released */
+        io_flush(ctx, pending, cfg_pending); /* SD op, mutex released */
         if(!have_sig || sig != last_sig) {
             last_sig = sig;
             have_sig = true;

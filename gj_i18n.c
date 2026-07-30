@@ -17,6 +17,13 @@ static const char* const EN[GjStrCount] = {
     [GjStrRules] = "RULES",
     [GjStrAbout] = "ABOUT",
     [GjStrSettings] = "SETTINGS",
+    [GjStrLangRow] = "LANG",
+    [GjStrLangEnName] = "EN",
+    [GjStrLangKaName] = "KA",
+    [GjStrBotsRow] = "BOTS",
+    [GjStrDiffEasy] = "EASY",
+    [GjStrDiffNormal] = "NORMAL",
+    [GjStrDiffHard] = "HARD",
     [GjStrOkSelect] = "OK SELECT",
 
     /* seats + stages */
@@ -127,6 +134,13 @@ static const char* const KA[GjStrCount] = {
     [GjStrRules] = "წესები",
     [GjStrAbout] = "შესახებ",
     [GjStrSettings] = "პარამეტრი",
+    [GjStrLangRow] = "ენა",
+    [GjStrLangEnName] = "EN",
+    [GjStrLangKaName] = "KA",
+    [GjStrBotsRow] = "ბოტები",
+    [GjStrDiffEasy] = "მარტივი",
+    [GjStrDiffNormal] = "საშუალო",
+    [GjStrDiffHard] = "რთული",
     [GjStrOkSelect] = "OK არჩევა",
 
     /* seats: abbreviated because the top bar gives each column 20px */

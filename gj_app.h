@@ -6,6 +6,7 @@
 #pragma once
 
 #include "gj_engine.h"
+#include "gj_settings_core.h"
 
 typedef enum {
     PhaseMenu = 0,
@@ -24,6 +25,7 @@ typedef enum {
     PhaseLeadIntro, /* "YOU START"/"X STARTS" beat after bidding, before play */
     PhasePause, /* Back during play: Resume / Chart / Rules / Exit (appended) */
     PhaseRules, /* scrollable rules text; from menu or pause (appended) */
+    PhaseSettings, /* language / khishti / bots (appended: save compat) */
 } GamePhase;
 
 /* Rules screen geometry. The line COUNT is per-language and lives in
@@ -44,6 +46,9 @@ typedef struct {
     uint8_t prev_phase; /* phase to return to from the Standings overlay */
     /* selections */
     uint8_t lang; /* GjLang* — UI language, a persisted setting */
+    uint8_t khishti_opt; /* GjKhishti* — persisted; drives the scoring penalty */
+    uint8_t difficulty; /* GjDiff* — persisted; drives bot strength */
+    uint8_t settings_sel; /* row cursor on the Settings screen */
     uint8_t menu_sel; /* compact index over VISIBLE items (Continue only when save_available) */
     uint8_t hand_sel; /* selected index in the human hand */
     int8_t bid_sel; /* bid picker value */

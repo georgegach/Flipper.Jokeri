@@ -38,6 +38,9 @@ static bool io_load(const GjShellIo* io, GjApp* app) {
 static void io_save_delete(const GjShellIo* io) {
     if(io && io->save_delete) io->save_delete(io->ctx);
 }
+static void io_settings_save(const GjShellIo* io, const GjApp* app) {
+    if(io && io->settings_save) io->settings_save(io->ctx, app);
+}
 
 /* ---- status-bar string cache (was gj_ui_refresh_cache; stdio-free) --- */
 static char* put_uint(char* p, unsigned v) {
@@ -249,6 +252,33 @@ static void open_rules(GjApp* st, uint8_t from) {
     st->rules_scroll = 0;
 }
 
+/* Settings screen, reachable from the menu. Back returns to prev_phase. */
+static void open_settings(GjApp* st, uint8_t from) {
+    st->prev_phase = from;
+    st->phase = PhaseSettings;
+    st->settings_sel = 0;
+}
+
+/* Settings rows, in display order. */
+enum { SetRowLang = 0, SetRowKhishti, SetRowBots, GJ_SETTINGS_ROWS };
+
+/* Cycle the focused row's value. Each wraps, matching the trump picker. */
+static void settings_step(GjApp* st, int dir) {
+    switch(st->settings_sel) {
+    case SetRowLang:
+        st->lang = (uint8_t)((st->lang + (dir > 0 ? 1 : GJ_LANG_COUNT - 1)) % GJ_LANG_COUNT);
+        break;
+    case SetRowKhishti:
+        st->khishti_opt = (uint8_t)((st->khishti_opt + (dir > 0 ? 1 : GJ_KHISHTI_OPT_COUNT - 1)) %
+                                    GJ_KHISHTI_OPT_COUNT);
+        break;
+    default:
+        st->difficulty =
+            (uint8_t)((st->difficulty + (dir > 0 ? 1 : GJ_DIFF_COUNT - 1)) % GJ_DIFF_COUNT);
+        break;
+    }
+}
+
 static void exit_confirm_from(GjApp* st, uint8_t from) {
     st->prev_phase = from;
     st->phase = PhaseConfirmExit;
@@ -449,8 +479,10 @@ void gj_shell_input(GjApp* st, const GjShellIo* io, GjKey key) {
     switch(st->phase) {
     case PhaseMenu: {
         /* actions in display order: Continue (save only), Standard, Quick
-         * Nines, Rules, About. menu_sel indexes VISIBLE rows. */
-        uint8_t count = st->save_available ? 5 : 4;
+         * Nines, Rules, About, Settings. menu_sel indexes VISIBLE rows.
+         * Settings is APPENDED: tests/drive_util.h derives its row target from
+         * the mode index, which only holds while the modes stay first. */
+        uint8_t count = st->save_available ? 6 : 5;
         if(is_press) {
             if(key == GjKeyUp) {
                 if(st->menu_sel > 0) st->menu_sel--;
@@ -474,8 +506,11 @@ void gj_shell_input(GjApp* st, const GjShellIo* io, GjKey key) {
             case 3:
                 open_rules(st, PhaseMenu);
                 break;
-            default:
+            case 4:
                 st->phase = PhaseAbout;
+                break;
+            default:
+                open_settings(st, PhaseMenu);
                 break;
             }
         }
@@ -633,6 +668,27 @@ void gj_shell_input(GjApp* st, const GjShellIo* io, GjKey key) {
         }
         break;
 
+    case PhaseSettings:
+        if(is_press) {
+            if(key == GjKeyUp) {
+                if(st->settings_sel > 0) st->settings_sel--;
+            } else if(key == GjKeyDown) {
+                if(st->settings_sel + 1 < GJ_SETTINGS_ROWS) st->settings_sel++;
+            } else if(key == GjKeyLeft) {
+                settings_step(st, -1);
+            } else if(key == GjKeyRight) {
+                settings_step(st, +1);
+            } else if(key == GjKeyBack) {
+                /* Persist on the way out: one write per visit, not per keypress. */
+                io_settings_save(io, st);
+                st->phase = st->prev_phase;
+            }
+        } else if(is_ok) {
+            io_settings_save(io, st);
+            st->phase = st->prev_phase;
+        }
+        break;
+
     case PhaseGameOver:
         if(is_ok || (is_press && key == GjKeyBack)) {
             st->phase = PhaseMenu;
@@ -784,6 +840,7 @@ void gj_shell_init(GjApp* app, bool save_available) {
     app->phase = PhaseSplash;
     app->sub = SubNone;
     app->menu_sel = 0;
+    app->settings_sel = 0;
     app->running = true;
     app->save_available = save_available;
     app->wait_ticks = GJ_SPLASH_TICKS; /* renderer derives splash progress */

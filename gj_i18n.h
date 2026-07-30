@@ -35,6 +35,13 @@ typedef enum {
     GjStrRules,
     GjStrAbout,
     GjStrSettings,
+    GjStrLangRow,
+    GjStrLangEnName,
+    GjStrLangKaName,
+    GjStrBotsRow,
+    GjStrDiffEasy,
+    GjStrDiffNormal,
+    GjStrDiffHard,
     GjStrOkSelect,
 
     /* seats + stages (shared across screens) */
