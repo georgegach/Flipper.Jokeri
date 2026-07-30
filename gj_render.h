@@ -15,3 +15,13 @@
 
 /* Dispatches on app->phase / app->sub and draws the complete frame. */
 void gj_render_frame(GjGfx* g, const GjApp* app);
+
+#ifdef GJ_TESTING
+/* Test-only window onto the private 5x7 table font, so tests can freeze the
+ * glyph shapes and measure string widths without a screen that shows them.
+ * Fills rows[0..6] (bit c = column c, LSB leftmost) and *w with the advance
+ * width; returns false for a codepoint the table has no glyph for. */
+bool gj_render_glyph(uint16_t cp, uint8_t rows[7], uint8_t* w);
+/* Rendered width in pixels of a UTF-8 string, same metric the renderer uses. */
+uint16_t gj_render_text_width(const char* s);
+#endif
