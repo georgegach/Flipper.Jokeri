@@ -91,7 +91,7 @@ static const char* const EN[GjStrCount] = {
     [GjStrRankQ] = "Q",
     [GjStrRankK] = "K",
     [GjStrRankA] = "A",
-    [GjStrRankJoker] = "Jo",
+    [GjStrRankJoker] = "JO", /* uppercase: the 5x7 face has no lowercase */
     [GjStrJokerMark] = "J",
     [GjStrRankUnknown] = "?",
     [GjStrInitAscend] = "A",
@@ -112,9 +112,114 @@ static const char* const EN[GjStrCount] = {
     [GjStrAgentic] = "AGENTIC.GE",
 };
 
-/* Georgian. Filled in stage 4; every NULL falls back to English above. */
+/* Georgian. DRAFT by a non-native speaker, sized to the measured pixel
+ * budgets rather than translated literally — the screen is 64px and the face
+ * advances 6px per letter, so a full-width label is ~10 glyphs and several of
+ * these are deliberately abbreviated. Entries left NULL fall back to English.
+ * Terms wanting a native check are marked (?). tests/test_i18n.c asserts every
+ * one of these fits the screen. */
 static const char* const KA[GjStrCount] = {
+    /* menu */
     [GjStrJokeri] = "ჯოკერი",
+    [GjStrCont] = "გაგრძ. დ",
+    [GjStrStandard] = "სტანდ.",       /* სტანდარტული is 65px, over budget */
+    [GjStrQuick9s] = "სწრაფი 9",
+    [GjStrRules] = "წესები",
+    [GjStrAbout] = "შესახებ",
+    [GjStrSettings] = "პარამეტრი",
+    [GjStrOkSelect] = "OK არჩევა",
+
+    /* seats: abbreviated because the top bar gives each column 20px */
+    [GjStrYou] = "თქვენ",
+    [GjStrWest] = "დას",              /* დასავლეთი (?) */
+    [GjStrNorth] = "ჩრდ",             /* ჩრდილოეთი (?) */
+    [GjStrEast] = "აღმ",              /* აღმოსავლეთი (?) */
+    [GjStrSeatY] = "თ",
+    [GjStrSeatW] = "დ",
+    [GjStrSeatN] = "ჩ",
+    [GjStrSeatE] = "ა",
+    [GjStrStageAscend] = "ზრდა",
+    [GjStrStageNines] = "ცხრა",
+    [GjStrStageDescend] = "კლება",
+    [GjStrStageBlind] = "ბრმა",
+
+    /* stage intro */
+    [GjStrDeal] = "დარ. ",
+    [GjStrCards] = " კარტი",
+    [GjStrOkNext] = "OK შემდეგ",
+
+    /* trump */
+    [GjStrTrump] = "კოზირი",
+    [GjStrNoTrump] = "უკოზირო",
+    [GjStrNt] = "უკ",
+    [GjStrFlipped] = "ამოვიდა",       /* (?) "came up" */
+    [GjStrBy] = "",                   /* Georgian puts the seat first */
+    [GjStrPickTrump] = "კოზირი?",
+    [GjStrPicks] = " ირჩევს",
+    [GjStrPeek] = "ნახვა",
+    [GjStrWait] = "მოიცადე",
+    [GjStrOk] = "OK",
+
+    /* bidding */
+    [GjStrBidding] = "განაცხადი",
+    [GjStrYourBid] = "თქვ. ფსონი",
+    [GjStrKhishtiWarn] = "ხიშტი",
+    [GjStrBlind] = "ბრმა",
+    [GjStrBid] = "ფსონი ",
+    [GjStrStart] = "იწყებ",
+    [GjStrStarts] = "იწყებს",
+
+    /* joker popup */
+    [GjStrJoker] = "ჯოკერი",
+    [GjStrSuit] = "ფერი",
+    [GjStrUnder] = "ქვეშ",
+    [GjStrTake] = "აღება",
+    [GjStrSuitQ] = "ფერი?",
+
+    /* deal score + standings */
+    [GjStrResult] = "შედეგი",
+    [GjStrTotalRow] = "ჯ",            /* ჯამი */
+    [GjStrTable] = "^ მაგიდა",
+    [GjStrTableWord] = "მაგიდა",
+
+    /* game over */
+    [GjStrPulkaDone] = "დასრულდა",
+    [GjStrOkMenu] = "OK მენიუ",
+
+    /* pause + confirm. SAVE/STAY sit in 24px buttons -> 4 glyphs each. */
+    [GjStrPaused] = "პაუზა",
+    [GjStrResume] = "გაგრძ.",
+    [GjStrChart] = "ცხრილი",
+    [GjStrExit] = "გასვლა",
+    [GjStrLeaveQ] = "გასვლა?",
+    [GjStrSaved] = "შენახ.",
+    [GjStrSave] = "შენ.",
+    [GjStrStay] = "დარჩ",
+
+    /* card faces: ვალეტი, ქალი, კაჟი, ტუზი (?) */
+    [GjStrRankJ] = "ვ",
+    [GjStrRankQ] = "ქ",
+    [GjStrRankK] = "კ",
+    [GjStrRankA] = "ტ",
+    [GjStrRankJoker] = "ჯო",
+    [GjStrJokerMark] = "ჯ",
+    [GjStrRankUnknown] = "?",
+    [GjStrInitAscend] = "ზ",
+    [GjStrInitNines] = "ც",
+    [GjStrInitDescend] = "კ",
+    [GjStrInitBlind] = "ბ",
+
+    /* about */
+    [GjStrVersion] = "V0.2",
+    [GjStrSelect] = "არჩევა",
+    [GjStrPlay] = "თამაში",
+    [GjStrBack] = "უკან",
+    [GjStrPause] = "პაუზა",
+    [GjStrChartColon] = "ცხრილი:",
+    [GjStrSeatsHint] = "<> ადგილი",
+    [GjStrDealsHint] = "^v დარიგ.",
+    [GjStrJokerDot] = "ჯოკერი.",
+    [GjStrAgentic] = "AGENTIC.GE",
 };
 
 const char* gj_str(uint8_t lang, uint16_t id) {
@@ -147,17 +252,32 @@ static const char* const EN_RULES[] = {
 #define EN_RULES_N ((uint16_t)(sizeof(EN_RULES) / sizeof(EN_RULES[0])))
 _Static_assert(EN_RULES_N <= GJ_RULES_MAX_LINES, "rules text over the scroll bound");
 
-/* Georgian rules: empty until stage 4, which falls the whole screen back to
- * English rather than showing a half-translated page. */
-static const char* const* const KA_RULES = NULL;
-#define KA_RULES_N 0u
+/* Georgian rules, hand-wrapped to the same <=10-glyph measure. DRAFT — the
+ * domain terms (ხიშტი, კაუჭი, კოზირი, პულკა) especially want a native check. */
+static const char* const KA_RULES[] = {
+    "ქართული",   "ჯოკერი",    "",           "4 ადგილი:",  "თქვენ + 3",  "ბოტი.",
+    "",          "მიზანი",     "დაასახე.",   "ხელები",     "რომლებსაც",  "აიღებ, და",
+    "აიღე ისი.", "",           "რეჟიმები",   "სტანდ.:",    "24 დარიგ.",  "1-8 ზევით,",
+    "x4 ცხრა,",  "8-1 ქვევით,", "x4 ბრმა.",  "სწრაფი 9:",  "4 ცხრა.",    "",
+    "კოზირი",    "8-მდე:",     "ზედა კარტი", "იხსნება.",   "ცხრაზე:",    "მარცხნივ",
+    "მჯდომი",    "ირჩევს.",    "",           "ფსონი",      "დაასახელე",  "ხელები.",
+    "კაუჭი:",    "დამრიგებ.",  "ბოლოს",      "და ჯამი",    "არ უნდა",    "იყოს ტოლი",
+    "კარტების.", "",           "ქულები",     "ზუსტი:",     "50 თითო",    "და +50.",
+    "ყველა:",    "100 თითო.",  "0 და 0:",    "50 ქულა.",   "შეცდომა:",   "10 თითო.",
+    "ხიშტი:",    "ფსონი და",   "0 ხელი:",    "-200.",      "",           "ჯოკერები",
+    "2 ჯოკერი",  "შავი 6-ის",  "ნაცვლად.",   "ყოველთვის",  "დასაშვები.", "პირველი:",
+    "აღება,",    "ფერი ან",    "კოზირი,",    "ან ქვეშ.",   "",           "ბრმა 9",
+    "ჯერ ფსონი", "მერე ხელი.", "",           "ჯოკერი.",    "AGENTIC.GE",
+};
+
+#define KA_RULES_N ((uint16_t)(sizeof(KA_RULES) / sizeof(KA_RULES[0])))
+_Static_assert(KA_RULES_N <= GJ_RULES_MAX_LINES, "ka rules over the scroll bound");
 
 uint16_t gj_rules_lines(uint8_t lang) {
-    if(lang == GjLangKa && KA_RULES_N) return KA_RULES_N;
-    return EN_RULES_N;
+    return (lang == GjLangKa) ? KA_RULES_N : EN_RULES_N;
 }
 
 const char* gj_rules_line(uint8_t lang, uint16_t line) {
-    if(lang == GjLangKa && KA_RULES_N) return line < KA_RULES_N ? KA_RULES[line] : "";
+    if(lang == GjLangKa) return line < KA_RULES_N ? KA_RULES[line] : "";
     return line < EN_RULES_N ? EN_RULES[line] : "";
 }
