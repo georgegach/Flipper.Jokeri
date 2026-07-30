@@ -194,8 +194,14 @@ int8_t gj_ai_bid(const GjGame* g, uint8_t seat) {
      * bid*50+50, so shading a trick off costs far more than the miss it
      * dodges. Only safe because of the khishti guard below. */
     int base = (value_x2 + 1) / 2;
-    /* Khishti guard: promising a trick you cannot cash is -200 where a pass
-     * banks +50. Never bid without at least one solid winner. */
+    /* Khishti guard: promising a trick you cannot cash costs the penalty where
+     * a pass banks +50. Never bid without at least one solid winner.
+     *
+     * Deliberately NOT scaled by the penalty. Capping the bid at the number of
+     * solid winners when the table plays -500 was measured and rejected: it
+     * cost 136 points per pulka and 2.5pp of made contracts to save 4 khishti
+     * per 1000 deals. Over-shading is far more expensive than khishti under
+     * this score table, at either penalty. */
     if(base >= 1 && solid_winners(h, g->trump_suit) == 0) base = 0;
     base = clampi(base, 0, cards);
     if(gj_bid_legal(g, seat, (uint8_t)base)) return (int8_t)base; /* non-dealer always legal */

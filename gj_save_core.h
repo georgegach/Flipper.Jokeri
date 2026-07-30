@@ -14,7 +14,7 @@
 #include "gj_app.h"
 
 #define GJ_SAVE_MAGIC 0x474A5356u /* "GJSV" */
-#define GJ_SAVE_VERSION 2 /* v2: GjGame gained `mode` (game modes) */
+#define GJ_SAVE_VERSION 3 /* v3: GjGame gained `khishti` */
 
 typedef struct {
     uint32_t magic;

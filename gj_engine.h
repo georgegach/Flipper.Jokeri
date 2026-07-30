@@ -118,6 +118,9 @@ typedef struct {
     uint8_t cards_this_deal;
     uint8_t trump_suit; /* 0..3, GJ_NO_TRUMP, or GJ_SUIT_NONE while awaiting naming */
     GjCard trump_card; /* flipped card (display); GJ_CARD_NONE in named-trump deals */
+    /* Placed here, on an even offset, so the int16 costs exactly 2 bytes:
+     * after `mode` it would have forced an alignment pad and cost 4. */
+    int16_t khishti; /* penalty in force; refreshed per deal from settings */
     GjHand hands[GJ_PLAYERS];
     int8_t bids[GJ_PLAYERS]; /* -1 = not yet bid */
     uint8_t tricks_taken[GJ_PLAYERS];
@@ -182,8 +185,13 @@ bool gj_deal_done(const GjGame* g); /* all tricks of the deal played */
  * repo also calls the dealer's forbidden-bid rule a khishti/hook — different
  * thing, same word; this is the scoring penalty. */
 #define GJ_KHISHTI (-200)
+#define GJ_KHISHTI_HARSH (-500)
 
-int16_t gj_score_for(uint8_t bid, uint8_t took, uint8_t cards_dealt);
+int16_t gj_score_for(uint8_t bid, uint8_t took, uint8_t cards_dealt, int16_t khishti);
+/* Set the khishti penalty in force. The shell refreshes this from the user's
+ * setting at the start of every deal, which is what makes the preference take
+ * effect immediately while keeping a single deal's scoring self-consistent. */
+void gj_set_khishti(GjGame* g, int16_t khishti);
 /* Fill deal_scores[deal_index], update totals, advance deal_index, rotate
  * dealer. Call once when gj_deal_done(). */
 void gj_deal_score(GjGame* g);

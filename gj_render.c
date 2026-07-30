@@ -805,7 +805,18 @@ static void draw_rules(GjGfx* g, const GjApp* app) {
     for(uint16_t i = 0; i < GJ_RULES_VISIBLE; i++) {
         uint16_t li = (uint16_t)(scroll + i);
         if(li >= total) break;
-        t7_text(g, 2, (int16_t)(11 + i * 8), gj_rules_line(app->lang, li), 1);
+        const char* line = gj_rules_line(app->lang, li);
+        if(gj_rules_line_is_khishti(line)) {
+            /* the penalty is a setting; show the value actually in force */
+            char kh[8], num[6];
+            kh[0] = 0;
+            scat(kh, "-");
+            scat(kh, u2s((uint16_t)(app->khishti_opt == GjKhishti500 ? 500 : 200), num));
+            scat(kh, ".");
+            t7_text(g, 2, (int16_t)(11 + i * 8), kh, 1);
+        } else {
+            t7_text(g, 2, (int16_t)(11 + i * 8), line, 1);
+        }
     }
 }
 

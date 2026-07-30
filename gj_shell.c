@@ -16,8 +16,10 @@
 #include "gj_i18n.h"
 
 /* GjApp is heap on device (not on the 2/4KB stack), but keep it bounded so a
- * stray field can't balloon it unnoticed. Currently 330 B. */
-_Static_assert(sizeof(GjApp) <= 336, "GjApp over its RAM budget");
+ * stray field can't balloon it unnoticed. Currently 340 B: +2 from GjGame's
+ * khishti and +4 from the settings fields (lang, khishti_opt, difficulty,
+ * settings_sel). Raised deliberately, not to silence the gate. */
+_Static_assert(sizeof(GjApp) <= 344, "GjApp over its RAM budget");
 
 /* Bot pacing beat (25ms ticks): 18..29 -> ~0.45..0.75s between bot actions. */
 #define GJ_PACE_MIN 18u
@@ -143,6 +145,10 @@ static void hand_sel_step(GjApp* st, int dir) {
 
 /* ---- deal / phase transitions --------------------------------------- */
 static void begin_deal(GjApp* st, const GjShellIo* io) {
+    /* Refresh the penalty from the live setting BEFORE dealing: that is what
+     * makes a settings change take effect immediately while keeping one deal's
+     * scoring self-consistent. */
+    gj_set_khishti(&st->game, st->khishti_opt == GjKhishti500 ? GJ_KHISHTI_HARSH : GJ_KHISHTI);
     gj_deal_begin(&st->game, io ? io->rng : 0, io ? io->ctx : 0);
     st->phase = PhaseStageIntro;
     st->sub = SubNone;

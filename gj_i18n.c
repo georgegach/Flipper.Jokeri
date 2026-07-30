@@ -8,6 +8,10 @@
 
 #include <stddef.h>
 
+/* The rules screen quotes the penalty, which is now a setting. The line is
+ * substituted at render time by gj_rules_line; this placeholder marks it. */
+#define GJ_RULES_KHISHTI "\x01"
+
 static const char* const EN[GjStrCount] = {
     /* menu */
     [GjStrJokeri] = "JOKERI",
@@ -256,7 +260,7 @@ static const char* const EN_RULES[] = {
     "YOU WIN.",  "HOOK:",     "DEALER",    "BIDS LAST",  "AND CANT",  "MAKE THE",
     "SUM EQUAL", "THE CARDS", "DEALT.",    "",           "SCORING",   "MEET BID:",
     "50 EACH",   "PLUS 50.",  "SWEEP ALL:", "100 EACH.", "BID 0 GET", "0: GET 50.",
-    "MISS: 10",  "EACH WON.", "KHISHTI:",  "BID BUT",    "TAKE NONE", "-200.",
+    "MISS: 10",  "EACH WON.", "KHISHTI:",  "BID BUT",    "TAKE NONE", GJ_RULES_KHISHTI,
     "",          "JOKERS",    "2 JOKERS",  "REPLACE",    "BLACK 6S.", "ALWAYS OK",
     "TO PLAY.",  "LEAD ONE:", "TAKE,",     "DEMAND A",   "SUIT OR",   "TRUMP, OR",
     "UNDERPLAY.", "",         "BLIND 9S",  "BID FIRST",  "THEN SEE",  "YOUR HAND.",
@@ -278,7 +282,7 @@ static const char* const KA_RULES[] = {
     "კაუჭი:",    "დამრიგებ.",  "ბოლოს",      "და ჯამი",    "არ უნდა",    "იყოს ტოლი",
     "კარტების.", "",           "ქულები",     "ზუსტი:",     "50 თითო",    "და +50.",
     "ყველა:",    "100 თითო.",  "0 და 0:",    "50 ქულა.",   "შეცდომა:",   "10 თითო.",
-    "ხიშტი:",    "ფსონი და",   "0 ხელი:",    "-200.",      "",           "ჯოკერები",
+    "ხიშტი:",    "ფსონი და",   "0 ხელი:",    GJ_RULES_KHISHTI, "",       "ჯოკერები",
     "2 ჯოკერი",  "შავი 6-ის",  "ნაცვლად.",   "ყოველთვის",  "დასაშვები.", "პირველი:",
     "აღება,",    "ფერი ან",    "კოზირი,",    "ან ქვეშ.",   "",           "ბრმა 9",
     "ჯერ ფსონი", "მერე ხელი.", "",           "ჯოკერი.",    "AGENTIC.GE",
@@ -292,6 +296,11 @@ uint16_t gj_rules_lines(uint8_t lang) {
 }
 
 const char* gj_rules_line(uint8_t lang, uint16_t line) {
-    if(lang == GjLangKa) return line < KA_RULES_N ? KA_RULES[line] : "";
-    return line < EN_RULES_N ? EN_RULES[line] : "";
+    const char* s = (lang == GjLangKa) ? (line < KA_RULES_N ? KA_RULES[line] : "")
+                                       : (line < EN_RULES_N ? EN_RULES[line] : "");
+    return s;
+}
+
+bool gj_rules_line_is_khishti(const char* line) {
+    return line[0] == GJ_RULES_KHISHTI[0] && line[1] == 0;
 }

@@ -80,6 +80,7 @@ void gj_hand_sort(GjHand* h) {
 void gj_game_init(GjGame* g, uint8_t first_dealer, uint8_t mode) {
     memset(g, 0, sizeof(*g));
     g->mode = (mode < GJ_MODE_COUNT) ? mode : GjModeStandard;
+    g->khishti = GJ_KHISHTI;
     g->dealer = first_dealer;
     for(uint8_t s = 0; s < GJ_PLAYERS; s++) {
         g->bids[s] = -1;
@@ -444,8 +445,8 @@ bool gj_deal_done(const GjGame* g) {
 /* Standard Georgian table (as counted on jok.ge). Order matters: khishti
  * outranks the generic miss, and the all-tricks sweep outranks the flat
  * exact-bid bonus. The two agree at bid 1 in a 1-card deal (both 100). */
-int16_t gj_score_for(uint8_t bid, uint8_t took, uint8_t cards_dealt) {
-    if(bid > 0 && took == 0) return GJ_KHISHTI; /* bid, took none */
+int16_t gj_score_for(uint8_t bid, uint8_t took, uint8_t cards_dealt, int16_t khishti) {
+    if(bid > 0 && took == 0) return khishti; /* bid, took none */
     if(took != bid) return (int16_t)(took * 10); /* over/under, incl. broken 0 */
     if(bid == 0) return 50; /* clean pass */
     if(bid == cards_dealt) return (int16_t)(bid * 100); /* swept the deal */
@@ -456,7 +457,7 @@ void gj_deal_score(GjGame* g) {
     for(uint8_t s = 0; s < GJ_PLAYERS; s++) {
         int8_t b = g->bids[s];
         uint8_t bb = (b < 0) ? 0 : (uint8_t)b;
-        int16_t sc = gj_score_for(bb, g->tricks_taken[s], g->cards_this_deal);
+        int16_t sc = gj_score_for(bb, g->tricks_taken[s], g->cards_this_deal, g->khishti);
         g->deal_scores[g->deal_index][s] = sc;
         g->totals[s] = (int16_t)(g->totals[s] + sc);
     }
@@ -489,4 +490,8 @@ uint16_t gj_crc16(const void* data, uint32_t len) {
         }
     }
     return crc;
+}
+
+void gj_set_khishti(GjGame* g, int16_t khishti) {
+    g->khishti = khishti;
 }

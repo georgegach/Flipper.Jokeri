@@ -16,6 +16,7 @@
 #pragma once
 
 #include <stdint.h>
+#include <stdbool.h>
 
 enum { GjLangEn = 0, GjLangKa = 1 };
 #define GJ_LANG_COUNT 2
@@ -147,3 +148,6 @@ const char* gj_str(uint8_t lang, uint16_t id);
  * into the data, so Georgian needs its own wrapping, not a substitution). */
 const char* gj_rules_line(uint8_t lang, uint16_t line);
 uint16_t gj_rules_lines(uint8_t lang);
+/* True for the one rules line that quotes the khishti penalty, which is a
+ * runtime setting — the renderer substitutes the live value. */
+bool gj_rules_line_is_khishti(const char* line);
