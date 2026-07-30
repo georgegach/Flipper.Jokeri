@@ -12,6 +12,7 @@
 #include "gj_render.h"
 #include "gj_engine.h"
 #include "gj_ai.h"
+#include "gj_i18n.h"
 #include <string.h>
 
 /* ===================================================================== */
@@ -785,37 +786,21 @@ static void draw_menu(GjGfx* g, const GjApp* app) {
 }
 
 /* ---- Rules screen (scrollable, from menu or pause) ------------------- */
-static const char* const RULES[] = {
-    "GEORGIAN",  "JOKER",     "",          "4 SEATS:",   "YOU + 3",   "BOTS.",
-    "",          "GOAL",      "BID THE",   "TRICKS",     "YOU WILL",  "WIN, THEN",
-    "WIN THEM.", "",          "MODES",     "STANDARD:",  "24 DEALS",  "1-8 UP,",
-    "X4 NINES,", "8-1 DOWN,", "X4 BLIND.", "QUICK 9S:",  "4 NINES.",  "",
-    "TRUMP",     "UP TO 8:",  "FLIP TOP",  "CARD.",      "NINES:",    "LEFT OF",
-    "DEALER",    "NAMES IT.", "",          "BIDDING",    "NAME THE",  "TRICKS",
-    "YOU WIN.",  "HOOK:",     "DEALER",    "BIDS LAST",  "AND CANT",  "MAKE THE",
-    "SUM EQUAL", "THE CARDS", "DEALT.",    "",           "SCORING",   "MEET BID:",
-    "50 EACH",   "PLUS 50.",  "SWEEP ALL:", "100 EACH.", "BID 0 GET", "0: GET 50.",
-    "MISS: 10",  "EACH WON.", "KHISHTI:",  "BID BUT",    "TAKE NONE", "-200.",
-    "",          "JOKERS",    "2 JOKERS",  "REPLACE",    "BLACK 6S.", "ALWAYS OK",
-    "TO PLAY.",  "LEAD ONE:", "TAKE,",     "DEMAND A",   "SUIT OR",   "TRUMP, OR",
-    "UNDERPLAY.", "",         "BLIND 9S",  "BID FIRST",  "THEN SEE",  "YOUR HAND.",
-    "",          "JOKER.",    "AGENTIC.GE",
-};
-
+/* Text lives in gj_i18n.c: the line breaks are baked into the data, so each
+ * language carries its own wrapping and its own line count. */
 static void draw_rules(GjGfx* g, const GjApp* app) {
-    _Static_assert(sizeof(RULES) / sizeof(RULES[0]) == GJ_RULES_LINES, "rules line count");
-    uint8_t total = GJ_RULES_LINES;
-    uint8_t scroll = app->rules_scroll;
+    uint16_t total = gj_rules_lines(app->lang);
+    uint16_t scroll = app->rules_scroll;
     if(scroll > total) scroll = total;
     /* header bar */
     gj_gfx_rect(g, 0, 0, GJ_FB_W, 9, 1);
-    t7_text(g, 2, 1, "RULES", 0);
+    t7_text(g, 2, 1, gj_str(app->lang, GjStrRules), 0);
     if(scroll > 0) tri(g, 56, 2, 2, 0); /* more above */
     if(scroll + GJ_RULES_VISIBLE < total) tri(g, 56, 122, 3, 1); /* more below */
-    for(uint8_t i = 0; i < GJ_RULES_VISIBLE; i++) {
-        uint8_t li = (uint8_t)(scroll + i);
+    for(uint16_t i = 0; i < GJ_RULES_VISIBLE; i++) {
+        uint16_t li = (uint16_t)(scroll + i);
         if(li >= total) break;
-        t7_text(g, 2, (int16_t)(11 + i * 8), RULES[li], 1);
+        t7_text(g, 2, (int16_t)(11 + i * 8), gj_rules_line(app->lang, li), 1);
     }
 }
 

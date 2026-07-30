@@ -13,6 +13,7 @@
 #include "gj_engine.h"
 #include "gj_ai.h"
 #include "gj_shell.h"
+#include "gj_i18n.h"
 
 /* GjApp is heap on device (not on the 2/4KB stack), but keep it bounded so a
  * stray field can't balloon it unnoticed. Currently 330 B. */
@@ -620,8 +621,9 @@ void gj_shell_input(GjApp* st, const GjShellIo* io, GjKey key) {
             if(key == GjKeyUp) {
                 if(st->rules_scroll > 0) st->rules_scroll--;
             } else if(key == GjKeyDown) {
-                uint8_t mx = (GJ_RULES_LINES > GJ_RULES_VISIBLE) ?
-                                 (uint8_t)(GJ_RULES_LINES - GJ_RULES_VISIBLE) : 0u;
+                uint16_t total = gj_rules_lines(st->lang);
+                uint8_t mx = (total > GJ_RULES_VISIBLE) ?
+                                 (uint8_t)(total - GJ_RULES_VISIBLE) : 0u;
                 if(st->rules_scroll < mx) st->rules_scroll++;
             } else if(key == GjKeyBack) {
                 st->phase = st->prev_phase;

@@ -26,9 +26,8 @@ typedef enum {
     PhaseRules, /* scrollable rules text; from menu or pause (appended) */
 } GamePhase;
 
-/* Rules screen text geometry (shared so the shell can clamp scroll without
- * knowing the text, which lives in gj_render.c). */
-#define GJ_RULES_LINES 81
+/* Rules screen geometry. The line COUNT is per-language and lives in
+ * gj_i18n.c (gj_rules_lines); only the visible-window height is fixed. */
 #define GJ_RULES_VISIBLE 14
 
 typedef enum {
@@ -44,6 +43,7 @@ typedef struct {
     uint8_t sub; /* UiSub */
     uint8_t prev_phase; /* phase to return to from the Standings overlay */
     /* selections */
+    uint8_t lang; /* GjLang* — UI language, a persisted setting */
     uint8_t menu_sel; /* compact index over VISIBLE items (Continue only when save_available) */
     uint8_t hand_sel; /* selected index in the human hand */
     int8_t bid_sel; /* bid picker value */
