@@ -1,0 +1,23 @@
+# Flipper Apps Catalog manifest.
+#
+# This is the file to copy into a PR against flipperdevices/flipper-application-catalog
+# at applications/Games/jokeri/manifest.yml. It lives here so it is version-controlled
+# alongside the commit it pins. See SUBMITTING.md.
+#
+# name / id / category / version are deliberately absent: the catalog reads them from
+# application.fam. Duplicating them here is how they drift.
+sourcecode:
+  type: git
+  location:
+    origin: https://github.com/georgegach/Flipper.Jokeri.git
+    commit_sha: REPLACE_WITH_TAGGED_COMMIT
+author: "George Gach"
+changelog: "@./CHANGELOG.md"
+description: "@./catalog/description.md"
+screenshots:
+  - "./screenshots/menu.png"
+  - "./screenshots/bidding.png"
+  - "./screenshots/trick.png"
+  - "./screenshots/standings.png"
+  - "./screenshots/settings.png"
+  - "./screenshots/georgian.png"

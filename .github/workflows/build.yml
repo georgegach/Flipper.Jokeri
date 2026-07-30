@@ -1,0 +1,146 @@
+name: "FAP: Build and Release"
+# Builds the app for the dev and release SDK channels.
+#
+# GitHub-hosted runners ONLY. This repository is public, so `pull_request` runs
+# fork-authored code — a self-hosted runner here would hand strangers a shell on
+# the host. Do not add one.
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*"
+  pull_request:
+  schedule:
+    # Weekly: catches SDK-channel drift without nightly noise.
+    - cron: "1 1 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write # rolling latest-build release + versioned tags
+
+jobs:
+  ufbt-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      max-parallel: 1 # serialize so both channels can update the same rolling release
+      matrix:
+        include:
+          - name: dev channel
+            sdk-channel: dev
+          - name: release channel
+            sdk-channel: release
+    name: "ufbt: Build for ${{ matrix.name }}"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build with ufbt
+        uses: flipperdevices/flipperzero-ufbt-action@v0.1
+        id: build-app
+        with:
+          sdk-channel: ${{ matrix.sdk-channel }}
+          app-dir: .
+
+      - name: FAP size report
+        # A .fap is an ELF; arm-none-eabi-size reports .text/.rodata/.data/.bss.
+        # Soft-fail: a missing `size` tool must never mask a green build.
+        continue-on-error: true
+        run: |
+          FAP='${{ steps.build-app.outputs.fap-artifacts }}'
+          echo "### FAP size — ${{ matrix.name }}" >> "$GITHUB_STEP_SUMMARY"
+          ls -l "$FAP" >> "$GITHUB_STEP_SUMMARY" 2>&1 || true
+          SIZE=$(find "$HOME/.ufbt" -type f -name 'arm-none-eabi-size' 2>/dev/null | head -1)
+          if [ -n "$SIZE" ]; then
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            "$SIZE" -A "$FAP" >> "$GITHUB_STEP_SUMMARY" 2>&1 || true
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Catalog manifest sanity
+        # The catalog reads name/id/category/version out of application.fam, and its
+        # linter wants `major.minor`. A three-part fap_version fails at submission
+        # time, which is weeks after the mistake — so check it on every push instead.
+        run: |
+          VER=$(sed -n 's/.*fap_version="\([^"]*\)".*/\1/p' application.fam)
+          echo "fap_version = $VER"
+          echo "$VER" | grep -Eq '^[0-9]+\.[0-9]+$' || {
+            echo "::error::fap_version '$VER' is not major.minor — the Apps Catalog linter rejects it"
+            exit 1
+          }
+          test -f CHANGELOG.md || { echo "::error::CHANGELOG.md missing (manifest requires it)"; exit 1; }
+          test -f catalog/description.md || { echo "::error::catalog/description.md missing"; exit 1; }
+          python3 - <<'PY'
+          import struct, sys
+          d = open("images/gj-icon.png", "rb").read()
+          w, h = struct.unpack(">II", d[16:24])
+          depth, ctype = d[24], d[25]
+          if (w, h, depth) != (10, 10, 1):
+              sys.exit(f"::error::icon must be 10x10 1-bit, got {w}x{h} depth {depth} ctype {ctype}")
+          print(f"icon OK: {w}x{h}, {depth}-bit")
+          PY
+          N=$(ls screenshots/*.png 2>/dev/null | wc -l)
+          echo "screenshots: $N"
+          [ "$N" -ge 1 ] || echo "::warning::no screenshots yet — the catalog manifest requires at least one"
+
+      - name: Get short git SHA
+        id: get_sha
+        run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Upload app artifact
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: jokeri-${{ matrix.sdk-channel }}-${{ steps.get_sha.outputs.sha_short }}
+          path: ${{ steps.build-app.outputs.fap-artifacts }}
+          retention-days: 30
+
+      - name: Stage channel-named FAP
+        if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
+        run: |
+          mkdir -p /tmp/gj-release
+          cp ${{ steps.build-app.outputs.fap-artifacts }} \
+             /tmp/gj-release/jokeri-${{ matrix.sdk-channel }}.fap
+
+      # A rolling prerelease always carries the current FAP. The tag is force-moved
+      # to HEAD and the SHA + date go in the *name*, because GitHub never updates a
+      # release's published_at — without this it reads as abandoned on mobile even
+      # when the assets are minutes old.
+      - name: Move rolling tag to HEAD
+        if: github.ref == 'refs/heads/main'
+        run: |
+          git tag -f latest-build
+          git push -f origin refs/tags/latest-build
+
+      - name: Update rolling release
+        if: github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest-build
+          name: "Latest build — ${{ steps.get_sha.outputs.sha_short }}"
+          prerelease: true
+          make_latest: false
+          body: |
+            Rolling build from `main`, rebuilt on every push.
+
+            Commit `${{ github.sha }}`
+
+            Use **jokeri-release.fap** on official stable firmware, or
+            **jokeri-dev.fap** on official dev/RC. The wrong channel reports an API
+            version mismatch on launch. For a stable version, prefer the
+            [Apps Catalog](https://lab.flipper.net/apps) or a `v*` release below.
+          files: /tmp/gj-release/jokeri-${{ matrix.sdk-channel }}.fap
+
+      # Versioned releases are what the Apps Catalog submission points at, and the only
+      # ones that stay retrievable — the rolling assets are overwritten every push.
+      - name: Publish versioned release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "${{ github.ref_name }}"
+          prerelease: false
+          body_path: CHANGELOG.md
+          files: /tmp/gj-release/jokeri-${{ matrix.sdk-channel }}.fap

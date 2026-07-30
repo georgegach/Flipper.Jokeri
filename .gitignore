@@ -1,0 +1,10 @@
+# ufbt build outputs and per-project SDK cache
+dist/
+.ufbt/
+*.fap
+
+# Object files
+*.d
+*.o
+*.elf
+*.map
