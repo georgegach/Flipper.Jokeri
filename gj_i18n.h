@@ -87,7 +87,8 @@ typedef enum {
     /* deal score + standings */
     GjStrResult,
     GjStrTotalRow,
-    GjStrTable,
+    GjStrTable, /* "^ TABLE" footer hint */
+    GjStrTableWord, /* bare "TABLE", the About key legend */
 
     /* game over */
     GjStrPulkaDone,
@@ -102,6 +103,19 @@ typedef enum {
     GjStrSaved,
     GjStrSave,
     GjStrStay,
+
+    /* card faces + chart row labels */
+    GjStrRankJ,
+    GjStrRankQ,
+    GjStrRankK,
+    GjStrRankA,
+    GjStrRankJoker, /* "Jo" on a narrow card */
+    GjStrJokerMark, /* the big letter on a joker card face */
+    GjStrRankUnknown,
+    GjStrInitAscend, /* chart row prefixes: A1.. N1.. D8.. B1.. */
+    GjStrInitNines,
+    GjStrInitDescend,
+    GjStrInitBlind,
 
     /* about */
     GjStrVersion,

@@ -70,6 +70,7 @@ static const char* const EN[GjStrCount] = {
     [GjStrResult] = "RESULT",
     [GjStrTotalRow] = "T",
     [GjStrTable] = "^ TABLE",
+    [GjStrTableWord] = "TABLE",
 
     /* game over */
     [GjStrPulkaDone] = "PULKA DONE",
@@ -84,6 +85,19 @@ static const char* const EN[GjStrCount] = {
     [GjStrSaved] = "SAVED",
     [GjStrSave] = "SAVE",
     [GjStrStay] = "STAY",
+
+    /* card faces + chart row labels */
+    [GjStrRankJ] = "J",
+    [GjStrRankQ] = "Q",
+    [GjStrRankK] = "K",
+    [GjStrRankA] = "A",
+    [GjStrRankJoker] = "Jo",
+    [GjStrJokerMark] = "J",
+    [GjStrRankUnknown] = "?",
+    [GjStrInitAscend] = "A",
+    [GjStrInitNines] = "N",
+    [GjStrInitDescend] = "D",
+    [GjStrInitBlind] = "B",
 
     /* about */
     [GjStrVersion] = "V0.2",
