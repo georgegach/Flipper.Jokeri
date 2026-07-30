@@ -104,9 +104,13 @@ static void pip7(GjGfx* g, int16_t x, int16_t y, GjCard c, uint8_t color) {
 
 /* ---- crafted 5x7 table font (mockup-exact) --------------------------- */
 /* Variable width: '1' and ':' are 1px (a bare bar keeps "10" inside an
- * 11px card), '-' 3px, 'W' 7px, the rest 5px. 1px inter-glyph gap. */
+ * 11px card), '-' 3px, 'W' 7px, the rest 5px. 1px inter-glyph gap.
+ *
+ * Keyed by Unicode codepoint, not char: strings are UTF-8 and Georgian
+ * (Mkhedruli, U+10D0..U+10FF) is 3 bytes per letter. Lookup is still O(1) —
+ * see t7_find's two direct-index maps. */
 typedef struct {
-    char ch;
+    uint16_t cp;
     uint8_t w;
     uint8_t rows[7];
 } T7Glyph;
@@ -160,38 +164,88 @@ static const T7Glyph T7[] = {
     {'X', 5, {0x11, 0x11, 0x0A, 0x04, 0x0A, 0x11, 0x11}},
     {'Y', 5, {0x11, 0x11, 0x0A, 0x04, 0x04, 0x04, 0x04}},
     {'Z', 5, {0x1F, 0x10, 0x08, 0x04, 0x02, 0x01, 0x1F}},
+
+    /* Georgian (Mkhedruli). Lifted verbatim from the splash art, which spelled
+     * ჯოკერი in six hand-drawn 5x7 cells on exactly this grid — so the house
+     * style is already set: 5px wide, 1px strokes, everything folded into 7
+     * rows (real Mkhedruli ჯ and კ hang below the baseline; at this size the
+     * descender is absorbed). The rest of the alphabet follows in stage 2. */
+    {0x10D4, 5, {0x1F, 0x11, 0x10, 0x10, 0x11, 0x11, 0x1F}}, /* ე */
+    {0x10D8, 5, {0x1F, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11}}, /* ი */
+    {0x10D9, 5, {0x10, 0x10, 0x18, 0x10, 0x10, 0x11, 0x1F}}, /* კ */
+    {0x10DD, 5, {0x1F, 0x15, 0x15, 0x15, 0x11, 0x11, 0x11}}, /* ო */
+    {0x10E0, 5, {0x10, 0x1F, 0x01, 0x1F, 0x15, 0x15, 0x11}}, /* რ */
+    {0x10EF, 5, {0x04, 0x1F, 0x04, 0x1C, 0x10, 0x11, 0x1F}}, /* ჯ */
 };
 
-/* O(1) glyph lookup: a char->index map built once from T7 itself (so it can't
- * drift from the table). Single render thread -> the lazy build is safe. */
-static const T7Glyph* t7_find(char ch) {
+/* Mkhedruli block covered by the second lookup map. */
+#define T7_KA_FIRST 0x10D0u
+#define T7_KA_COUNT 0x30u /* U+10D0..U+10FF */
+
+/* O(1) glyph lookup: codepoint->index maps built once from T7 itself (so they
+ * can't drift from the table) — one direct-index map for ASCII, one for the
+ * Mkhedruli block. Single render thread -> the lazy build is safe. */
+static const T7Glyph* t7_find(uint16_t cp) {
     static int8_t idx[128];
+    static int8_t idx_ka[T7_KA_COUNT];
     static bool built = false;
     if(!built) {
         for(int i = 0; i < 128; i++) idx[i] = -1;
+        for(int i = 0; i < (int)T7_KA_COUNT; i++) idx_ka[i] = -1;
         for(int i = 0; i < (int)(sizeof(T7) / sizeof(T7[0])); i++) {
-            unsigned char c = (unsigned char)T7[i].ch;
-            if(c < 128) idx[c] = (int8_t)i;
+            uint16_t c = T7[i].cp;
+            if(c < 128)
+                idx[c] = (int8_t)i;
+            else if(c >= T7_KA_FIRST && c < T7_KA_FIRST + T7_KA_COUNT)
+                idx_ka[c - T7_KA_FIRST] = (int8_t)i;
         }
         built = true;
     }
-    unsigned char c = (unsigned char)ch;
-    if(c < 128 && idx[c] >= 0) return &T7[idx[c]];
+    if(cp < 128) return idx[cp] >= 0 ? &T7[idx[cp]] : 0;
+    if(cp >= T7_KA_FIRST && cp < T7_KA_FIRST + T7_KA_COUNT) {
+        int8_t i = idx_ka[cp - T7_KA_FIRST];
+        return i >= 0 ? &T7[i] : 0;
+    }
     return 0;
+}
+
+/* Decode one UTF-8 scalar and advance *s past it. Handles ASCII plus the 2-
+ * and 3-byte forms (Georgian is 3). A malformed lead byte consumes exactly one
+ * byte and yields 0, so a bad string still terminates. The && short-circuits
+ * stop us reading past the NUL. */
+static uint16_t utf8_next(const char** s) {
+    const unsigned char* p = (const unsigned char*)*s;
+    uint16_t cp;
+    if(p[0] < 0x80) {
+        cp = p[0];
+        p += 1;
+    } else if((p[0] & 0xE0) == 0xC0 && (p[1] & 0xC0) == 0x80) {
+        cp = (uint16_t)(((p[0] & 0x1Fu) << 6) | (p[1] & 0x3Fu));
+        p += 2;
+    } else if(
+        (p[0] & 0xF0) == 0xE0 && (p[1] & 0xC0) == 0x80 && (p[2] & 0xC0) == 0x80) {
+        cp = (uint16_t)(((p[0] & 0x0Fu) << 12) | ((p[1] & 0x3Fu) << 6) | (p[2] & 0x3Fu));
+        p += 3;
+    } else {
+        cp = 0;
+        p += 1;
+    }
+    *s = (const char*)p;
+    return cp;
 }
 
 static uint16_t t7_width(const char* s) {
     uint16_t w = 0;
-    for(; *s; s++) {
-        const T7Glyph* gl = t7_find(*s);
+    while(*s) {
+        const T7Glyph* gl = t7_find(utf8_next(&s));
         w = (uint16_t)(w + (gl ? gl->w : 3) + 1);
     }
     return (uint16_t)(w ? w - 1 : 0);
 }
 
 static void t7_text(GjGfx* g, int16_t x, int16_t y, const char* s, uint8_t color) {
-    for(; *s; s++) {
-        const T7Glyph* gl = t7_find(*s);
+    while(*s) {
+        const T7Glyph* gl = t7_find(utf8_next(&s));
         if(gl) {
             gj_gfx_xbm(g, x, y, gl->w, 7, gl->rows, color);
             x = (int16_t)(x + gl->w + 1);
