@@ -41,6 +41,35 @@ jobs:
       - name: Validate catalog metadata
         run: python3 tools/catalog_preflight.py
 
+      # The full bundler cannot reach its Markdown check until screenshots exist —
+      # _process_assets runs first and aborts. The filter is pure Python though, so run
+      # the real one here against the two files it would judge. Soft-fails if their repo
+      # is unreachable: catalog_preflight.py already covers this, less authoritatively.
+      - name: Markdown subset, via the catalog's own filter
+        run: |
+          python3 -m pip install --quiet 'Markdown==3.7'
+          mkdir -p /tmp/filt
+          curl -sfL --retry 2 -o /tmp/filt/markdown_filter.py \
+            https://raw.githubusercontent.com/flipperdevices/flipper-application-catalog/main/tools/flipp_catalog/markdown_filter.py \
+            || { echo "::warning::could not fetch the catalog's filter — relying on the local mirror"; exit 0; }
+          PYTHONPATH=/tmp/filt python3 - <<'PY'
+          import sys
+          from markdown import Markdown
+          from markdown_filter import BasicFormattingEnforcingExtension
+
+          rc = 0
+          for path in ("CHANGELOG.md", "catalog/description.md"):
+              try:
+                  Markdown(extensions=[BasicFormattingEnforcingExtension()]).convert(
+                      open(path, encoding="utf-8").read()
+                  )
+                  print(f"markdown OK (real filter): {path}")
+              except Exception as e:
+                  print(f"::error::{path}: {e}")
+                  rc = 1
+          sys.exit(rc)
+          PY
+
   ufbt-build:
     runs-on: ubuntu-latest
     timeout-minutes: 30
