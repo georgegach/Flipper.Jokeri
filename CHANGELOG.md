@@ -1,14 +1,18 @@
 # Changelog
 
-Versions are `major.minor`, as the Flipper Apps Catalog requires.
+Versions are major.minor, as the Flipper Apps Catalog requires.
+
+No backticks, code blocks, images, quotes, rules or level-3 headers below this line: the
+catalog runs this file through a Markdown filter that allows only headers 1–2, bold,
+italic, lists and links, and *raises* on anything else rather than stripping it.
 
 ## 0.4 — first catalog release
 
 First version published to the Flipper Apps Catalog. Everything below shipped before
 listing; 0.1–0.3 were never submitted.
 
-- **App id is now `jokeri`.** App data moves from `/ext/apps_data/georgianjoker/` to
-  `/ext/apps_data/jokeri/`. Any old save was already invalidated by the save-format bump in
+- **App id is now jokeri.** App data moves from /ext/apps_data/georgianjoker/ to
+  /ext/apps_data/jokeri/. Any old save was already invalidated by the save-format bump in
   0.3, so nothing further is lost.
 - Source moved to its own public repository for catalog listing.
 
@@ -19,7 +23,7 @@ listing; 0.1–0.3 were never submitted.
   (OFL-1.1) — proportional 3–5px, four-level, so the table font grew to a 10-row cell
   while ASCII stayed pixel-identical at 7.
 - **Settings screen** with language, khishti penalty and bot difficulty. Preferences persist
-  in `pulka.cfg`, versioned and CRC'd, separate from the pulka save.
+  in pulka.cfg, versioned and CRC'd, separate from the pulka save.
 - **Khishti is a runtime choice** of −200 or −500, applied from the next deal.
 - **Difficulty levels.** Easy measures ~87 points/pulka weaker than Normal. Hard is
   selectable but currently measures level with Normal — not yet a stronger bot.
@@ -29,7 +33,7 @@ listing; 0.1–0.3 were never submitted.
 ## 0.2 — corrected scoring, vertical UI
 
 - **Scoring was wrong and is now the real Georgian table.** Making a bid of N pays
-  `N × 50 + 50`, not `N × 10 + 50`; sweeping a deal pays `cards × 100` at every deal size;
+  N × 50 + 50, not N × 10 + 50; sweeping a deal pays cards × 100 at every deal size;
   and khishti — bidding one or more and taking none — is a flat penalty, where before it
   cost nothing at all.
 - **Vertical 64×128 UI**, drawn by a furi-free renderer shared with the browser build.

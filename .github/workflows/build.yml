@@ -20,7 +20,27 @@ on:
 permissions:
   contents: write # rolling latest-build release + versioned tags
 
+# Two pushes in quick succession would otherwise race to force-move `latest-build` and
+# upload assets to it, and the loser can leave the release carrying a stale FAP.
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
+  # Everything the Apps Catalog bundler checks that does NOT need the SDK. Runs in
+  # parallel with the build so a metadata mistake surfaces in seconds, not weeks later in
+  # a submission PR. Mirrors flipperdevices/flipper-application-catalog tools/bundle.py
+  # and tools/flipp_catalog/markdown_filter.py — if this passes, `bundle.py` should too.
+  catalog-checks:
+    runs-on: ubuntu-latest
+    name: "Catalog: metadata preflight"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate catalog metadata
+        run: python3 tools/catalog_preflight.py
+
   ufbt-build:
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -59,32 +79,6 @@ jobs:
             "$SIZE" -A "$FAP" >> "$GITHUB_STEP_SUMMARY" 2>&1 || true
             echo '```' >> "$GITHUB_STEP_SUMMARY"
           fi
-
-      - name: Catalog manifest sanity
-        # The catalog reads name/id/category/version out of application.fam, and its
-        # linter wants `major.minor`. A three-part fap_version fails at submission
-        # time, which is weeks after the mistake — so check it on every push instead.
-        run: |
-          VER=$(sed -n 's/.*fap_version="\([^"]*\)".*/\1/p' application.fam)
-          echo "fap_version = $VER"
-          echo "$VER" | grep -Eq '^[0-9]+\.[0-9]+$' || {
-            echo "::error::fap_version '$VER' is not major.minor — the Apps Catalog linter rejects it"
-            exit 1
-          }
-          test -f CHANGELOG.md || { echo "::error::CHANGELOG.md missing (manifest requires it)"; exit 1; }
-          test -f catalog/description.md || { echo "::error::catalog/description.md missing"; exit 1; }
-          python3 - <<'PY'
-          import struct, sys
-          d = open("images/gj-icon.png", "rb").read()
-          w, h = struct.unpack(">II", d[16:24])
-          depth, ctype = d[24], d[25]
-          if (w, h, depth) != (10, 10, 1):
-              sys.exit(f"::error::icon must be 10x10 1-bit, got {w}x{h} depth {depth} ctype {ctype}")
-          print(f"icon OK: {w}x{h}, {depth}-bit")
-          PY
-          N=$(ls screenshots/*.png 2>/dev/null | wc -l)
-          echo "screenshots: $N"
-          [ "$N" -ge 1 ] || echo "::warning::no screenshots yet — the catalog manifest requires at least one"
 
       - name: Get short git SHA
         id: get_sha
