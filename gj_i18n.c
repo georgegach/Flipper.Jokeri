@@ -219,13 +219,17 @@ static const char* const KA[GjStrCount] = {
     [GjStrSave] = "შენ.",
     [GjStrStay] = "დარჩ",
 
-    /* card faces: ვალეტი, ქალი, კაჟი, ტუზი (?) */
-    [GjStrRankJ] = "ვ",
-    [GjStrRankQ] = "ქ",
-    [GjStrRankK] = "კ",
-    [GjStrRankA] = "ტ",
-    [GjStrRankJoker] = "ჯო",
-    [GjStrJokerMark] = "ჯ",
+    /* Card faces stay Latin in every language. A deck is a deck: players read
+     * J/Q/K/A on the pips whatever language the UI is in, and the Georgian
+     * initials (ვალეტი, ქალი, კაჟი, ტუზი) collided with each other and with the
+     * suit marks at 11px. The chart row initials below DO translate — those are
+     * this app's labels, not the deck's. */
+    [GjStrRankJ] = "J",
+    [GjStrRankQ] = "Q",
+    [GjStrRankK] = "K",
+    [GjStrRankA] = "A",
+    [GjStrRankJoker] = "JO",
+    [GjStrJokerMark] = "J",
     [GjStrRankUnknown] = "?",
     [GjStrInitAscend] = "ზ",
     [GjStrInitNines] = "ც",
