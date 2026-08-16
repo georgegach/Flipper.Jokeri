@@ -383,19 +383,33 @@ static void tri(GjGfx* g, int16_t x, int16_t y, uint8_t dir, uint8_t color) {
     }
 }
 
-/* checkerboard dim of the whole frame (modal backdrop). Byte-wise: even rows
- * set x=1,3,5,7 (0xAA), odd rows x=0,2,4,6 (0x55) — identical to the old
- * per-pixel loop, 4x fewer ops and no bounds checks. */
+/* Checkerboard FADE of the whole frame (modal backdrop): keep every other
+ * pixel, drop the rest. Byte-wise even rows keep x=1,3,5,7 (0xAA) and odd rows
+ * keep x=0,2,4,6 (0x55), so the mask never lands on the same column twice in a
+ * row and the table thins evenly.
+ *
+ * This used to OR the checkerboard ON, which pushed the backdrop toward solid
+ * black — on a 1-bit LCD a busy card table plus added ink reads as a smudge,
+ * and the popup had to fight it. Masking ink OFF halves the background's
+ * density instead, so the modal sits on something visibly greyed rather than
+ * something darker than itself. */
 static void dim(GjGfx* g) {
     for(int y = 0; y < GJ_FB_H; y++) {
         uint8_t m = (y & 1) ? 0x55u : 0xAAu;
         uint8_t* row = &g->fb[y * (GJ_FB_W / 8)];
-        for(int b = 0; b < GJ_FB_W / 8; b++) row[b] |= m;
+        for(int b = 0; b < GJ_FB_W / 8; b++) row[b] &= m;
     }
 }
 
-/* rounded panel with a black title bar; content starts at y+11 */
+/* Rounded panel with a black title bar; content still starts at y+11.
+ *
+ * The border is 2px: the second ring is drawn OUTWARD, at (x-1, y-1), so the
+ * panel's interior geometry is untouched and no caller's content offsets move.
+ * Every call site sits at x >= 3 and y >= 25, so there is room. Against a faded
+ * backdrop a 1px edge was too thin to separate the popup from the table. */
 static void modal(GjGfx* g, int16_t x, int16_t y, int16_t w, int16_t h, const char* title) {
+    gj_gfx_rrect(g, (int16_t)(x - 1), (int16_t)(y - 1), (int16_t)(w + 2), (int16_t)(h + 2), 0);
+    gj_gfx_rframe(g, (int16_t)(x - 1), (int16_t)(y - 1), (int16_t)(w + 2), (int16_t)(h + 2), 1);
     gj_gfx_rrect(g, x, y, w, h, 0); /* clear */
     gj_gfx_rframe(g, x, y, w, h, 1);
     gj_gfx_rect(g, (int16_t)(x + 1), (int16_t)(y + 1), (int16_t)(w - 2), 9, 1);

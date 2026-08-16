@@ -57,27 +57,36 @@ static char* put_uint(char* p, unsigned v) {
     return p;
 }
 
+/* Append a UI string. The initials below are one GLYPH but not one byte —
+ * Georgian is 3 bytes in UTF-8 — which is why these are copied rather than
+ * assigned as chars the way they used to be. */
+static char* put_str(char* p, const char* s) {
+    while(*s) *p++ = *s++;
+    return p;
+}
+
 static void refresh_cache(GjApp* app) {
     const GjGame* g = &app->game;
-    /* str_deal: "D%02u/%u" -> e.g. "D07/24" */
+    uint8_t lang = app->lang;
+    /* str_deal: "<D>%02u/%u" -> "D07/24" in English, "ხ07/24" in Georgian */
     unsigned d = (unsigned)(g->deal_index + 1);
     char* p = app->str_deal;
-    *p++ = 'D';
+    p = put_str(p, gj_str(lang, GjStrInitDeal));
     if(d < 10) *p++ = '0';
     p = put_uint(p, d);
     *p++ = '/';
     p = put_uint(p, (unsigned)gj_mode_num_deals(g->mode));
     *p = '\0';
-    /* str_bid: "B:-" or "B:%d T:%u" -> e.g. "B:2 T:1" */
+    /* str_bid: "<B>:-" or "<B>:%d <T>:%u" -> "B:2 T:1" / "გ:2 მ:1" */
     p = app->str_bid;
-    *p++ = 'B';
+    p = put_str(p, gj_str(lang, GjStrInitBid));
     *p++ = ':';
     if(g->bids[0] < 0) {
         *p++ = '-';
     } else {
         p = put_uint(p, (unsigned)g->bids[0]);
         *p++ = ' ';
-        *p++ = 'T';
+        p = put_str(p, gj_str(lang, GjStrInitTook));
         *p++ = ':';
         p = put_uint(p, (unsigned)g->tricks_taken[0]);
     }
@@ -296,20 +305,19 @@ static void settings_step(GjApp* st, int dir) {
     }
 }
 
-static void exit_confirm_from(GjApp* st, uint8_t from) {
-    st->prev_phase = from;
-    st->phase = PhaseConfirmExit;
-    st->confirm_sel = 0;
-}
-
-/* Start a new game in `mode`; a live save prompts an overwrite confirm. */
+/* Start a new game in `mode`. No overwrite confirm: picking a mode off the menu
+ * is already an explicit choice, and Continue sits directly above it as the
+ * "don't overwrite" option — the dialog asked a question the menu had already
+ * answered. The old save is dropped here, which is the step the dialog's Yes
+ * branch used to own.
+ *
+ * PhaseConfirmExit is now unreachable. Its enum value MUST stay: the phase is
+ * persisted in the save file, so renumbering would misread every existing save.
+ * Its input and render paths are left in place for the same reason. */
 static void new_game(GjApp* st, const GjShellIo* io, uint8_t mode) {
-    if(st->save_available) {
-        st->new_mode = mode;
-        exit_confirm_from(st, PhaseMenu); /* overwrite-save confirm */
-    } else {
-        start_new_pulka(st, io, mode);
-    }
+    io_save_delete(io);
+    st->save_available = false;
+    start_new_pulka(st, io, mode);
 }
 
 /* Back during play: pause popup [Resume, Chart, Exit] over the table. */

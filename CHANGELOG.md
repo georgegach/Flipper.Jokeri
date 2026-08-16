@@ -6,6 +6,21 @@ No backticks, code blocks, images, quotes, rules or level-3 headers below this l
 catalog runs this file through a Markdown filter that allows only headers 1–2, bold,
 italic, lists and links, and *raises* on anything else rather than stripping it.
 
+## 0.6 — the last English on a Georgian screen, and a calmer popup
+
+- **The play-screen status bar is translated.** It read D07/24 and B:2 T:1 in every
+  language because those letters were built character by character in code rather than
+  drawn from the string table. In Georgian it now reads ხ07/24 and გ:2 მ:1 — ხელი,
+  განაცხადი, მოგებული — chosen to not collide with the seat initials on the same bar.
+- **OK is translated** (კარგი), and the About screen no longer claims to be V0.2.
+- **Starting a game no longer asks permission to overwrite your save.** Continue sits
+  directly above the modes on the menu, so choosing a mode had already answered the
+  question. The old save is dropped and the new pulka begins.
+- **Popups fade the background instead of darkening it.** The backdrop used to have a
+  checkerboard added ON, pushing a busy card table toward solid black; it now has every
+  other pixel taken OFF, so the table greys out and the popup reads as the nearest thing.
+  Popup borders went from 1px to 2px, drawn outward so nothing inside moved.
+
 ## 0.5 — Mtavruli, wrap-around menus, hold-to-quit
 
 - **The Georgian UI is now set in Mtavruli**, the titling style, instead of Mkhedruli.

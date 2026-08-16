@@ -111,7 +111,7 @@ static const char* const EN[GjStrCount] = {
     [GjStrInitBlind] = "B",
 
     /* about */
-    [GjStrVersion] = "V0.2",
+    [GjStrVersion] = "V0.6", /* keep in step with application.fam fap_version */
     [GjStrSelect] = "SELECT",
     [GjStrPlay] = "PLAY",
     [GjStrBack] = "BACK",
@@ -121,6 +121,9 @@ static const char* const EN[GjStrCount] = {
     [GjStrDealsHint] = "^v DEALS",
     [GjStrJokerDot] = "JOKER.",
     [GjStrAgentic] = "AGENTIC.GE",
+    [GjStrInitDeal] = "D",
+    [GjStrInitBid] = "B",
+    [GjStrInitTook] = "T",
 };
 
 /* Georgian. Sized against the real pixel budgets: the screen is 64px and the
@@ -181,7 +184,7 @@ static const char* const KA[GjStrCount] = {
     [GjStrPicks] = " ირჩევს",
     [GjStrPeek] = "ნახვა",
     [GjStrWait] = "მოიცადე",
-    [GjStrOk] = "OK",
+    [GjStrOk] = "კარგი",
 
     /* bidding */
     [GjStrBidding] = "განაცხადი",
@@ -237,7 +240,7 @@ static const char* const KA[GjStrCount] = {
     [GjStrInitBlind] = "ბ",
 
     /* about */
-    [GjStrVersion] = "V0.2",
+    [GjStrVersion] = "V0.6", /* keep in step with application.fam fap_version */
     [GjStrSelect] = "არჩევა",
     [GjStrPlay] = "თამაში",
     [GjStrBack] = "უკან",
@@ -247,6 +250,16 @@ static const char* const KA[GjStrCount] = {
     [GjStrDealsHint] = "^v დარიგ.",
     [GjStrJokerDot] = "ჯოკერი.",
     [GjStrAgentic] = "AGENTIC.GE",
+
+    /* Status-bar initials. Chosen to avoid every other single letter that can
+     * share the play screen — თ/დ/ჩ/ა (seats) and ჯ (total row) — so the bar
+     * stays readable at a glance:
+     *   ხ  ხელი        the hand/deal being played
+     *   გ  განაცხადი   what you bid
+     *   მ  მოგებული    what you have taken */
+    [GjStrInitDeal] = "ხ",
+    [GjStrInitBid] = "გ",
+    [GjStrInitTook] = "მ",
 };
 
 const char* gj_str(uint8_t lang, uint16_t id) {

@@ -137,6 +137,15 @@ typedef enum {
     GjStrJokerDot,
     GjStrAgentic,
 
+    /* Single-letter prefixes in the play-screen status bar: "D07/24  B:2 T:1".
+     * These were literal 'D'/'B'/'T' chars built in gj_shell.c refresh_cache,
+     * so they stayed English on every Georgian screen — the most-visible text
+     * in the app and the last thing left untranslated. Keep them one letter
+     * and visually distinct from each other; the bar is tight. */
+    GjStrInitDeal,
+    GjStrInitBid,
+    GjStrInitTook,
+
     GjStrCount
 } GjStrId;
 
