@@ -10,6 +10,6 @@ App(
     fap_description="Jokeri - the Georgian trick-taking card game. A full 24-deal pulka against three AI opponents: bid exactly, dodge the khishti, and play your Jokers wisely.",
     fap_icon_assets="images",
     fap_icon="images/gj-icon.png",
-    fap_version="0.4",
+    fap_version="0.5",
     fap_weburl="https://joker.agentic.ge",
 )

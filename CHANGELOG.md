@@ -6,6 +6,19 @@ No backticks, code blocks, images, quotes, rules or level-3 headers below this l
 catalog runs this file through a Markdown filter that allows only headers 1–2, bold,
 italic, lists and links, and *raises* on anything else rather than stripping it.
 
+## 0.5 — Mtavruli, wrap-around menus, hold-to-quit
+
+- **The Georgian UI is now set in Mtavruli**, the titling style, instead of Mkhedruli.
+  Every letter is equal height and stands on the baseline, so Georgian uses the same line
+  metrics as Latin — the rules screen went from 10 visible lines to 14. The trade is width:
+  Mtavruli is a uniform 5px where Mkhedruli was a proportional 3–5px, so two menu labels
+  were shortened to fit a 10-letter ceiling. Glyphs are again from Anbani Pixel (OFL-1.1).
+- **Hold Back to quit from anywhere.** A pulka in progress is saved on the way out, so it
+  is the same promise the pause menu's Exit already made, reachable in one gesture.
+- **Menu and popup cursors wrap.** Down on the last row lands on the first and Up on the
+  first lands on the last, on the main menu, the pause menu, Settings and the Joker popup.
+  The rules text and the standings table still stop at their ends, on purpose.
+
 ## 0.4 — first catalog release
 
 First version published to the Flipper Apps Catalog. Everything below shipped before

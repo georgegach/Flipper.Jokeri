@@ -3,7 +3,7 @@
 **Jokeri** — the Georgian trick-taking card game — for the Flipper Zero. A full
 traditional **24-deal pulka** against three heuristic AI opponents: bid exactly, dodge
 the khishti, and play your Jokers wisely. Save and resume from the SD card. Full
-**Georgian-language UI**, including the card table, in a hand-drawn Mkhedruli pixel face.
+**Georgian-language UI**, including the card table, in a hand-drawn Mtavruli pixel face.
 
 Play it in a browser without a Flipper: **[joker.agentic.ge](https://joker.agentic.ge)** —
 the same C engine, AI, shell *and* renderer compiled to WASM inside a virtual Flipper.
@@ -65,6 +65,10 @@ eight-card deal scores **800**. Khishti is the only way to go negative.
 | **OK**         | Play the selected card / confirm bid / advance              |
 | **Up**         | Standings overlay (24×4 score table)                        |
 | **Back**       | Exit with save (during play) / back out of a menu            |
+| **Back (hold)**| Quit the app from anywhere — saves a pulka in progress first  |
+
+Row selectors wrap: Down on the last row lands on the first, Up on the first lands on the
+last. Scrolling views (the rules text, the standings table) stop at their ends instead.
 
 Jokers open a small popup: **Take / Underplay** when following; **Demand suit / Demand
 trump / Underplay** when leading, then a suit picker if needed.
@@ -85,11 +89,21 @@ save — that one is deleted when a game ends.
 
 ## Georgian typography
 
-Mkhedruli is a four-level script: 14 letters ascend to cap height and 16 descend below the
-baseline, so the table face uses a 10-row cell where Latin needs 7. The glyphs come from
-[**Anbani Pixel**](https://github.com/Anbani/font), a hand-drawn pixel typeface built for
-the HaxrCorp-4089 idiom the Flipper's own face uses — proportional 3–5px, not a uniform
-grid. See [THIRD_PARTY.md](THIRD_PARTY.md) for the OFL-1.1 notice.
+The UI is set in **Mtavruli**, the Georgian titling style — every letter equal height,
+standing on the baseline, no ascenders or descenders. On a 1-bit 64px-wide screen that is
+worth more than it sounds: Mkhedruli is a four-level script (14 letters ascend, 16 descend)
+and needed a 10-row cell and a taller line pitch, which cost Georgian readers 4 of the 14
+rules lines Latin got. Mtavruli uses the Latin metrics exactly.
+
+The trade is width. Mtavruli is a uniform 5px where Mkhedruli was a proportional 3–5px, so
+Georgian text is wider and a menu label cannot exceed 10 letters. That ceiling is enforced
+by `tests/test_i18n.c`, which measures every string against the real drawing room at its
+site.
+
+The glyphs come from [**Anbani Pixel**](https://github.com/Anbani/font), a hand-drawn pixel
+typeface built for the HaxrCorp-4089 idiom the Flipper's own face uses. Strings are written
+in ordinary Mkhedruli and folded onto Mtavruli at glyph lookup, so the source stays
+readable. See [THIRD_PARTY.md](THIRD_PARTY.md) for the OFL-1.1 notice.
 
 Georgian wording is a non-native draft under review. Corrections very welcome — open an
 issue.
@@ -153,5 +167,5 @@ there carrying its test.
 
 ## License
 
-**GPL-3.0** — see [LICENSE](LICENSE). Embedded Mkhedruli glyph data is OFL-1.1; see
+**GPL-3.0** — see [LICENSE](LICENSE). Embedded Georgian glyph data is OFL-1.1; see
 [THIRD_PARTY.md](THIRD_PARTY.md).

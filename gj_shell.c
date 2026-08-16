@@ -126,6 +126,16 @@ static void bid_sel_step(GjApp* st, int dir) {
     }
 }
 
+/* Down past the last row lands on the first, Up past the first lands on the
+ * last. Row SELECTORS wrap; scroll views (Rules text, the standings table) do
+ * not — wrapping a long document back to the top reads as a glitch, not a
+ * feature, so those keep their clamps. */
+static uint8_t ring_step(uint8_t sel, uint8_t count, int dir) {
+    if(count == 0) return 0;
+    if(sel >= count) sel = (uint8_t)(count - 1);
+    return (uint8_t)((sel + count + dir) % count);
+}
+
 static void hand_sel_step(GjApp* st, int dir) {
     uint16_t mask = gj_legal_moves(&st->game, 0);
     if(mask == 0) return;
@@ -419,9 +429,9 @@ static void handle_trickplay_input(
         uint8_t rows = leading ? (has_trump ? 3 : 2) : 2;
         if(is_press) {
             if(key == GjKeyUp) {
-                if(st->joker_sel > 0) st->joker_sel--;
+                st->joker_sel = ring_step(st->joker_sel, rows, -1);
             } else if(key == GjKeyDown) {
-                if(st->joker_sel + 1 < rows) st->joker_sel++;
+                st->joker_sel = ring_step(st->joker_sel, rows, +1);
             } else if(key == GjKeyBack) {
                 st->sub = SubNone;
             }
@@ -468,12 +478,65 @@ static void handle_trickplay_input(
     }
 }
 
+/* ---- global quit ----------------------------------------------------- */
+/* Overlays (pause, standings, rules, settings, the exit dialog) stack exactly
+ * one deep over the phase they were opened from — open_rules/open_standings
+ * pass the pause TARGET rather than PhasePause — so one hop always resolves to
+ * the phase a save should resume into. */
+static uint8_t resumable_phase(const GjApp* st) {
+    switch(st->phase) {
+    case PhaseStandings:
+    case PhasePause:
+    case PhaseRules:
+    case PhaseSettings:
+    case PhaseConfirmExit:
+        return st->prev_phase;
+    default:
+        return st->phase;
+    }
+}
+
+static bool phase_in_play(uint8_t phase) {
+    switch(phase) {
+    case PhaseStageIntro:
+    case PhaseTrumpSelect:
+    case PhaseTrumpReveal:
+    case PhaseLeadIntro:
+    case PhaseBidding:
+    case PhaseTrickPlay:
+    case PhaseTrickResult:
+    case PhaseDealScore:
+        return true;
+    default:
+        return false;
+    }
+}
+
+/* Long-press Back quits from anywhere. A pulka in progress is saved on the way
+ * out rather than dropped — the same "survives your pocket" contract the pause
+ * menu's Exit honours, and the reason this is not simply running = false. */
+static void shell_quit(GjApp* st, const GjShellIo* io) {
+    uint8_t resume = resumable_phase(st);
+    if(phase_in_play(resume) && !gj_game_over(&st->game)) {
+        st->phase = resume; /* pack the RESUMABLE phase, never an overlay */
+        io_save(io, st);
+        st->save_available = true;
+    }
+    st->running = false;
+}
+
 /* ---- top-level input ------------------------------------------------ */
 void gj_shell_input(GjApp* st, const GjShellIo* io, GjKey key) {
+    /* Long Back is a global escape hatch and is handled before anything else,
+     * including the splash: no phase gets to swallow it. */
+    if(key == GjKeyBackLong) {
+        shell_quit(st, io);
+        return;
+    }
+
     /* Map the host key set onto the old (is_press dpad/Back | is_ok) shape.
-     * OK short & long both fire is_ok; Back short & long both act as Back. */
+     * OK short & long both fire is_ok. */
     bool is_ok = (key == GjKeyOk || key == GjKeyOkLong);
-    if(key == GjKeyBackLong) key = GjKeyBack;
     bool is_press = !is_ok; /* dpad + Back arrive here as presses */
 
     /* Splash: any key skips straight to the menu. */
@@ -492,9 +555,9 @@ void gj_shell_input(GjApp* st, const GjShellIo* io, GjKey key) {
         uint8_t count = st->save_available ? 6 : 5;
         if(is_press) {
             if(key == GjKeyUp) {
-                if(st->menu_sel > 0) st->menu_sel--;
+                st->menu_sel = ring_step(st->menu_sel, count, -1);
             } else if(key == GjKeyDown) {
-                if(st->menu_sel + 1 < count) st->menu_sel++;
+                st->menu_sel = ring_step(st->menu_sel, count, +1);
             } else if(key == GjKeyBack) {
                 st->running = false;
             }
@@ -638,9 +701,9 @@ void gj_shell_input(GjApp* st, const GjShellIo* io, GjKey key) {
     case PhasePause:
         if(is_press) {
             if(key == GjKeyUp) {
-                if(st->pause_sel > 0) st->pause_sel--;
+                st->pause_sel = ring_step(st->pause_sel, 4, -1);
             } else if(key == GjKeyDown) {
-                if(st->pause_sel < 3) st->pause_sel++;
+                st->pause_sel = ring_step(st->pause_sel, 4, +1);
             } else if(key == GjKeyBack) {
                 st->phase = st->prev_phase; /* resume */
             }
@@ -678,9 +741,9 @@ void gj_shell_input(GjApp* st, const GjShellIo* io, GjKey key) {
     case PhaseSettings:
         if(is_press) {
             if(key == GjKeyUp) {
-                if(st->settings_sel > 0) st->settings_sel--;
+                st->settings_sel = ring_step(st->settings_sel, GJ_SETTINGS_ROWS, -1);
             } else if(key == GjKeyDown) {
-                if(st->settings_sel + 1 < GJ_SETTINGS_ROWS) st->settings_sel++;
+                st->settings_sel = ring_step(st->settings_sel, GJ_SETTINGS_ROWS, +1);
             } else if(key == GjKeyLeft) {
                 settings_step(st, -1);
             } else if(key == GjKeyRight) {

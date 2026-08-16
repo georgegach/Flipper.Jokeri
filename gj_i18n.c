@@ -133,11 +133,16 @@ static const char* const KA[GjStrCount] = {
     /* menu */
     [GjStrJokeri] = "ჯოკერი",
     [GjStrCont] = "გაგრძ. დ",
-    [GjStrStandard] = "სტანდარტული",
+    /* Shortened when the UI moved to Mtavruli: the capitals are a uniform 5px
+     * where Mkhedruli was a proportional 3-5px, so the 11-letter adjective went
+     * 65px against a 60px menu pill. The noun fits at 53px. REVIEW WANTED. */
+    [GjStrStandard] = "სტანდარტი",
     [GjStrQuick9s] = "სწრაფი 9",
     [GjStrRules] = "წესები",
     [GjStrAbout] = "შესახებ",
-    [GjStrSettings] = "პარამეტრები",
+    /* Same reason: the plural was 65px against a 60px pill. REVIEW WANTED —
+     * "მორგება" (41px) may read better on a menu than the singular. */
+    [GjStrSettings] = "პარამეტრი",
     [GjStrLangRow] = "ენა",
     [GjStrLangEnName] = "EN",
     [GjStrLangKaName] = "KA",
@@ -305,10 +310,17 @@ bool gj_rules_line_is_khishti(const char* line) {
     return line[0] == GJ_RULES_KHISHTI[0] && line[1] == 0;
 }
 
+/* Both metrics were per-language only because Mkhedruli is a four-level script:
+ * it needed a 10-row cell and an 11px pitch, which cost Georgian readers 4 of
+ * the 14 lines Latin got. Mtavruli stands on the baseline at cap height with no
+ * descenders, so Georgian now uses the Latin metrics exactly. The lang argument
+ * stays — a future script may descend again. */
 uint8_t gj_rules_pitch(uint8_t lang) {
-    return (lang == GjLangKa) ? 11u : 8u;
+    (void)lang;
+    return 8u;
 }
 
 uint8_t gj_rules_visible(uint8_t lang) {
-    return (lang == GjLangKa) ? 10u : 14u;
+    (void)lang;
+    return 14u;
 }

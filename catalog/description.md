@@ -26,7 +26,7 @@ Features:
 - Save and resume — a pulka survives your pocket
 - Running standings, viewable mid-game
 - Khishti at the standard −200 or a harsher −500
-- **Full Georgian interface**, card table included, in a hand-drawn Mkhedruli pixel face
+- **Full Georgian interface**, card table included, in a hand-drawn Mtavruli pixel face
 
 Rules, scoring table and the open questions about regional variants are documented in the
 source repository. Georgian wording is a non-native draft — corrections are welcome.
