@@ -633,11 +633,13 @@ static void draw_hand(GjGfx* g, const GjApp* app) {
     }
 }
 
-/* bidding, inline (no window, no dim): the centre carries the bid selector
- * while the hand stays live below so you can dive down and count cards. When
- * the selector has focus a ◄ number ► picker shows with a "down to count"
- * hint; when the hand has focus the number stays for reference and an "up to
- * pick" hint shows instead (the lifted hand card marks where focus is). */
+/* bidding, inline (no window, no dim): the centre carries the bid number
+ * while the hand stays live below. Focus STARTS on the hand -- reading what
+ * you were dealt comes before naming a number -- so the usual sight is the
+ * number sitting at 0 for reference with an "up to pick" hint above it and a
+ * lifted card marking where focus is. Up moves to the number and a
+ * ◄ number ► picker replaces the hint with "down to count". Blind deals
+ * have no hand to read and so open on the number. */
 static void draw_bid_inline(GjGfx* g, const GjApp* app) {
     const GjGame* gm = &app->game;
     if(gm->turn != 0 || gm->bids[0] >= 0) { /* a bot is bidding */

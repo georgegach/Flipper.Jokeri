@@ -6,7 +6,7 @@ No backticks, code blocks, images, quotes, rules or level-3 headers below this l
 catalog runs this file through a Markdown filter that allows only headers 1–2, bold,
 italic, lists and links, and *raises* on anything else rather than stripping it.
 
-## 0.6 — the last English on a Georgian screen, and a calmer popup
+## 0.6 — bid from your hand, the last English on a Georgian screen, a calmer popup
 
 - **The play-screen status bar is translated.** It read D07/24 and B:2 T:1 in every
   language because those letters were built character by character in code rather than
@@ -16,6 +16,11 @@ italic, lists and links, and *raises* on anything else rather than stripping it.
 - **Starting a game no longer asks permission to overwrite your save.** Continue sits
   directly above the modes on the menu, so choosing a mode had already answered the
   question. The old save is dropped and the new pulka begins.
+- **Bidding opens on your hand, not on the number.** The cursor used to land on the bid
+  picker, so Left and Right changed a number before you had read your cards. Focus now
+  starts on the first card and Left/Right scan the hand; Up lifts to the bid, which sits
+  at 0, and Down returns to the cards. Blind nines, whose hand is face down, still open on
+  the number.
 - **Popups fade the background instead of darkening it.** The backdrop used to have a
   checkerboard added ON, pushing a busy card table toward solid black; it now has every
   other pixel taken OFF, so the table greys out and the popup reads as the nearest thing.

@@ -135,6 +135,24 @@ static void bid_sel_step(GjApp* st, int dir) {
     }
 }
 
+/* Blind deals draw the hand as card backs, so there is nothing to browse and
+ * no cursor anyone could see move: those keep focus on the number. */
+static bool bid_hand_visible(const GjApp* st) {
+    return !gj_deal_is_blind(st->game.mode, st->game.deal_index);
+}
+
+/* Bidding opens on the HAND, not the number: the first thing you want is to
+ * read what you were dealt. Up lifts focus to the number, which sits at 0 --
+ * normalize_bid_sel only walks past 0 when khishti forbids it to the dealer. */
+static void bid_focus_default(GjApp* st) {
+    if(bid_hand_visible(st)) {
+        st->bid_focus = 1;
+        st->hand_sel = 0;
+    } else {
+        st->bid_focus = 0;
+    }
+}
+
 /* Down past the last row lands on the first, Up past the first lands on the
  * last. Row SELECTORS wrap; scroll views (Rules text, the standings table) do
  * not — wrapping a long document back to the top reads as a glitch, not a
@@ -197,7 +215,7 @@ static void stage_intro_advance(GjApp* st) {
 static void enter_bidding(GjApp* st, const GjShellIo* io) {
     st->phase = PhaseBidding;
     st->bid_sel = 0;
-    st->bid_focus = 0; /* start on the selector */
+    bid_focus_default(st);
     if(st->game.turn == 0) {
         normalize_bid_sel(st);
         st->wait_ticks = 0;
@@ -370,8 +388,11 @@ static void menu_continue(GjApp* st, const GjShellIo* io) {
     st->hand_sel = first_legal_hand(st);
 
     if(st->phase == PhaseBidding || st->phase == PhaseTrickPlay) {
-        if(st->phase == PhaseBidding && st->game.turn == 0) normalize_bid_sel(st);
         st->bid_focus = 0;
+        if(st->phase == PhaseBidding) {
+            if(st->game.turn == 0) normalize_bid_sel(st);
+            bid_focus_default(st); /* resumes browsing the hand, card 0 */
+        }
         st->wait_ticks = (st->game.turn != 0) ? pace_ticks(io) : 0;
     } else if(st->phase == PhaseTrumpSelect) {
         st->wait_ticks = (gj_trump_namer(&st->game) != 0) ? 24 : 0;
@@ -633,14 +654,14 @@ void gj_shell_input(GjApp* st, const GjShellIo* io, GjKey key) {
             if(key == GjKeyBack) {
                 open_pause(st, PhaseBidding);
             } else if(st->bid_focus == 0) {
-                /* selector: ◄ ► pick a value; Down dives into the hand to count */
+                /* selector: ◄ ► pick a value; Down drops back into the hand */
                 if(key == GjKeyLeft)
                     bid_sel_step(st, -1);
                 else if(key == GjKeyRight)
                     bid_sel_step(st, +1);
-                else if(key == GjKeyDown) {
+                else if(key == GjKeyDown && bid_hand_visible(st)) {
                     st->bid_focus = 1;
-                    st->hand_sel = 0;
+                    if(st->hand_sel >= st->game.hands[0].count) st->hand_sel = 0;
                 }
             } else {
                 /* hand focus: ◄ ► scan every card (legality ignored); Up returns */
@@ -874,7 +895,7 @@ void gj_shell_tick(GjApp* st, const GjShellIo* io) {
                     enter_lead_intro(st);
                 } else if(st->game.turn == 0) {
                     normalize_bid_sel(st);
-                    st->bid_focus = 0;
+                    bid_focus_default(st);
                     st->wait_ticks = 0;
                 } else {
                     st->wait_ticks = pace_ticks(io);

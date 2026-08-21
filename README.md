@@ -61,11 +61,15 @@ eight-card deal scores **800**. Khishti is the only way to go negative.
 
 | Button         | Action                                                     |
 |----------------|------------------------------------------------------------|
-| **Left/Right** | Select a card (in play) / cycle the bid value (in bidding)  |
+| **Left/Right** | Scan your hand / cycle the bid value once the number has focus |
 | **OK**         | Play the selected card / confirm bid / advance              |
 | **Up**         | Standings overlay (24×4 score table)                        |
 | **Back**       | Exit with save (during play) / back out of a menu            |
 | **Back (hold)**| Quit the app from anywhere — saves a pulka in progress first  |
+
+Bidding opens on your **hand**, not on the number: read what you were dealt with
+Left/Right, then press **Up** to reach the bid, which starts at 0. Down returns to the
+cards. Blind nines have no hand to read, so they open on the number.
 
 Row selectors wrap: Down on the last row lands on the first, Up on the first lands on the
 last. Scrolling views (the rules text, the standings table) stop at their ends instead.

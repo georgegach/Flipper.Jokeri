@@ -52,7 +52,7 @@ typedef struct {
     uint8_t menu_sel; /* compact index over VISIBLE items (Continue only when save_available) */
     uint8_t hand_sel; /* selected index in the human hand */
     int8_t bid_sel; /* bid picker value */
-    uint8_t bid_focus; /* bidding: 0 = bid selector, 1 = hand (counting cards) */
+    uint8_t bid_focus; /* bidding: 0 = bid number, 1 = hand (the default, unless blind) */
     uint8_t joker_sel; /* joker popup row */
     uint8_t suit_sel; /* suit picker 0..3 */
     uint8_t trump_sel; /* trump-select 0..3, 4 = no trump */
