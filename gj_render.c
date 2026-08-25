@@ -86,6 +86,12 @@ static const uint8_t jo7[] = {0x08, 0x08, 0x7F, 0x3E, 0x1C, 0x36, 0x22};
 static const uint8_t nt7[] = {0x3F, 0x43, 0x45, 0x49, 0x51, 0x61, 0x7E};
 static const uint8_t crown7[] = {0x55, 0x55, 0x7F, 0x7F, 0x41}; /* 7x5 */
 
+/* 5x7 bid-balance arrows for the info row. Shafted so they never read as the
+ * 5x5 nav triangles: up = tsaglejva (more tricks bid than dealt), down =
+ * shetenva (fewer). */
+static const uint8_t up5[] = {0x04, 0x0E, 0x1F, 0x04, 0x04, 0x04, 0x04};
+static const uint8_t dn5[] = {0x04, 0x04, 0x04, 0x04, 0x1F, 0x0E, 0x04};
+
 static const uint8_t* suit7(uint8_t s) {
     switch(s & 3u) {
     case GjSuitSpades:
@@ -541,21 +547,54 @@ static void draw_top_bar(GjGfx* g, const GjApp* app) {
     }
 }
 
-/* bottom info row: flipped trump (left) and your plain bid:taken (right) */
+/* bottom info row: bid balance (left), the trump (centre) and your plain
+ * taken:bid (right). The trump sits centred because it is the one fact every
+ * card in the hand below is judged against — the row's two number blocks
+ * flank it. */
 static void draw_bottom_row(GjGfx* g, const GjApp* app) {
     const GjGame* gm = &app->game;
-    /* left: trump indicator (rank + suit pip, or no-trump glyph, or named pip) */
+
+    /* left: tsaglejva / shetenva — how far the table's bids sit from the
+     * tricks actually on offer. The khishti bars the dealer from levelling
+     * them, so once all four have bid this is never zero. Up N: N more tricks
+     * bid than exist (tsaglejva — someone must come up short). Down N: N
+     * fewer (shetenva — N unwanted tricks get stuffed onto somebody). */
+    if(gj_bidding_done(gm)) {
+        int sum = 0;
+        for(uint8_t s = 0; s < GJ_PLAYERS; s++) sum += gm->bids[s];
+        int d = sum - (int)gm->cards_this_deal;
+        if(d != 0) {
+            gj_gfx_xbm(g, 2, 94, 5, 7, (d > 0) ? up5 : dn5, 1);
+            char num[6];
+            t7_text(g, 9, 94, u2s((uint16_t)(d > 0 ? d : -d), num), 1);
+        }
+    }
+
+    /* centre: flipped trump (rank + suit pip, or no-trump glyph, or named
+     * pip). Width is measured first so the block centres on x32. */
+    const char* r = NULL;
+    int16_t tw = 0;
     if(gm->trump_suit == GJ_NO_TRUMP) {
-        gj_gfx_xbm(g, 2, 94, 7, 7, nt7, 1);
+        tw = 7;
     } else if(gm->trump_suit < 4) {
         if(gm->trump_card != GJ_CARD_NONE && !gj_is_joker(gm->trump_card)) {
-            const char* r = rank_str(app->lang, gm->trump_card);
-            t7_text(g, 2, 94, r, 1);
-            pip7(g, (int16_t)(2 + t7_width(r) + 2), 94, gm->trump_card, 1);
+            r = rank_str(app->lang, gm->trump_card);
+            tw = (int16_t)(t7_width(r) + 2 + 7);
         } else {
-            pip7(g, 2, 94, (GjCard)(gm->trump_suit * 9 + 3), 1);
+            tw = 7;
         }
     } /* GJ_SUIT_NONE -> nothing */
+    if(tw) {
+        int16_t tx0 = (int16_t)(32 - tw / 2);
+        if(gm->trump_suit == GJ_NO_TRUMP) {
+            gj_gfx_xbm(g, tx0, 94, 7, 7, nt7, 1);
+        } else if(r) {
+            t7_text(g, tx0, 94, r, 1);
+            pip7(g, (int16_t)(tx0 + t7_width(r) + 2), 94, gm->trump_card, 1);
+        } else {
+            pip7(g, tx0, 94, (GjCard)(gm->trump_suit * 9 + 3), 1);
+        }
+    }
 
     /* right: your taken:bid, dealer dot centred beneath it when you deal */
     char own[8];
