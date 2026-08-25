@@ -572,7 +572,7 @@ static void draw_bottom_row(GjGfx* g, const GjApp* app) {
 
     /* centre: flipped trump (rank + suit pip, or no-trump glyph, or named
      * pip). Width is measured first so the block centres on x32. */
-    const char* r = NULL;
+    const char* r = 0; /* not NULL: the wasm build is freestanding, no stddef */
     int16_t tw = 0;
     if(gm->trump_suit == GJ_NO_TRUMP) {
         tw = 7;
@@ -947,7 +947,9 @@ static void draw_stage_rail(GjGfx* g, int16_t y, uint8_t stage) {
 static void draw_stage_intro(GjGfx* g, const GjApp* app) {
     const GjGame* gm = &app->game;
     uint8_t stage = gj_deal_stage(gm->mode, gm->deal_index) & 3u;
-    char buf[16], num[6];
+    /* 16 was sized for Latin and overflowed on ka: "DEAL " + a Mkhedruli seat
+     * name is 5 + up to 15 bytes (5 letters x 3), and scat has no bound. */
+    char buf[32], num[6];
     buf[0] = 0;
     scat(buf, "DEAL ");
     scat(buf, u2s((uint16_t)(gm->deal_index + 1), num));
@@ -1024,7 +1026,9 @@ static void draw_trump_select(GjGfx* g, const GjApp* app) {
             minicard(g, app->lang, (int16_t)(8 + i * 16), 26, gm->hands[0].cards[i], GjPlayNormal, false);
         t7_center(g, 32, 50, gj_str(app->lang, GjStrPeek), 1);
     } else {
-        char b[20];
+        /* same ka trap as draw_stage_intro: a Mkhedruli seat name is up to 15
+         * bytes, so seat + " PICKS" needs 22, not 20. */
+        char b[32];
         b[0] = 0;
         scat(b, seat_name(app->lang, namer));
         scat(b, " PICKS");
