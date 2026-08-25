@@ -8,7 +8,11 @@ name: "FAP: Build and Release"
 on:
   push:
     branches:
+      # dev is where work lands; main is what the Apps Catalog pins. Both build,
+      # but every publishing step below is gated on main/tags, so a dev push
+      # compiles and runs the catalog preflight without touching a release.
       - main
+      - dev
     tags:
       - "v*"
   pull_request:
