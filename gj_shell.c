@@ -599,14 +599,6 @@ void gj_shell_input(GjApp* st, const GjShellIo* io, GjKey key) {
                 st->menu_sel = ring_step(st->menu_sel, count, -1);
             } else if(key == GjKeyDown) {
                 st->menu_sel = ring_step(st->menu_sel, count, +1);
-            } else if(
-                (key == GjKeyLeft || key == GjKeyRight) &&
-                st->layout == GjLayoutHorizontal) {
-                /* landscape draws the menu as two columns of `rows`; Left and
-                 * Right hop between them, wrapping through the modulus so a
-                 * short second column can never strand the cursor */
-                uint8_t rows = (uint8_t)((count + 1) / 2);
-                st->menu_sel = (uint8_t)((st->menu_sel + rows) % count);
             } else if(key == GjKeyBack) {
                 st->running = false;
             }

@@ -578,10 +578,12 @@ static const uint8_t SLOT_Y[4] = {65, 48, 35, 48};
 #define HAND_Y_L 44
 #define TABLE_EDGE_L 42 /* hline the lifted card pierces, as y105 does portrait */
 #define TRICK_Y_L 16 /* trick cards: 16..35, clear of the edge */
-static const uint8_t COL_CX_L[4] = {14, 42, 70, 98}; /* column centres */
+/* Column centres on a 26px pitch, not 28: the tighter gap pulls the whole
+ * W N E Y group left and opens the right edge for the info rail. */
+static const uint8_t COL_CX_L[4] = {14, 40, 66, 92};
 static const uint8_t SEAT_COL_L[4] = {3, 0, 1, 2}; /* seat -> column index */
 /* right rail: the trump and the bid balance, stacked clear of the columns */
-#define RAIL_CX_L 116
+#define RAIL_CX_L 115
 
 /* Dealer mark: a 5x1 rule centred under that seat's t:b. It replaces a 2x2
  * dot — at this size the dot sat next to a ':' and a '-' and read as more
@@ -624,13 +626,16 @@ static void draw_top_bar_land(GjGfx* g, const GjApp* app) {
         pair[0] = 0;
         bt_pair(pair, gm->bids[seat], gm->tricks_taken[seat]);
         int16_t lw = (int16_t)t7_width(lbl), pw = (int16_t)t7_width(pair);
-        int16_t x0 = (int16_t)(cx - (lw + 2 + pw) / 2);
+        /* 3px between label and pair, not 2: the acting-seat pill bleeds 2px
+         * past the label on each side, so a 2px gap left the pill touching the
+         * number. 3 keeps exactly 1px of paper between them. */
+        int16_t x0 = (int16_t)(cx - (lw + 3 + pw) / 2);
         bool hot = result ? (seat == app->last_trick_winner) :
                             ((app->phase == PhaseTrickPlay || app->phase == PhaseBidding) &&
                              !gj_trick_complete(gm) && gm->turn == seat);
         if(hot) gj_gfx_rrect(g, (int16_t)(x0 - 2), 0, (int16_t)(lw + 4), 9, 1);
         t7_text(g, x0, 1, lbl, (uint8_t)(hot ? 0 : 1));
-        t7_text(g, (int16_t)(x0 + lw + 2), 1, pair, 1);
+        t7_text(g, (int16_t)(x0 + lw + 3), 1, pair, 1);
         if(gm->dealer == seat) {
             int16_t mh = (int16_t)t7_line_h(lbl);
             dealer_mark(g, (int16_t)(x0 + lw / 2), (int16_t)(1 + mh + 1), 1);
@@ -1191,26 +1196,46 @@ GJ_SCREEN void draw_menu(GjGfx* g, const GjApp* app) {
     labels[n++] = gj_str(app->lang, GjStrSettings);
 
     if(g->landscape) {
-        /* 64 rows cannot stack six 14px pills, so landscape spends its width
-         * instead: two columns of 60px pills, filled top-to-bottom down the
-         * left column first. menu_sel stays the same linear index the shell
-         * drives — only the cell it maps to changes. */
-        /* Band between the y=20 rule and the bottom edge is 40px. Three rows
-         * of 14 is today's shape; the clamp keeps a seventh menu item from
-         * silently falling off the screen. */
-        uint8_t rows = (uint8_t)((n + 1) / 2);
-        int16_t pitch = 14;
-        if(rows * pitch > 40) pitch = (int16_t)(40 / rows);
-        int16_t top = (int16_t)(22 + (40 - rows * pitch) / 2);
-        for(uint8_t i = 0; i < n; i++) {
-            int16_t x = (int16_t)(i < rows ? 2 : 66);
-            int16_t y = (int16_t)(top + (i % rows) * pitch);
+        /* ONE column, exactly like portrait — the menu reads as a list and a
+         * two-column grid made it read as a keypad. 64 rows only hold three
+         * 14px pills, so the list scrolls instead, and an elevator on the
+         * right edge says where in it you are. menu_sel is unchanged: the
+         * window is derived from it here, so the shell keeps one flat index
+         * and no scroll state has to be stored or saved. */
+        const int16_t W = gj_fb_w(g);
+        const uint8_t vis = 3; /* 3 x 14px in the 41px band under the rule */
+        const int16_t top = 22;
+        uint8_t win = 0;
+        if(n > vis) {
+            /* keep the cursor on the middle row wherever the list allows */
+            if(app->menu_sel >= 1) win = (uint8_t)(app->menu_sel - 1);
+            if(win + vis > n) win = (uint8_t)(n - vis);
+        }
+        uint8_t shown = (uint8_t)(n - win < vis ? n - win : vis);
+        bool bar = (n > vis);
+        int16_t pw = (int16_t)(bar ? W - 12 : W - 4); /* room for the elevator */
+        for(uint8_t k = 0; k < shown; k++) {
+            uint8_t i = (uint8_t)(win + k);
+            int16_t y = (int16_t)(top + k * 14);
             if(app->menu_sel == i) {
-                gj_gfx_rrect(g, x, y, 60, (int16_t)(pitch - 1), 1);
-                t7_center(g, (int16_t)(x + 30), (int16_t)(y + 2), labels[i], 0);
+                gj_gfx_rrect(g, 2, y, pw, 13, 1);
+                t7_center(g, (int16_t)(2 + pw / 2), (int16_t)(y + 3), labels[i], 0);
             } else {
-                t7_center(g, (int16_t)(x + 30), (int16_t)(y + 2), labels[i], 1);
+                t7_center(g, (int16_t)(2 + pw / 2), (int16_t)(y + 3), labels[i], 1);
             }
+        }
+        if(bar) {
+            /* Nokia elevator: an outlined track the height of the list, with a
+             * solid thumb sized by how much of the list shows and placed by how
+             * far the window has run. Only drawn when there IS something off
+             * screen — a full-height thumb would be saying nothing. */
+            int16_t tx = (int16_t)(W - 7), th = (int16_t)(vis * 14 - 1);
+            gj_gfx_frame(g, tx, top, 5, th, 1);
+            int16_t inner = (int16_t)(th - 2);
+            int16_t hh = (int16_t)((inner * vis) / n);
+            if(hh < 3) hh = 3;
+            int16_t hy = (int16_t)(top + 1 + ((inner - hh) * win) / (n - vis));
+            gj_gfx_rect(g, (int16_t)(tx + 1), hy, 3, hh, 1);
         }
         return;
     }
@@ -1650,8 +1675,9 @@ static void draw_pause_menu(GjGfx* g, const GjApp* app) {
                            gj_str(app->lang, GjStrRules), gj_str(app->lang, GjStrExit)};
     /* Portrait stacks four rows in a 48x64 card. 64 rows tall is the whole
      * landscape screen, so there it becomes a 96x48 card with the same four
-     * rows in two columns — down the left pair first, matching the landscape
-     * main menu so the two grids read the same way. */
+     * rows in two columns, down the left pair first. Unlike the main menu this
+     * one does NOT scroll: it is a fixed four-item popup, and paging a list
+     * that short would hide half of it behind a keypress for no reason. */
     const bool land = g->landscape;
     int16_t mx = land ? (int16_t)((gj_fb_w(g) - 96) / 2) : 8;
     int16_t my = land ? 8 : 30;
