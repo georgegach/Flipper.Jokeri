@@ -849,11 +849,22 @@ static void draw_hand(GjGfx* g, const GjApp* app) {
 #define BID_Y 32
 
 /* Landscape band for the picker: below the seat columns (which end ~y12) and
- * above the table edge. The block keeps portrait's vertical order — hint,
- * label, number, hint — because the key bindings are unchanged: the picker is
- * still ABOVE the hand, so Up still means "the number" and Down still means
- * "the cards". Only the spacing is squeezed, and the khishti warning REPLACES
- * the label rather than following it, which is the row 64 lines cannot spare. */
+ * above the table edge — 28 rows for label, value and two hint arrows.
+ *
+ * Portrait's vertical order (label OVER number) does not fit that: stacked, the
+ * 10px digit ended at y36 and the down arrow began at y37, so the two fused
+ * into one blob. Landscape lays the row out HORIZONTALLY instead — label, then
+ * the value between its chevrons — which costs 10 rows rather than 22 and
+ * leaves the up and down arrows 5 and 4 clear rows of paper.
+ *
+ * Key meanings are unchanged: the picker is still above the hand, so Up is
+ * still "the number" and Down is still "the cards". The khishti warning takes
+ * the label's slot rather than a line of its own.
+ *
+ * All four arrows sit around the VALUE, not around the screen centre, so they
+ * read as one d-pad cross on the thing they actually move. Chevron space is
+ * reserved even when the chevrons are hidden, so the number never jumps
+ * sideways when focus moves between the picker and the hand. */
 static void draw_bid_inline_land(GjGfx* g, const GjApp* app) {
     const GjGame* gm = &app->game;
     const int16_t cx = (int16_t)(gj_fb_w(g) / 2);
@@ -862,22 +873,28 @@ static void draw_bid_inline_land(GjGfx* g, const GjApp* app) {
         return;
     }
     bool focus_bid = (app->bid_focus == 0);
-    if(!focus_bid) tri(g, (int16_t)(cx - 2), 13, 2, 1); /* up = back to the picker */
 
     char num[6];
     i2s(app->bid_sel, num);
     bool legal = gj_bid_legal(gm, 0, (uint8_t)app->bid_sel);
-    /* the warning takes the label's line when the bid is barred */
-    t7_center(g, cx, 19, gj_str(app->lang, legal ? GjStrYourBid : GjStrKhishtiWarn), 1);
+    const char* lbl = gj_str(app->lang, legal ? GjStrYourBid : GjStrKhishtiWarn);
 
+    /* row: [label] 6 [◄] 3 [number] 3 [►], centred as one block */
+    int16_t lw = (int16_t)t7_width(lbl);
     int16_t bw = (int16_t)gj_gfx_text_big_width(num);
-    int16_t bx = (int16_t)(cx - bw / 2);
-    gj_gfx_text_big(g, bx, 27, num, 1);
-    if(!legal) gj_gfx_hline(g, (int16_t)(bx - 3), 32, (int16_t)(bw + 6), 1);
-    if(focus_bid) { /* ◄ ► only while the picker holds focus */
-        tri(g, (int16_t)(cx - 17), 30, 1, 1);
-        tri(g, (int16_t)(cx + 14), 30, 0, 1);
-        tri(g, (int16_t)(cx - 2), 37, 3, 1); /* down = count your hand */
+    int16_t x0 = (int16_t)(cx - (lw + bw + 18) / 2);
+    int16_t bx = (int16_t)(x0 + lw + 12);
+    int16_t vx = (int16_t)(bx + bw / 2 - 2); /* the value's own centre line */
+    const int16_t row_y = 22; /* the 10px digit owns rows 22..31 */
+    t7_text(g, x0, (int16_t)(row_y + 1), lbl, 1); /* 7px text centred on 10 */
+    gj_gfx_text_big(g, bx, row_y, num, 1);
+    if(!legal) gj_gfx_hline(g, (int16_t)(bx - 3), (int16_t)(row_y + 5), (int16_t)(bw + 6), 1);
+    if(!focus_bid) {
+        tri(g, vx, 14, 2, 1); /* up = back to the picker */
+    } else { /* ◄ ► ▼ only while the picker holds focus */
+        tri(g, (int16_t)(x0 + lw + 6), (int16_t)(row_y + 2), 1, 1);
+        tri(g, (int16_t)(bx + bw + 3), (int16_t)(row_y + 2), 0, 1);
+        tri(g, vx, 36, 3, 1); /* down = count your hand */
     }
 }
 
