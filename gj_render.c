@@ -110,8 +110,14 @@ static void pip7(GjGfx* g, int16_t x, int16_t y, GjCard c, uint8_t color) {
 }
 
 /* ---- crafted 5x7 table font (mockup-exact) --------------------------- */
-/* Variable width: '1' and ':' are 1px (a bare bar keeps "10" inside an
- * 11px card), '-' 3px, 'W' 7px, the rest 5px. 1px inter-glyph gap.
+/* Variable width: ':' and '.' are 1px, '-' 3px, 'W' 7px, the rest 5px — '1'
+ * included. 1px inter-glyph gap.
+ *
+ * '1' has ONE narrow alter ego, T7_ONE_BAR, and it exists for exactly one
+ * caller: an 11px card face has to fit "10", and a 5px '1' does not leave
+ * room. It is keyed by a private codepoint no UTF-8 string can produce, so
+ * only card_face's deliberate substitution reaches it. Ordinary text gets
+ * the real digit — the bare bar read as a stray rule, not a numeral.
  *
  * Keyed by Unicode codepoint, not char: strings are UTF-8 and Georgian
  * (Mkhedruli, U+10D0..U+10FF) is 3 bytes per letter. Lookup is still O(1) —
@@ -123,6 +129,10 @@ static void pip7(GjGfx* g, int16_t x, int16_t y, GjCard c, uint8_t color) {
  * offset. Georgian text therefore needs 10px of line room where Latin needs
  * 7 — see gj_text_line_h(). */
 #define GJ_T7_CELL GJ_T7_CELL_MAX
+/* private codepoint for the narrow '1'; < 0x20 so no text can name it and
+ * t7_find's ASCII index still covers it. */
+#define T7_ONE_BAR 0x01u
+
 typedef struct {
     uint16_t cp;
     uint8_t w; /* ink width; advance = w + 1 */
@@ -133,7 +143,8 @@ typedef struct {
 
 static const T7Glyph T7[] = {
     {'0', 5, 7, 0, {0x0E, 0x11, 0x19, 0x15, 0x13, 0x11, 0x0E}}, /* slashed zero */
-    {'1', 1, 7, 0, {0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01}},
+    {'1', 5, 7, 0, {0x04, 0x06, 0x04, 0x04, 0x04, 0x04, 0x0E}}, /* flag + foot */
+    {T7_ONE_BAR, 1, 7, 0, {0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01}}, /* card faces only */
     {'2', 5, 7, 0, {0x0E, 0x11, 0x10, 0x08, 0x04, 0x02, 0x1F}},
     {'3', 5, 7, 0, {0x0E, 0x11, 0x10, 0x0C, 0x10, 0x11, 0x0E}},
     {'4', 5, 7, 0, {0x10, 0x18, 0x14, 0x12, 0x1F, 0x10, 0x10}},
@@ -339,6 +350,32 @@ static void t7_center(GjGfx* g, int16_t cx, int16_t y, const char* s, uint8_t co
     t7_text(g, (int16_t)(cx - t7_width(s) / 2), y, s, color);
 }
 
+/* Right-align s so its ink ends at right-1, and keep it out of x_min.
+ *
+ * Only the Chart needs this. Its row is a deal label plus two right-aligned
+ * running totals in 64px, and a 4-digit total is 23px with real digits (27
+ * with a sign) against a 17px label — the wide form does not always fit. When
+ * it doesn't, retry with the card faces' bar '1'; that buys 4px a digit and is
+ * confined to the cell that actually overflowed, so every ordinary cell still
+ * gets the real numeral. Returns nothing: an entry too wide even compacted is
+ * drawn compacted, which is the least-bad reading. */
+static void t7_right_fit(
+    GjGfx* g, int16_t x_min, int16_t right, int16_t y, const char* s, uint8_t color) {
+    int16_t x = (int16_t)(right - (int16_t)t7_width(s));
+    if(x >= x_min) {
+        t7_text(g, x, y, s, color);
+        return;
+    }
+    char narrow[12];
+    uint8_t n = 0;
+    while(s[n] && n < sizeof(narrow) - 1) {
+        narrow[n] = (s[n] == '1') ? (char)T7_ONE_BAR : s[n];
+        n++;
+    }
+    narrow[n] = 0;
+    t7_text(g, (int16_t)(right - (int16_t)t7_width(narrow)), y, narrow, color);
+}
+
 #ifdef GJ_TESTING
 bool gj_render_glyph(uint16_t cp, uint8_t rows[GJ_T7_CELL_MAX], uint8_t* w, uint8_t* h,
                      uint8_t* top) {
@@ -450,10 +487,19 @@ static void joker_card(
 }
 
 /* one 11x20 card face: 5x7 rank on top, 7x7 pip below (shared by the trick
- * cross and the hand). */
+ * cross and the hand). The rank is the ONE place that wants the narrow '1':
+ * "10" is 13px with the real digit and the card is 11 wide, so swap in the
+ * bar form here and nowhere else. */
 static void card_face(
     GjGfx* g, uint8_t lang, int16_t x, int16_t y, GjCard c, uint8_t fg, bool with_pip) {
-    const char* r = rank_str(lang, c);
+    const char* src = rank_str(lang, c);
+    char r[8];
+    uint8_t n = 0;
+    while(src[n] && n < sizeof(r) - 1) {
+        r[n] = (src[n] == '1') ? (char)T7_ONE_BAR : src[n];
+        n++;
+    }
+    r[n] = 0;
     t7_text(g, (int16_t)(x + (CARD_W - (int16_t)t7_width(r)) / 2), (int16_t)(y + 2), r, fg);
     if(with_pip) pip7(g, (int16_t)(x + 2), (int16_t)(y + 11), c, fg);
 }
@@ -1150,6 +1196,9 @@ static void draw_standings(GjGfx* g, const GjApp* app) {
         char lbl[6];
         standings_label(app->lang, gm->mode, d, lbl);
         t7_text(g, 1, y, lbl, fg);
+        /* first column free of the label, so a wide cell compacts instead of
+         * running into it */
+        int16_t lmin = (int16_t)(1 + (int16_t)t7_width(lbl) + 1);
         for(uint8_t k = 0; k < 2; k++) {
             uint8_t s = (uint8_t)(xs + k);
             char cell[8], num[6];
@@ -1163,7 +1212,7 @@ static void draw_standings(GjGfx* g, const GjApp* app) {
                 cell[0] = '-';
                 cell[1] = 0;
             }
-            t7_text(g, (int16_t)(COLR[k] - (int16_t)t7_width(cell)), y, cell, fg);
+            t7_right_fit(g, k ? (int16_t)(COLR[0] + 1) : lmin, (int16_t)COLR[k], y, cell, fg);
         }
         if(gm->mode == GjModeStandard && (d == 7 || d == 11 || d == 19))
             for(int16_t px = 0; px < GJ_FB_W; px += 2)
@@ -1177,7 +1226,9 @@ static void draw_standings(GjGfx* g, const GjApp* app) {
         uint8_t s = (uint8_t)(xs + k);
         char num[6];
         i2s(gm->totals[s], num);
-        t7_text(g, (int16_t)(COLR[k] - (int16_t)t7_width(num)), (int16_t)(ty + 2), num, 0);
+        int16_t tmin = k ? (int16_t)(COLR[0] + 1) :
+                           (int16_t)(1 + (int16_t)t7_width(gj_str(app->lang, GjStrTotalRow)) + 1);
+        t7_right_fit(g, tmin, (int16_t)COLR[k], (int16_t)(ty + 2), num, 0);
     }
 }
 
