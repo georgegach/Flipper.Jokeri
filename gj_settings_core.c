@@ -18,16 +18,22 @@ static uint16_t payload_crc(const GjSettings* s) {
 }
 
 void gj_settings_defaults(GjSettings* s) {
-    gj_settings_pack(s, GjLangEn, GjKhishti200, GjDiffNormal);
+    gj_settings_pack(s, GjLangEn, GjKhishti200, GjDiffNormal, GjLayoutVertical);
 }
 
-void gj_settings_pack(GjSettings* out, uint8_t lang, uint8_t khishti, uint8_t difficulty) {
+void gj_settings_pack(
+    GjSettings* out,
+    uint8_t lang,
+    uint8_t khishti,
+    uint8_t difficulty,
+    uint8_t layout) {
     memset(out, 0, sizeof(*out));
     out->magic = GJ_SETTINGS_MAGIC;
     out->version = GJ_SETTINGS_VERSION;
     out->lang = (uint8_t)(lang < GJ_LANG_COUNT ? lang : GjLangEn);
     out->khishti = (uint8_t)(khishti < GJ_KHISHTI_OPT_COUNT ? khishti : GjKhishti200);
     out->difficulty = (uint8_t)(difficulty < GJ_DIFF_COUNT ? difficulty : GjDiffNormal);
+    out->layout = (uint8_t)(layout < GJ_LAYOUT_COUNT ? layout : GjLayoutVertical);
     out->payload_crc = payload_crc(out);
 }
 
@@ -36,11 +42,16 @@ bool gj_settings_validate(const GjSettings* s) {
            s->payload_crc == payload_crc(s);
 }
 
-void gj_settings_unpack(const GjSettings* s, uint8_t* lang, uint8_t* khishti,
-                        uint8_t* difficulty) {
+void gj_settings_unpack(
+    const GjSettings* s,
+    uint8_t* lang,
+    uint8_t* khishti,
+    uint8_t* difficulty,
+    uint8_t* layout) {
     /* Clamp rather than trust: a CRC-valid file can still hold a value from a
      * build where an enum had more entries. */
     *lang = (uint8_t)(s->lang < GJ_LANG_COUNT ? s->lang : GjLangEn);
     *khishti = (uint8_t)(s->khishti < GJ_KHISHTI_OPT_COUNT ? s->khishti : GjKhishti200);
     *difficulty = (uint8_t)(s->difficulty < GJ_DIFF_COUNT ? s->difficulty : GjDiffNormal);
+    *layout = (uint8_t)(s->layout < GJ_LAYOUT_COUNT ? s->layout : GjLayoutVertical);
 }

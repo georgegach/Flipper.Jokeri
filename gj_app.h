@@ -38,6 +38,18 @@ typedef enum {
     SubJokerSuit, /* 4-suit picker for DemandSuit or leading Underplay */
 } UiSub;
 
+/* Settings rows, in display order. Shared rather than .c-local because
+ * gj_shell.c owns the cursor and gj_render.c draws exactly these rows: two
+ * copies of the count would drift the first time a row was added. */
+enum { SetRowLang = 0, SetRowKhishti, SetRowBots, SetRowLayout, GJ_SETTINGS_ROW_COUNT };
+
+/* Chart rows on screen at once. Portrait fits 12 at a 9px pitch under the
+ * header; landscape has 64 rows total and must also keep the pinned totals
+ * bar, so it fits 5 at 8px. Shared: gj_render.c draws exactly this many and
+ * gj_shell.c clamps the scroll to it. */
+#define GJ_STANDINGS_ROWS_P 12
+#define GJ_STANDINGS_ROWS_L 5
+
 /* Everything the render callback needs, guarded by the app mutex. */
 typedef struct {
     GjGame game;
@@ -48,6 +60,9 @@ typedef struct {
     uint8_t lang; /* GjLang* — UI language, a persisted setting */
     uint8_t khishti_opt; /* GjKhishti* — persisted; drives the scoring penalty */
     uint8_t difficulty; /* GjDiff* — persisted; drives bot strength */
+    uint8_t layout; /* GjLayout* — persisted; 0 = 64x128, 1 = 128x64. Pure UI:
+                     * the renderer and a few geometry-shaped key bindings read
+                     * it, the engine never does. */
     uint8_t settings_sel; /* row cursor on the Settings screen */
     uint8_t menu_sel; /* compact index over VISIBLE items (Continue only when save_available) */
     uint8_t hand_sel; /* selected index in the human hand */

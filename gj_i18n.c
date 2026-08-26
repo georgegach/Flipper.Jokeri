@@ -28,6 +28,10 @@ static const char* const EN[GjStrCount] = {
     [GjStrDiffEasy] = "EASY",
     [GjStrDiffNormal] = "NORMAL",
     [GjStrDiffHard] = "HARD",
+    [GjStrLayoutRow] = "LAYOUT",
+    /* Abbreviated because the value pill is 60px minus two chevrons. */
+    [GjStrLayoutVert] = "VERT",
+    [GjStrLayoutHorz] = "HORZ",
     [GjStrOkSelect] = "OK SELECT",
 
     /* seats + stages */
@@ -153,6 +157,10 @@ static const char* const KA[GjStrCount] = {
     [GjStrDiffEasy] = "მარტივი",
     [GjStrDiffNormal] = "საშუალო",
     [GjStrDiffHard] = "რთული",
+    [GjStrLayoutRow] = "განლაგება",
+    /* Same pill budget as EN, so the standard Georgian abbreviations. */
+    [GjStrLayoutVert] = "ვერტ.",
+    [GjStrLayoutHorz] = "ჰორიზ.",
     [GjStrOkSelect] = "OK არჩევა",
 
     /* seats: abbreviated because the top bar gives each column 20px */
@@ -337,7 +345,8 @@ uint8_t gj_rules_pitch(uint8_t lang) {
     return 8u;
 }
 
-uint8_t gj_rules_visible(uint8_t lang) {
+uint8_t gj_rules_visible(uint8_t lang, uint8_t landscape) {
     (void)lang;
-    return 14u;
+    /* 8px pitch under a 9px header: 128 rows fit 14 lines, 64 rows fit 6. */
+    return landscape ? 6u : 14u;
 }

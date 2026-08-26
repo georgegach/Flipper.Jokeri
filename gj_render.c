@@ -437,10 +437,11 @@ static void tri(GjGfx* g, int16_t x, int16_t y, uint8_t dir, uint8_t color) {
  * density instead, so the modal sits on something visibly greyed rather than
  * something darker than itself. */
 static void dim(GjGfx* g) {
-    for(int y = 0; y < GJ_FB_H; y++) {
+    const int stride = gj_fb_w(g) / 8, rows = gj_fb_h(g);
+    for(int y = 0; y < rows; y++) {
         uint8_t m = (y & 1) ? 0x55u : 0xAAu;
-        uint8_t* row = &g->fb[y * (GJ_FB_W / 8)];
-        for(int b = 0; b < GJ_FB_W / 8; b++) row[b] &= m;
+        uint8_t* row = &g->fb[y * stride];
+        for(int b = 0; b < stride; b++) row[b] &= m;
     }
 }
 
@@ -457,6 +458,19 @@ static void modal(GjGfx* g, int16_t x, int16_t y, int16_t w, int16_t h, const ch
     gj_gfx_rframe(g, x, y, w, h, 1);
     gj_gfx_rect(g, (int16_t)(x + 1), (int16_t)(y + 1), (int16_t)(w - 2), 9, 1);
     t7_center(g, (int16_t)(x + w / 2), (int16_t)(y + 1), title, 0);
+}
+
+/* The "OK / OK NEXT / WAIT" hint every full-screen phase ends on. Portrait
+ * gives it a footer band; landscape has no rows to spare under the content, so
+ * it rides the top-right corner instead — the same place the menu and settings
+ * headers put it, so the hint is always in one of two known spots. */
+static void footer_hint(GjGfx* g, uint8_t lang, uint16_t id, int16_t rule_y, int16_t text_y) {
+    if(g->landscape) {
+        t7_right_fit(g, 66, (int16_t)(gj_fb_w(g) - 2), 2, gj_str(lang, id), 1);
+        return;
+    }
+    gj_gfx_hline(g, 0, rule_y, gj_fb_w(g), 1);
+    t7_center(g, 32, text_y, gj_str(lang, id), 1);
 }
 
 /* ===================================================================== */
@@ -549,6 +563,26 @@ static void minicard(
 static const uint8_t SLOT_X[4] = {27, 12, 27, 42};
 static const uint8_t SLOT_Y[4] = {65, 48, 35, 48};
 
+/* ---- landscape (128x64) play geometry -------------------------------
+ *
+ * The cross does NOT survive the rotation, and squeezing it was the wrong
+ * fix: two stacked 20px cards plus a 20px hand plus the status text needs
+ * ~68 rows and there are 64. So landscape spends its WIDTH instead — four
+ * seat columns side by side, each seat's trick card hanging directly under
+ * its own label. That keeps the one thing the cross was for (you can see at a
+ * glance whose card is whose) and drops only the compass metaphor, which the
+ * 64-row height cannot pay for.
+ *
+ * Column order is W,N,E,You — the portrait top bar's order with your own seat
+ * appended where portrait puts your pair, at the right. */
+#define HAND_Y_L 44
+#define TABLE_EDGE_L 42 /* hline the lifted card pierces, as y105 does portrait */
+#define TRICK_Y_L 16 /* trick cards: 16..35, clear of the edge */
+static const uint8_t COL_CX_L[4] = {14, 42, 70, 98}; /* column centres */
+static const uint8_t SEAT_COL_L[4] = {3, 0, 1, 2}; /* seat -> column index */
+/* right rail: the trump and the bid balance, stacked clear of the columns */
+#define RAIL_CX_L 116
+
 /* Dealer mark: a 5x1 rule centred under that seat's t:b. It replaces a 2x2
  * dot — at this size the dot sat next to a ':' and a '-' and read as more
  * punctuation, where an underline reads as a mark ON the pair. Odd width, so
@@ -572,8 +606,44 @@ static void bt_pair(char* buf, int8_t bid, uint8_t taken) {
 
 /* top status bar (no rule underneath): opponents W/N/E as 5x7 labels with
  * their taken:bid pair beneath, and the dealer underline under the pair. */
+/* Landscape status: four seat columns, label and pair on ONE line (the row a
+ * stacked pair would have cost is the row the trick card needs). The winning
+ * seat during PhaseTrickResult reuses the acting-seat pill — landscape has no
+ * room for the crown portrait draws above the card, and inverting the seat
+ * says the same thing with the idiom already on screen. */
+static void draw_top_bar_land(GjGfx* g, const GjApp* app) {
+    const GjGame* gm = &app->game;
+    bool result = (app->phase == PhaseTrickResult);
+    for(uint8_t col = 0; col < 4; col++) {
+        /* columns run W,N,E,You; SEAT_COL_L is the inverse map */
+        uint8_t seat = (uint8_t)(col == 3 ? 0 : col + 1);
+        int16_t cx = (int16_t)COL_CX_L[col];
+        /* single-letter heads (Y/W/N/E), the same ones the portrait bar uses */
+        const char* lbl = gj_str(app->lang, (uint16_t)(GjStrSeatY + seat));
+        char pair[8];
+        pair[0] = 0;
+        bt_pair(pair, gm->bids[seat], gm->tricks_taken[seat]);
+        int16_t lw = (int16_t)t7_width(lbl), pw = (int16_t)t7_width(pair);
+        int16_t x0 = (int16_t)(cx - (lw + 2 + pw) / 2);
+        bool hot = result ? (seat == app->last_trick_winner) :
+                            ((app->phase == PhaseTrickPlay || app->phase == PhaseBidding) &&
+                             !gj_trick_complete(gm) && gm->turn == seat);
+        if(hot) gj_gfx_rrect(g, (int16_t)(x0 - 2), 0, (int16_t)(lw + 4), 9, 1);
+        t7_text(g, x0, 1, lbl, (uint8_t)(hot ? 0 : 1));
+        t7_text(g, (int16_t)(x0 + lw + 2), 1, pair, 1);
+        if(gm->dealer == seat) {
+            int16_t mh = (int16_t)t7_line_h(lbl);
+            dealer_mark(g, (int16_t)(x0 + lw / 2), (int16_t)(1 + mh + 1), 1);
+        }
+    }
+}
+
 static void draw_top_bar(GjGfx* g, const GjApp* app) {
     const GjGame* gm = &app->game;
+    if(g->landscape) {
+        draw_top_bar_land(g, app);
+        return;
+    }
     static const uint8_t COL[3] = {12, 32, 52}; /* column centres for W,N,E */
     const char* LBL[3] = {gj_str(app->lang, GjStrSeatW), gj_str(app->lang, GjStrSeatN),
                           gj_str(app->lang, GjStrSeatE)};
@@ -616,6 +686,11 @@ static void draw_top_bar(GjGfx* g, const GjApp* app) {
 #define INFO_MARK_Y 102
 static void draw_bottom_row(GjGfx* g, const GjApp* app) {
     const GjGame* gm = &app->game;
+    /* Landscape has no bottom row: the seat columns already carry every
+     * taken:bid including yours, so only the two shared facts need a home and
+     * they get the right rail beside the columns. */
+    const bool land = g->landscape;
+    const int16_t info_y = land ? 8 : INFO_Y;
 
     /* left: tsaglejva / shetenva — how far the table's bids sit from the
      * tricks actually on offer. The khishti bars the dealer from levelling
@@ -627,9 +702,12 @@ static void draw_bottom_row(GjGfx* g, const GjApp* app) {
         for(uint8_t s = 0; s < GJ_PLAYERS; s++) sum += gm->bids[s];
         int d = sum - (int)gm->cards_this_deal;
         if(d != 0) {
-            gj_gfx_xbm(g, 2, INFO_Y, 5, 7, (d > 0) ? up5 : dn5, 1);
             char num[6];
-            t7_text(g, 9, INFO_Y, u2s((uint16_t)(d > 0 ? d : -d), num), 1);
+            const char* ds = u2s((uint16_t)(d > 0 ? d : -d), num);
+            int16_t bx = land ? (int16_t)(RAIL_CX_L - (5 + 2 + (int16_t)t7_width(ds)) / 2) : 2;
+            int16_t by = land ? 24 : INFO_Y;
+            gj_gfx_xbm(g, bx, by, 5, 7, (d > 0) ? up5 : dn5, 1);
+            t7_text(g, (int16_t)(bx + 7), by, ds, 1);
         }
     }
 
@@ -648,16 +726,17 @@ static void draw_bottom_row(GjGfx* g, const GjApp* app) {
         }
     } /* GJ_SUIT_NONE -> nothing */
     if(tw) {
-        int16_t tx0 = (int16_t)(32 - tw / 2);
+        int16_t tx0 = (int16_t)((land ? RAIL_CX_L : 32) - tw / 2);
         if(gm->trump_suit == GJ_NO_TRUMP) {
-            gj_gfx_xbm(g, tx0, INFO_Y, 7, 7, nt7, 1);
+            gj_gfx_xbm(g, tx0, info_y, 7, 7, nt7, 1);
         } else if(r) {
-            t7_text(g, tx0, INFO_Y, r, 1);
-            pip7(g, (int16_t)(tx0 + t7_width(r) + 2), INFO_Y, gm->trump_card, 1);
+            t7_text(g, tx0, info_y, r, 1);
+            pip7(g, (int16_t)(tx0 + t7_width(r) + 2), info_y, gm->trump_card, 1);
         } else {
-            pip7(g, tx0, INFO_Y, (GjCard)(gm->trump_suit * 9 + 3), 1);
+            pip7(g, tx0, info_y, (GjCard)(gm->trump_suit * 9 + 3), 1);
         }
     }
+    if(land) return; /* your pair lives in the You column, not down here */
 
     /* right: your taken:bid, dealer underline centred beneath it when you deal */
     char own[8];
@@ -673,20 +752,26 @@ static void draw_hand(GjGfx* g, const GjApp* app) {
     const GjGame* gm = &app->game;
     const GjHand* h = &gm->hands[0];
     uint8_t n = h->count;
+    const bool land = g->landscape;
+    const int16_t W = gj_fb_w(g);
+    const int16_t base_y = land ? HAND_Y_L : HAND_Y;
+    const int16_t edge_y = land ? TABLE_EDGE_L : 105;
     /* table edge above the hand; the lifted selected card pokes through it */
-    gj_gfx_hline(g, 0, 105, GJ_FB_W, 1);
+    gj_gfx_hline(g, 0, edge_y, W, 1);
     bool blind = gj_deal_is_blind(gm->mode, gm->deal_index) && gm->bids[0] < 0;
     if(blind) {
         /* hatched card backs + BLIND banner (never peek hands[0]) */
-        for(uint8_t i = 0; i < n && i < 5; i++) {
-            int16_t x = (int16_t)(i * 12);
-            gj_gfx_rframe(g, x, HAND_Y, CARD_W, CARD_H, 1);
-            hatch(g, (int16_t)(x + 1), (int16_t)(HAND_Y + 1), 9, 18);
+        uint8_t bn = (uint8_t)(land ? n : (n < 5 ? n : 5));
+        int16_t bx0 = land ? (int16_t)((W - (bn * 12 - 1)) / 2) : 0;
+        for(uint8_t i = 0; i < bn; i++) {
+            int16_t x = (int16_t)(bx0 + i * 12);
+            gj_gfx_rframe(g, x, base_y, CARD_W, CARD_H, 1);
+            hatch(g, (int16_t)(x + 1), (int16_t)(base_y + 1), 9, 18);
         }
         int16_t bw = (int16_t)(t7_width("BLIND") + 8);
-        int16_t bx = (int16_t)((GJ_FB_W - bw) / 2);
-        gj_gfx_rrect(g, bx, (int16_t)(HAND_Y + 4), bw, 11, 1);
-        t7_center(g, 32, (int16_t)(HAND_Y + 6), gj_str(app->lang, GjStrBlind), 0);
+        int16_t bx = (int16_t)((W - bw) / 2);
+        gj_gfx_rrect(g, bx, (int16_t)(base_y + 4), bw, 11, 1);
+        t7_center(g, (int16_t)(W / 2), (int16_t)(base_y + 6), gj_str(app->lang, GjStrBlind), 0);
         return;
     }
     if(n == 0) return;
@@ -694,20 +779,29 @@ static void draw_hand(GjGfx* g, const GjApp* app) {
     bool human_turn = (app->phase == PhaseTrickPlay && gm->turn == 0);
     uint16_t legal = human_turn ? gj_legal_moves(gm, 0) : 0xFFFF;
 
-    /* sliding window of 5 full cards centred on hand_sel; one extra card
-     * renders clipped at the right edge as the overflow cue */
+    /* Portrait pans a 5-card window; landscape has 128px, which holds ten
+     * 12px cards — one more than the largest deal — so the whole hand is
+     * always on screen and the window logic collapses to "show everything,
+     * centred". No overflow cue is drawn because there is never an overflow. */
     uint8_t win = 0;
-    if(n > 5) {
-        if(app->hand_sel >= 3) win = (uint8_t)(app->hand_sel - 2);
-        if(win + 5 > n) win = (uint8_t)(n - 5);
+    uint8_t drawn;
+    int16_t x0 = 0;
+    if(land) {
+        drawn = n;
+        x0 = (int16_t)((W - (n * 12 - 1)) / 2);
+    } else {
+        if(n > 5) {
+            if(app->hand_sel >= 3) win = (uint8_t)(app->hand_sel - 2);
+            if(win + 5 > n) win = (uint8_t)(n - 5);
+        }
+        uint8_t shown = (uint8_t)(n - win < 5 ? n - win : 5);
+        drawn = (uint8_t)(win + shown < n ? shown + 1 : shown);
     }
-    uint8_t shown = (uint8_t)(n - win < 5 ? n - win : 5);
-    uint8_t drawn = (uint8_t)(win + shown < n ? shown + 1 : shown);
 
     for(uint8_t k = 0; k < drawn; k++) {
         uint8_t i = (uint8_t)(win + k);
-        int16_t x = (int16_t)(k * 12);
-        int16_t y = HAND_Y;
+        int16_t x = (int16_t)(x0 + k * 12);
+        int16_t y = base_y;
         bool sel = (app->hand_sel == i) &&
                    (app->phase == PhaseTrickPlay ||
                     (app->phase == PhaseBidding && app->bid_focus == 1));
@@ -718,10 +812,10 @@ static void draw_hand(GjGfx* g, const GjApp* app) {
             y -= 5;
             gj_gfx_rrect(g, x, y, CARD_W, CARD_H, 1);
             fg = 0;
-            /* the lifted card pierces the table edge (y105): clear 1px either
-             * side so the line breaks cleanly at the card instead of fusing */
-            gj_gfx_pixel(g, (int16_t)(x - 1), 105, 0);
-            gj_gfx_pixel(g, (int16_t)(x + CARD_W), 105, 0);
+            /* the lifted card pierces the table edge: clear 1px either side
+             * so the line breaks cleanly at the card instead of fusing */
+            gj_gfx_pixel(g, (int16_t)(x - 1), edge_y, 0);
+            gj_gfx_pixel(g, (int16_t)(x + CARD_W), edge_y, 0);
         } else if(illegal) {
             gj_gfx_dotted_rframe(g, x, y, CARD_W, CARD_H);
         } else {
@@ -749,8 +843,45 @@ static void draw_hand(GjGfx* g, const GjApp* app) {
  * the table's centre of gravity does not jump the moment bidding ends. */
 #define BID_Y 32
 
+/* Landscape band for the picker: below the seat columns (which end ~y12) and
+ * above the table edge. The block keeps portrait's vertical order — hint,
+ * label, number, hint — because the key bindings are unchanged: the picker is
+ * still ABOVE the hand, so Up still means "the number" and Down still means
+ * "the cards". Only the spacing is squeezed, and the khishti warning REPLACES
+ * the label rather than following it, which is the row 64 lines cannot spare. */
+static void draw_bid_inline_land(GjGfx* g, const GjApp* app) {
+    const GjGame* gm = &app->game;
+    const int16_t cx = (int16_t)(gj_fb_w(g) / 2);
+    if(gm->turn != 0 || gm->bids[0] >= 0) { /* a bot is bidding */
+        t7_center(g, cx, 24, gj_str(app->lang, GjStrBidding), 1);
+        return;
+    }
+    bool focus_bid = (app->bid_focus == 0);
+    if(!focus_bid) tri(g, (int16_t)(cx - 2), 13, 2, 1); /* up = back to the picker */
+
+    char num[6];
+    i2s(app->bid_sel, num);
+    bool legal = gj_bid_legal(gm, 0, (uint8_t)app->bid_sel);
+    /* the warning takes the label's line when the bid is barred */
+    t7_center(g, cx, 19, gj_str(app->lang, legal ? GjStrYourBid : GjStrKhishtiWarn), 1);
+
+    int16_t bw = (int16_t)gj_gfx_text_big_width(num);
+    int16_t bx = (int16_t)(cx - bw / 2);
+    gj_gfx_text_big(g, bx, 27, num, 1);
+    if(!legal) gj_gfx_hline(g, (int16_t)(bx - 3), 32, (int16_t)(bw + 6), 1);
+    if(focus_bid) { /* ◄ ► only while the picker holds focus */
+        tri(g, (int16_t)(cx - 17), 30, 1, 1);
+        tri(g, (int16_t)(cx + 14), 30, 0, 1);
+        tri(g, (int16_t)(cx - 2), 37, 3, 1); /* down = count your hand */
+    }
+}
+
 static void draw_bid_inline(GjGfx* g, const GjApp* app) {
     const GjGame* gm = &app->game;
+    if(g->landscape) {
+        draw_bid_inline_land(g, app);
+        return;
+    }
     if(gm->turn != 0 || gm->bids[0] >= 0) { /* a bot is bidding */
         t7_center(g, 32, BID_Y + 24, gj_str(app->lang, GjStrBidding), 1);
         return;
@@ -782,26 +913,37 @@ static void draw_play_base(GjGfx* g, const GjApp* app) {
         draw_bid_inline(g, app);
     } else {
         bool result = (app->phase == PhaseTrickResult);
+        const bool land = g->landscape;
         for(uint8_t s = 0; s < GJ_PLAYERS; s++) {
             bool inv = result && s == app->last_trick_winner;
-            minicard(g, app->lang, (int16_t)SLOT_X[s], (int16_t)SLOT_Y[s], gm->trick[s].card,
-                     gm->trick[s].kind, inv);
-            if(inv) /* crown the winner */
-                gj_gfx_xbm(g, (int16_t)(SLOT_X[s] + 2), (int16_t)(SLOT_Y[s] - 6), 7, 5, crown7, 1);
+            int16_t sx = land ? (int16_t)(COL_CX_L[SEAT_COL_L[s]] - CARD_W / 2) :
+                                (int16_t)SLOT_X[s];
+            int16_t sy = land ? (int16_t)TRICK_Y_L : (int16_t)SLOT_Y[s];
+            minicard(g, app->lang, sx, sy, gm->trick[s].card, gm->trick[s].kind, inv);
+            /* Portrait crowns the winner above the card. Landscape has no row
+             * above it — the seat label does — so draw_top_bar_land inverts
+             * the winning seat instead. */
+            if(inv && !land) gj_gfx_xbm(g, (int16_t)(sx + 2), (int16_t)(sy - 6), 7, 5, crown7, 1);
         }
         if(gm->trick[0].card == GJ_CARD_NONE) {
+            int16_t ox = land ? (int16_t)(COL_CX_L[SEAT_COL_L[0]] - CARD_W / 2) :
+                                (int16_t)SLOT_X[0];
+            int16_t oy = land ? (int16_t)TRICK_Y_L : (int16_t)SLOT_Y[0];
             /* demanded-suit hint inside your empty drop slot */
             if(gm->demand_kind == GjJokerDemandSuit && gm->led_suit < 4)
-                pip7(g, (int16_t)(SLOT_X[0] + 2), (int16_t)(SLOT_Y[0] + 3),
-                     (GjCard)(gm->led_suit * 9 + 3), 1);
+                pip7(g, (int16_t)(ox + 2), (int16_t)(oy + 3), (GjCard)(gm->led_suit * 9 + 3), 1);
             /* play affordance: up-arrow at the slot's foot, dotted tail toward
-             * the hand (passes through the dashed bottom edge) */
+             * the hand (passes through the dashed bottom edge). Landscape
+             * keeps the arrow but drops the tail — the gap it would cross is
+             * the table edge itself. */
             if(app->phase == PhaseTrickPlay && gm->turn == 0 && app->sub == SubNone &&
                !gj_trick_complete(gm)) {
-                tri(g, (int16_t)(SLOT_X[0] + 3), (int16_t)(SLOT_Y[0] + 15), 2, 1);
-                gj_gfx_pixel(g, (int16_t)(SLOT_X[0] + 5), (int16_t)(SLOT_Y[0] + 18), 1);
-                gj_gfx_pixel(g, (int16_t)(SLOT_X[0] + 5), (int16_t)(SLOT_Y[0] + 20), 1);
-                gj_gfx_pixel(g, (int16_t)(SLOT_X[0] + 5), (int16_t)(SLOT_Y[0] + 22), 1);
+                tri(g, (int16_t)(ox + 3), (int16_t)(oy + 15), 2, 1);
+                if(!land) {
+                    gj_gfx_pixel(g, (int16_t)(ox + 5), (int16_t)(oy + 18), 1);
+                    gj_gfx_pixel(g, (int16_t)(ox + 5), (int16_t)(oy + 20), 1);
+                    gj_gfx_pixel(g, (int16_t)(ox + 5), (int16_t)(oy + 22), 1);
+                }
             }
         }
     }
@@ -827,32 +969,50 @@ static void draw_joker_menu(GjGfx* g, const GjApp* app) {
         rows[n++] = "UNDER";
     }
     int16_t h = (int16_t)(14 + n * 12);
-    int16_t y = (int16_t)(50 - h / 2);
-    modal(g, 3, y, 58, h, "JOKER");
+    /* The popup is the same 58px card in both layouts — it already fits the
+     * narrower screen, so landscape only re-centres it rather than redrawing
+     * it wider, keeping the overlay identical to the one players know. */
+    int16_t mx = g->landscape ? (int16_t)((gj_fb_w(g) - 58) / 2) : 3;
+    int16_t y = g->landscape ? (int16_t)((gj_fb_h(g) - h) / 2) : (int16_t)(50 - h / 2);
+    modal(g, mx, y, 58, h, "JOKER");
     for(uint8_t i = 0; i < n; i++) {
         int16_t ry = (int16_t)(y + 12 + i * 12);
         if(app->joker_sel == i) {
-            gj_gfx_rrect(g, 5, ry, 54, 11, 1);
-            t7_text(g, 9, (int16_t)(ry + 2), rows[i], 0);
+            gj_gfx_rrect(g, (int16_t)(mx + 2), ry, 54, 11, 1);
+            t7_text(g, (int16_t)(mx + 6), (int16_t)(ry + 2), rows[i], 0);
         } else {
-            t7_text(g, 9, (int16_t)(ry + 2), rows[i], 1);
+            t7_text(g, (int16_t)(mx + 6), (int16_t)(ry + 2), rows[i], 1);
         }
     }
 }
 
 static void draw_suit_picker(GjGfx* g, const GjApp* app) {
-    modal(g, 4, 44, 56, 30, "SUIT?");
-    static const uint8_t ox[4] = {10, 22, 34, 46};
+    int16_t mx = g->landscape ? (int16_t)((gj_fb_w(g) - 56) / 2) : 4;
+    int16_t my = g->landscape ? (int16_t)((gj_fb_h(g) - 30) / 2) : 44;
+    modal(g, mx, my, 56, 30, "SUIT?");
     uint8_t sel = app->suit_sel & 3u;
     for(uint8_t i = 0; i < 4; i++) {
-        if(i == sel) gj_gfx_rframe(g, (int16_t)(ox[i] - 2), 57, 11, 11, 1);
-        pip7(g, (int16_t)(ox[i]), 59, (GjCard)(i * 9 + 3), 1);
+        int16_t px = (int16_t)(mx + 6 + i * 12);
+        if(i == sel) gj_gfx_rframe(g, (int16_t)(px - 2), (int16_t)(my + 13), 11, 11, 1);
+        pip7(g, px, (int16_t)(my + 15), (GjCard)(i * 9 + 3), 1);
     }
 }
 
 /* ===================================================================== */
 /* full-screen phases                                                     */
 /* ===================================================================== */
+
+/* draw_phase is a switch over ~18 full-screen draws, and at -O1 the compiler
+ * inlines ALL of them into that single frame — so their locals SUM rather
+ * than overlap, and tests/stack_check.sh (384 B per frame) trips. Forcing the
+ * screens out of line makes draw_phase the pure dispatch it reads as, and
+ * costs one call per repaint on a path that already blits 1024 bytes.
+ * Pixel-identical: this changes codegen, not geometry. */
+#if defined(__GNUC__) || defined(__clang__)
+#define GJ_SCREEN __attribute__((noinline)) static
+#else
+#define GJ_SCREEN static
+#endif
 
 /* Splash art — the exact 64x128 1-bit mockup (two jester joker cards, the
  * Georgian word above, "Georgian Joker" below), stored in framebuffer byte
@@ -925,16 +1085,93 @@ static const uint8_t SPLASH[GJ_FB_BYTES] = {
     0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
 };
 
-static void draw_splash(GjGfx* g, const GjApp* app) {
+/* Landscape splash (128x64). Same three text elements and the same jester,
+ * recomposed for the wider frame — the art keeps its native size and bleeds
+ * off the left edge rather than being downscaled, because 1-bit line art does
+ * not survive resampling. GENERATED: tools/splash_layout.py --write (in the
+ * parent repo) rebuilds it from the portrait array above; do not hand-edit. */
+static const uint8_t SPLASH_H[GJ_FB_BYTES] = {
+    0x00,0x00,0xf0,0x0f,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+    0x00,0x00,0xff,0x1f,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+    0x00,0xf0,0xff,0x1f,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+    0x00,0xff,0xff,0x1f,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+    0xe0,0xff,0xff,0x1f,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+    0xfc,0xff,0xff,0x1f,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+    0xfe,0xfb,0xff,0x3f,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+    0xfe,0xfb,0xff,0x3f,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+    0xfc,0xf3,0xff,0x3f,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+    0xfc,0xf7,0xff,0x7f,0x7c,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+    0xfc,0xf7,0xff,0x7f,0xfc,0x03,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+    0xfc,0xf7,0xff,0x7f,0xcc,0x3f,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+    0xf8,0xef,0xff,0x7f,0x04,0xfc,0x03,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+    0xf8,0xf0,0xff,0xff,0x06,0xc0,0x3f,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+    0xf0,0xff,0xff,0xff,0x06,0x00,0xfc,0x01,0x00,0x00,0xc4,0x07,0x7d,0xd0,0x07,0x00,
+    0xf0,0xff,0xff,0xff,0x06,0x02,0xc0,0x3f,0x00,0x00,0x5f,0x05,0x45,0x5f,0x04,0x00,
+    0xf0,0xff,0xff,0xf9,0x03,0x02,0x00,0x7e,0x00,0x00,0x44,0x85,0x41,0x41,0x04,0x00,
+    0xf0,0xff,0x3f,0xe0,0x03,0x02,0x00,0x70,0x00,0x00,0x5c,0x05,0x41,0x5f,0x04,0x00,
+    0xe0,0xff,0x1f,0xe0,0x03,0x02,0x00,0x70,0x00,0x00,0x50,0x04,0x45,0x55,0x04,0x00,
+    0xe0,0x7f,0x0c,0xe0,0x13,0x01,0x00,0x70,0x00,0x00,0x51,0x14,0x45,0x55,0x04,0x00,
+    0xe0,0x0f,0x00,0xe0,0x11,0x01,0x00,0x30,0x00,0x00,0x5f,0xf4,0x7d,0x51,0x04,0x00,
+    0xe0,0x07,0x00,0xec,0xe1,0x00,0x00,0x30,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+    0xc0,0x07,0x00,0xcf,0x01,0x00,0x00,0x38,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+    0xc0,0x07,0x80,0xcf,0x01,0x00,0x00,0x38,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+    0xc0,0x0f,0x80,0xc7,0x00,0x00,0x00,0x18,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+    0xc0,0xcf,0x87,0xc1,0x00,0x00,0x00,0x18,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+    0x80,0xcf,0x1f,0xc0,0x00,0x00,0x00,0x0c,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+    0x80,0x1f,0x00,0x40,0x00,0x00,0x00,0x0c,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+    0x80,0x1f,0x00,0x48,0xf8,0x00,0x00,0x0c,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+    0x80,0x3f,0x00,0x4c,0xfc,0x01,0x00,0x0c,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+    0x00,0x3f,0x00,0x6e,0xfc,0x47,0x00,0x06,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+    0x00,0x7f,0x8e,0x2f,0xfc,0xff,0x07,0x06,0x00,0x00,0x07,0x00,0x00,0x01,0x00,0x00,
+    0x00,0xff,0xfc,0x27,0xfc,0xff,0x0f,0x06,0x00,0x80,0x08,0x00,0x00,0x00,0x00,0x00,
+    0x00,0xff,0xf9,0x23,0x84,0xff,0x0f,0x06,0x00,0x80,0xc0,0x98,0x73,0xb9,0x03,0x00,
+    0x00,0xfe,0xe3,0x30,0x04,0xff,0x0f,0x03,0x00,0x80,0x2c,0xa5,0x48,0xa5,0x04,0x00,
+    0x00,0xfe,0x03,0x30,0x0c,0xff,0x0f,0x03,0x00,0x80,0xe8,0xa5,0x48,0xa5,0x04,0x00,
+    0x00,0xfe,0x0f,0x10,0x1c,0x0f,0x04,0x03,0x00,0x80,0x28,0xa4,0x48,0xa5,0x04,0x00,
+    0x00,0xfc,0x3f,0x18,0xfc,0x07,0x04,0x03,0x00,0x00,0xc7,0x98,0x70,0xb9,0x04,0x00,
+    0x00,0xfc,0xff,0x1f,0xfc,0x8f,0x87,0x01,0x00,0x00,0x00,0x00,0x40,0x00,0x00,0x00,
+    0x00,0xfc,0xff,0x0f,0xfc,0xff,0x83,0x01,0x00,0x00,0x00,0x00,0x30,0x00,0x00,0x00,
+    0x00,0xfc,0xff,0x0f,0xe4,0xff,0xc3,0x01,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+    0x00,0xf8,0xff,0x0f,0x8c,0xff,0xc3,0x01,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+    0x00,0xf8,0xff,0x0f,0x0c,0x8f,0xc1,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+    0x00,0xf8,0xff,0x07,0x0c,0xc0,0xc0,0x00,0x00,0x00,0x00,0x02,0x01,0x00,0x00,0x00,
+    0x00,0xf8,0xff,0x07,0x18,0xe0,0xe0,0x00,0x00,0x00,0x00,0x02,0x01,0x00,0x00,0x00,
+    0x00,0xf0,0xff,0x07,0x38,0x78,0xe0,0x00,0x00,0x00,0x00,0x32,0xc9,0x1c,0x00,0x00,
+    0x00,0xf0,0xff,0x07,0xf0,0x3f,0x60,0x00,0x00,0x00,0x00,0x4a,0x25,0x05,0x00,0x00,
+    0x00,0xf0,0xff,0x07,0xf0,0x1f,0x60,0x00,0x00,0x00,0x00,0x4a,0xe3,0x05,0x00,0x00,
+    0x00,0xf0,0xff,0x03,0xe0,0x07,0x70,0x00,0x00,0x00,0x20,0x4a,0x25,0x04,0x00,0x00,
+    0x00,0xe0,0xff,0x03,0x80,0x01,0x30,0x00,0x00,0x00,0xc0,0x31,0xc9,0x04,0x00,0x00,
+    0x00,0xe0,0xff,0x01,0x00,0x00,0x30,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+    0x00,0xe0,0xff,0x01,0x00,0x00,0x30,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+    0x00,0xc0,0xff,0x01,0x00,0x00,0x18,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+    0x00,0xc0,0xff,0x01,0x00,0x00,0x18,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+    0x00,0xc0,0xff,0x00,0x00,0x00,0x18,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+    0x00,0xc0,0xff,0x00,0x00,0x00,0x18,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+    0x00,0x80,0xff,0x00,0x00,0x00,0x0c,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+    0x00,0x80,0xcf,0x00,0x00,0x00,0x0c,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+    0x00,0x00,0x60,0x00,0x00,0x00,0x0c,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+    0x00,0x00,0x60,0x00,0x00,0x00,0x0c,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+    0x00,0x00,0x60,0x00,0x00,0x00,0x0e,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+    0x00,0x00,0x60,0x00,0x00,0x00,0x06,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+    0x00,0x00,0x70,0x00,0x00,0x00,0x06,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+    0x00,0x00,0xf0,0x07,0x00,0x00,0x07,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+};
+
+GJ_SCREEN void draw_splash(GjGfx* g, const GjApp* app) {
     (void)app;
-    memcpy(g->fb, SPLASH, GJ_FB_BYTES);
+    /* Both assets are GJ_FB_BYTES and already in the stride the layout wants,
+     * so the splash is still a single memcpy — just of the right picture. */
+    memcpy(g->fb, g->landscape ? SPLASH_H : SPLASH, GJ_FB_BYTES);
 }
 
-static void draw_menu(GjGfx* g, const GjApp* app) {
+GJ_SCREEN void draw_menu(GjGfx* g, const GjApp* app) {
     /* logo pip row (menu text in the crafted 5x7 table font, uppercase) */
     gj_gfx_xbm(g, 4, 5, 7, 7, jo7, 1);
     t7_text(g, 14, 6, gj_str(app->lang, GjStrJokeri), 1);
-    gj_gfx_hline(g, 0, 20, GJ_FB_W, 1);
+    gj_gfx_hline(g, 0, 20, gj_fb_w(g), 1);
+    /* Landscape has no footer band to spare, so the hint rides the title row. */
+    if(g->landscape)
+        t7_right_fit(g, 70, (int16_t)(gj_fb_w(g) - 2), 6, gj_str(app->lang, GjStrOkSelect), 1);
 
     /* actions must match gj_shell.c PhaseMenu: [Continue], Standard, Quick
      * Nines, Rules, About, Settings. */
@@ -953,6 +1190,31 @@ static void draw_menu(GjGfx* g, const GjApp* app) {
     labels[n++] = gj_str(app->lang, GjStrAbout);
     labels[n++] = gj_str(app->lang, GjStrSettings);
 
+    if(g->landscape) {
+        /* 64 rows cannot stack six 14px pills, so landscape spends its width
+         * instead: two columns of 60px pills, filled top-to-bottom down the
+         * left column first. menu_sel stays the same linear index the shell
+         * drives — only the cell it maps to changes. */
+        /* Band between the y=20 rule and the bottom edge is 40px. Three rows
+         * of 14 is today's shape; the clamp keeps a seventh menu item from
+         * silently falling off the screen. */
+        uint8_t rows = (uint8_t)((n + 1) / 2);
+        int16_t pitch = 14;
+        if(rows * pitch > 40) pitch = (int16_t)(40 / rows);
+        int16_t top = (int16_t)(22 + (40 - rows * pitch) / 2);
+        for(uint8_t i = 0; i < n; i++) {
+            int16_t x = (int16_t)(i < rows ? 2 : 66);
+            int16_t y = (int16_t)(top + (i % rows) * pitch);
+            if(app->menu_sel == i) {
+                gj_gfx_rrect(g, x, y, 60, (int16_t)(pitch - 1), 1);
+                t7_center(g, (int16_t)(x + 30), (int16_t)(y + 2), labels[i], 0);
+            } else {
+                t7_center(g, (int16_t)(x + 30), (int16_t)(y + 2), labels[i], 1);
+            }
+        }
+        return;
+    }
+
     /* centre the n rows (14px pitch, 13px tall) between the two rules at
      * y=20 and y=116: top = 21 + (95 - (14n - 1)) / 2. */
     int16_t top = (int16_t)(69 - n * 7);
@@ -965,26 +1227,29 @@ static void draw_menu(GjGfx* g, const GjApp* app) {
             t7_center(g, 32, (int16_t)(y + 3), labels[i], 1);
         }
     }
-    gj_gfx_hline(g, 0, 116, GJ_FB_W, 1);
+    gj_gfx_hline(g, 0, 116, gj_fb_w(g), 1);
     t7_center(g, 32, 119, gj_str(app->lang, GjStrOkSelect), 1);
 }
 
 /* ---- Rules screen (scrollable, from menu or pause) ------------------- */
 /* Text lives in gj_i18n.c: the line breaks are baked into the data, so each
  * language carries its own wrapping and its own line count. */
-static void draw_rules(GjGfx* g, const GjApp* app) {
+GJ_SCREEN void draw_rules(GjGfx* g, const GjApp* app) {
     /* Georgian needs 11px of pitch for its descenders where Latin needs 8, so
      * fewer lines fit on screen. Both come from gj_i18n.c. */
     uint8_t pitch = gj_rules_pitch(app->lang);
-    uint8_t vis = gj_rules_visible(app->lang);
+    uint8_t vis = gj_rules_visible(app->lang, g->landscape);
     uint16_t total = gj_rules_lines(app->lang);
     uint16_t scroll = app->rules_scroll;
     if(scroll > total) scroll = total;
     /* header bar */
-    gj_gfx_rect(g, 0, 0, GJ_FB_W, 9, 1);
+    const int16_t W = gj_fb_w(g);
+    gj_gfx_rect(g, 0, 0, W, 9, 1);
     t7_text(g, 2, 1, gj_str(app->lang, GjStrRules), 0);
-    if(scroll > 0) tri(g, 56, 2, 2, 0); /* more above */
-    if(scroll + vis < total) tri(g, 56, 122, 3, 1); /* more below */
+    /* the two scroll cues hug the right edge, whichever edge that is */
+    if(scroll > 0) tri(g, (int16_t)(W - 8), 2, 2, 0); /* more above */
+    if(scroll + vis < total)
+        tri(g, (int16_t)(W - 8), (int16_t)(gj_fb_h(g) - 6), 3, 1); /* more below */
     for(uint16_t i = 0; i < vis; i++) {
         uint16_t li = (uint16_t)(scroll + i);
         if(li >= total) break;
@@ -1004,8 +1269,12 @@ static void draw_rules(GjGfx* g, const GjApp* app) {
 }
 
 static void draw_stage_rail(GjGfx* g, int16_t y, uint8_t stage) {
+    /* four 12px ticks on a 14px pitch span 54px. Portrait's x=8 is NOT the
+     * centred value (the span ends at 61, not 56) and is kept verbatim; only
+     * landscape centres, at 37..90. */
+    int16_t x0 = g->landscape ? 37 : 8;
     for(uint8_t i = 0; i < 4; i++) {
-        int16_t x = (int16_t)(8 + i * 14);
+        int16_t x = (int16_t)(x0 + i * 14);
         if(i == stage)
             gj_gfx_rect(g, x, y, 12, 3, 1);
         else if(i < stage)
@@ -1015,7 +1284,7 @@ static void draw_stage_rail(GjGfx* g, int16_t y, uint8_t stage) {
     }
 }
 
-static void draw_stage_intro(GjGfx* g, const GjApp* app) {
+GJ_SCREEN void draw_stage_intro(GjGfx* g, const GjApp* app) {
     const GjGame* gm = &app->game;
     uint8_t stage = gj_deal_stage(gm->mode, gm->deal_index) & 3u;
     /* 16 was sized for Latin and overflowed on ka: "DEAL " + a Mkhedruli seat
@@ -1026,21 +1295,29 @@ static void draw_stage_intro(GjGfx* g, const GjApp* app) {
     scat(buf, u2s((uint16_t)(gm->deal_index + 1), num));
     scat(buf, "/");
     scat(buf, u2s(gj_mode_num_deals(gm->mode), num));
-    t7_center(g, 32, 14, buf, 1);
+    /* Same stack in both layouts, only tighter: the portrait spacing is built
+     * for 128 rows and landscape has 64, so every step halves. */
+    const bool land = g->landscape;
+    const int16_t cx = (int16_t)(gj_fb_w(g) / 2);
+    t7_center(g, cx, land ? 2 : 14, buf, 1);
     const char* sname = gj_str(app->lang, stage_str_id(stage));
     int16_t tw = (int16_t)gj_gfx_text_big_width(sname);
-    gj_gfx_text_big(g, (int16_t)(32 - tw / 2), 34, sname, 1);
-    draw_stage_rail(g, 58, stage);
+    gj_gfx_text_big(g, (int16_t)(cx - tw / 2), land ? 12 : 34, sname, 1);
+    draw_stage_rail(g, land ? 26 : 58, stage);
     buf[0] = 0;
     scat(buf, u2s(gj_deal_cards_for(gm->mode, gm->deal_index), num));
     scat(buf, " CARDS");
-    t7_center(g, 32, 72, buf, 1);
+    t7_center(g, cx, land ? 33 : 72, buf, 1);
     buf[0] = 0;
     scat(buf, "DEAL ");
     scat(buf, seat_name(app->lang, gm->dealer));
-    t7_center(g, 32, 84, buf, 1);
-    gj_gfx_hline(g, 0, 114, GJ_FB_W, 1);
-    t7_center(g, 32, 118, gj_str(app->lang, GjStrOkNext), 1);
+    t7_center(g, cx, land ? 43 : 84, buf, 1);
+    if(land) {
+        gj_gfx_hline(g, 0, 54, gj_fb_w(g), 1);
+        t7_center(g, cx, 56, gj_str(app->lang, GjStrOkNext), 1);
+    } else {
+        footer_hint(g, app->lang, GjStrOkNext, 114, 118);
+    }
 }
 
 /* one large card ~24x34 (trump reveal) */
@@ -1053,49 +1330,56 @@ static void big_card(GjGfx* g, uint8_t lang, int16_t x, int16_t y, GjCard c) {
     pip7(g, (int16_t)(x + 8), (int16_t)(y + 22), c, 1);
 }
 
-static void draw_trump_reveal(GjGfx* g, const GjApp* app) {
+GJ_SCREEN void draw_trump_reveal(GjGfx* g, const GjApp* app) {
     const GjGame* gm = &app->game;
-    t7_center(g, 32, 6, gj_str(app->lang, GjStrTrump), 1);
-    gj_gfx_hline(g, 8, 18, 48, 1);
+    const bool land = g->landscape;
+    const int16_t cx = (int16_t)(gj_fb_w(g) / 2);
+    const int16_t card_y = land ? 14 : 28; /* the 24x34 card is the centrepiece */
+    const int16_t cap_y = land ? 51 : 70; /* the caption under it */
+    t7_center(g, cx, land ? 2 : 6, gj_str(app->lang, GjStrTrump), 1);
+    gj_gfx_hline(g, (int16_t)(cx - 24), land ? 10 : 18, 48, 1);
     if(gm->trump_suit == GJ_NO_TRUMP) {
-        gj_gfx_rframe(g, 20, 30, 24, 24, 1);
-        gj_gfx_xbm(g, 28, 38, 7, 7, nt7, 1);
-        t7_center(g, 32, 62, gj_str(app->lang, GjStrNoTrump), 1);
+        gj_gfx_rframe(g, (int16_t)(cx - 12), (int16_t)(card_y + 2), 24, 24, 1);
+        gj_gfx_xbm(g, (int16_t)(cx - 4), (int16_t)(card_y + 10), 7, 7, nt7, 1);
+        t7_center(g, cx, land ? 44 : 62, gj_str(app->lang, GjStrNoTrump), 1);
     } else if(gm->trump_suit < 4) {
         if(gm->trump_card != GJ_CARD_NONE && !gj_is_joker(gm->trump_card))
-            big_card(g, app->lang, 20, 28, gm->trump_card);
+            big_card(g, app->lang, (int16_t)(cx - 12), card_y, gm->trump_card);
         else {
-            gj_gfx_rframe(g, 20, 28, 24, 34, 1);
-            pip7(g, 28, 40, (GjCard)(gm->trump_suit * 9 + 3), 1);
+            gj_gfx_rframe(g, (int16_t)(cx - 12), card_y, 24, 34, 1);
+            pip7(g, (int16_t)(cx - 4), (int16_t)(card_y + 12), (GjCard)(gm->trump_suit * 9 + 3), 1);
         }
         if(gj_deal_trump_is_named(gm->mode, gm->deal_index)) {
             char b[20];
             b[0] = 0;
             scat(b, "BY ");
             scat(b, seat_name(app->lang, gj_trump_namer(gm)));
-            t7_center(g, 32, 70, b, 1);
+            t7_center(g, cx, cap_y, b, 1);
         } else {
-            t7_center(g, 32, 70, gj_str(app->lang, GjStrFlipped), 1);
+            t7_center(g, cx, cap_y, gj_str(app->lang, GjStrFlipped), 1);
         }
     }
-    gj_gfx_hline(g, 0, 114, GJ_FB_W, 1);
-    t7_center(g, 32, 118, gj_str(app->lang, GjStrOk), 1);
+    footer_hint(g, app->lang, GjStrOk, 114, 118);
 }
 
-static void draw_trump_select(GjGfx* g, const GjApp* app) {
+GJ_SCREEN void draw_trump_select(GjGfx* g, const GjApp* app) {
     const GjGame* gm = &app->game;
-    t7_center(g, 32, 4, gj_str(app->lang, GjStrPickTrump), 1);
-    gj_gfx_hline(g, 4, 16, 56, 1);
+    const bool land = g->landscape;
+    const int16_t cx = (int16_t)(gj_fb_w(g) / 2);
+    const int16_t dx = (int16_t)(cx - 32); /* portrait coords are 64-wide */
+    t7_center(g, cx, land ? 2 : 4, gj_str(app->lang, GjStrPickTrump), 1);
+    gj_gfx_hline(g, (int16_t)(4 + dx), land ? 12 : 16, 56, 1);
     bool blind = gj_deal_is_blind(gm->mode, gm->deal_index);
     uint8_t namer = gj_trump_namer(gm);
     if(blind) {
-        gj_gfx_rrect(g, 10, 26, 44, 13, 1);
-        t7_center(g, 32, 29, gj_str(app->lang, GjStrBlind), 0);
+        gj_gfx_rrect(g, (int16_t)(10 + dx), land ? 18 : 26, 44, 13, 1);
+        t7_center(g, cx, land ? 21 : 29, gj_str(app->lang, GjStrBlind), 0);
     } else if(namer == 0) {
         uint8_t shown = gm->hands[0].count < 3 ? gm->hands[0].count : 3;
         for(uint8_t i = 0; i < shown; i++)
-            minicard(g, app->lang, (int16_t)(8 + i * 16), 26, gm->hands[0].cards[i], GjPlayNormal, false);
-        t7_center(g, 32, 50, gj_str(app->lang, GjStrPeek), 1);
+            minicard(g, app->lang, (int16_t)(8 + dx + i * 16), land ? 16 : 26,
+                     gm->hands[0].cards[i], GjPlayNormal, false);
+        t7_center(g, cx, land ? 39 : 50, gj_str(app->lang, GjStrPeek), 1);
     } else {
         /* same ka trap as draw_stage_intro: a Mkhedruli seat name is up to 15
          * bytes, so seat + " PICKS" needs 22, not 20. */
@@ -1103,35 +1387,44 @@ static void draw_trump_select(GjGfx* g, const GjApp* app) {
         b[0] = 0;
         scat(b, seat_name(app->lang, namer));
         scat(b, " PICKS");
-        t7_center(g, 32, 34, b, 1);
+        t7_center(g, cx, land ? 24 : 34, b, 1);
     }
     /* picker: 4 suits + NT, selected framed */
     static const uint8_t ox[5] = {4, 16, 28, 40, 52};
-    int16_t y = 88;
+    int16_t y = land ? 45 : 88;
     uint8_t sel = app->trump_sel > 4 ? 4 : app->trump_sel;
     for(uint8_t i = 0; i < 4; i++) {
-        if(i == sel) gj_gfx_rframe(g, (int16_t)(ox[i] - 2), (int16_t)(y - 2), 11, 11, 1);
-        pip7(g, (int16_t)ox[i], y, (GjCard)(i * 9 + 3), 1);
+        int16_t px = (int16_t)(ox[i] + dx);
+        if(i == sel) gj_gfx_rframe(g, (int16_t)(px - 2), (int16_t)(y - 2), 11, 11, 1);
+        pip7(g, px, y, (GjCard)(i * 9 + 3), 1);
     }
-    if(sel == 4) gj_gfx_rframe(g, (int16_t)(ox[4] - 2), (int16_t)(y - 2), 13, 11, 1);
-    t7_text(g, (int16_t)ox[4], (int16_t)(y + 1), gj_str(app->lang, GjStrNt), 1);
-    gj_gfx_hline(g, 0, 114, GJ_FB_W, 1);
-    if(blind || namer != 0) t7_center(g, 32, 118, gj_str(app->lang, GjStrWait), 1);
+    if(sel == 4) gj_gfx_rframe(g, (int16_t)(ox[4] + dx - 2), (int16_t)(y - 2), 13, 11, 1);
+    t7_text(g, (int16_t)(ox[4] + dx), (int16_t)(y + 1), gj_str(app->lang, GjStrNt), 1);
+    if(land) {
+        if(blind || namer != 0)
+            t7_right_fit(g, 66, (int16_t)(gj_fb_w(g) - 2), 2, gj_str(app->lang, GjStrWait), 1);
+    } else {
+        gj_gfx_hline(g, 0, 114, gj_fb_w(g), 1);
+        if(blind || namer != 0) t7_center(g, 32, 118, gj_str(app->lang, GjStrWait), 1);
+    }
 }
 
-static void draw_deal_score(GjGfx* g, const GjApp* app) {
+GJ_SCREEN void draw_deal_score(GjGfx* g, const GjApp* app) {
     const GjGame* gm = &app->game;
     uint8_t done = gm->deal_index ? (uint8_t)(gm->deal_index - 1) : 0;
     const char* INIT[4] = {gj_str(app->lang, GjStrSeatY), gj_str(app->lang, GjStrSeatW),
                            gj_str(app->lang, GjStrSeatN), gj_str(app->lang, GjStrSeatE)};
-    t7_center(g, 32, 3, gj_str(app->lang, GjStrResult), 1);
-    gj_gfx_hline(g, 0, 13, GJ_FB_W, 1);
+    const bool land = g->landscape;
+    const int16_t W = gj_fb_w(g);
+    const int16_t cx = (int16_t)(W / 2);
+    t7_center(g, cx, land ? 1 : 3, gj_str(app->lang, GjStrResult), 1);
+    gj_gfx_hline(g, 0, land ? 10 : 13, W, 1);
     for(uint8_t s = 0; s < GJ_PLAYERS; s++) {
-        int16_t y = (int16_t)(17 + s * 13);
+        int16_t y = land ? (int16_t)(14 + s * 10) : (int16_t)(17 + s * 13);
         bool made = gm->bids[s] == (int8_t)gm->tricks_taken[s];
         uint8_t fg = 1;
         if(s == 0) {
-            gj_gfx_rrect(g, 0, (int16_t)(y - 1), GJ_FB_W, 11, 1);
+            gj_gfx_rrect(g, 0, (int16_t)(y - 1), W, land ? 10 : 11, 1);
             fg = 0;
         }
         char cell[8], num[6];
@@ -1142,14 +1435,21 @@ static void draw_deal_score(GjGfx* g, const GjApp* app) {
         scat(cell, ":");
         scat(cell, i2s(gm->bids[s], num));
         t7_text(g, 10, y, cell, fg);
-        t7_text(g, 30, y, made ? "+" : "X", fg); /* made / missed */
+        t7_text(g, land ? 44 : 30, y, made ? "+" : "X", fg); /* made / missed */
         /* points, right-aligned */
         i2s(gm->deal_scores[done][s], num);
-        t7_text(g, (int16_t)(62 - (int16_t)t7_width(num)), y, num, fg);
+        t7_text(g, (int16_t)(W - 2 - (int16_t)t7_width(num)), y, num, fg);
     }
-    gj_gfx_hline(g, 0, 103, GJ_FB_W, 1);
-    t7_center(g, 32, 106, gj_str(app->lang, GjStrOkNext), 1);
-    t7_center(g, 32, 118, gj_str(app->lang, GjStrTable), 1);
+    if(land) {
+        /* the two hints share one line instead of stacking */
+        gj_gfx_hline(g, 0, 54, W, 1);
+        t7_text(g, 2, 56, gj_str(app->lang, GjStrOkNext), 1);
+        t7_right_fit(g, 66, (int16_t)(W - 2), 56, gj_str(app->lang, GjStrTable), 1);
+    } else {
+        gj_gfx_hline(g, 0, 103, W, 1);
+        t7_center(g, 32, 106, gj_str(app->lang, GjStrOkNext), 1);
+        t7_center(g, 32, 118, gj_str(app->lang, GjStrTable), 1);
+    }
 }
 
 /* standings row label. Standard: A1..A8 N1..N4 D8..D1 B1..B4. Quick Nines:
@@ -1191,31 +1491,44 @@ static void standings_label(uint8_t lang, uint8_t mode, uint8_t d, char* out) {
  * deal-label column plus 2 of the 4 player columns (Left/Right pans,
  * Up/Down scrolls deals). Cells are running totals through that deal;
  * the pinned bottom bar always shows the exact current totals. */
-static void draw_standings(GjGfx* g, const GjApp* app) {
+GJ_SCREEN void draw_standings(GjGfx* g, const GjApp* app) {
     const GjGame* gm = &app->game;
-    static const uint8_t COLR[2] = {38, 63}; /* right edges of the 2 columns */
+    /* Right edges of the score columns. Portrait shows 2 of the 4 seats and
+     * pans; landscape is 128 wide, so ALL FOUR fit and the h-scroll goes away
+     * entirely (gj_shell.c pins standings_xscroll to 0 there and gives
+     * Left/Right to deal paging instead). */
+    static const uint8_t COLR_P[2] = {38, 63};
+    static const uint8_t COLR_L[4] = {40, 68, 96, 124};
+    const bool land = g->landscape;
+    const uint8_t ncols = land ? 4 : 2;
+    const uint8_t* COLR = land ? COLR_L : COLR_P;
+    const int16_t W = gj_fb_w(g);
+    const int16_t pitch = land ? 8 : 9;
     const char* HD[4] = {gj_str(app->lang, GjStrSeatY), gj_str(app->lang, GjStrSeatW),
                          gj_str(app->lang, GjStrSeatN), gj_str(app->lang, GjStrSeatE)};
-    uint8_t xs = app->standings_xscroll > 2 ? 2 : app->standings_xscroll;
+    uint8_t xs = land ? 0 : (app->standings_xscroll > 2 ? 2 : app->standings_xscroll);
     /* header: pan arrows in the corner + visible seat letters */
-    gj_gfx_rect(g, 0, 0, GJ_FB_W, 9, 1);
-    if(xs > 0) tri(g, 1, 2, 1, 0);
-    if(xs < 2) tri(g, 7, 2, 0, 0);
-    for(uint8_t k = 0; k < 2; k++) {
+    gj_gfx_rect(g, 0, 0, W, 9, 1);
+    if(!land) { /* nothing to pan to when every column is on screen */
+        if(xs > 0) tri(g, 1, 2, 1, 0);
+        if(xs < 2) tri(g, 7, 2, 0, 0);
+    }
+    for(uint8_t k = 0; k < ncols; k++) {
         uint8_t s = (uint8_t)(xs + k);
         t7_text(g, (int16_t)(COLR[k] - (int16_t)t7_width(HD[s])), 1, HD[s], 0);
     }
 
     uint8_t ndeals = gj_mode_num_deals(gm->mode);
     uint8_t scroll = app->standings_scroll;
-    for(uint8_t vis = 0; vis < 12; vis++) {
+    uint8_t maxvis = (uint8_t)(land ? GJ_STANDINGS_ROWS_L : 12);
+    for(uint8_t vis = 0; vis < maxvis; vis++) {
         uint8_t d = (uint8_t)(scroll + vis);
         if(d >= ndeals) break;
-        int16_t y = (int16_t)(10 + vis * 9);
+        int16_t y = (int16_t)(10 + vis * pitch);
         bool cur = (d == gm->deal_index);
         uint8_t fg = 1;
         if(cur) {
-            gj_gfx_rect(g, 0, (int16_t)(y - 1), GJ_FB_W, 9, 1);
+            gj_gfx_rect(g, 0, (int16_t)(y - 1), W, pitch, 1);
             fg = 0;
         }
         char lbl[6];
@@ -1224,7 +1537,7 @@ static void draw_standings(GjGfx* g, const GjApp* app) {
         /* first column free of the label, so a wide cell compacts instead of
          * running into it */
         int16_t lmin = (int16_t)(1 + (int16_t)t7_width(lbl) + 1);
-        for(uint8_t k = 0; k < 2; k++) {
+        for(uint8_t k = 0; k < ncols; k++) {
             uint8_t s = (uint8_t)(xs + k);
             char cell[8], num[6];
             if(d < gm->deal_index) {
@@ -1237,27 +1550,27 @@ static void draw_standings(GjGfx* g, const GjApp* app) {
                 cell[0] = '-';
                 cell[1] = 0;
             }
-            t7_right_fit(g, k ? (int16_t)(COLR[0] + 1) : lmin, (int16_t)COLR[k], y, cell, fg);
+            t7_right_fit(g, k ? (int16_t)(COLR[k - 1] + 1) : lmin, (int16_t)COLR[k], y, cell, fg);
         }
         if(gm->mode == GjModeStandard && (d == 7 || d == 11 || d == 19))
-            for(int16_t px = 0; px < GJ_FB_W; px += 2)
-                gj_gfx_pixel(g, px, (int16_t)(y + 8), cur ? 0 : 1);
+            for(int16_t px = 0; px < W; px += 2)
+                gj_gfx_pixel(g, px, (int16_t)(y + pitch - 1), cur ? 0 : 1);
     }
     /* pinned totals */
-    int16_t ty = 118;
-    gj_gfx_rect(g, 0, ty, GJ_FB_W, 10, 1);
+    int16_t ty = (int16_t)(gj_fb_h(g) - 10);
+    gj_gfx_rect(g, 0, ty, W, 10, 1);
     t7_text(g, 1, (int16_t)(ty + 2), gj_str(app->lang, GjStrTotalRow), 0);
-    for(uint8_t k = 0; k < 2; k++) {
+    for(uint8_t k = 0; k < ncols; k++) {
         uint8_t s = (uint8_t)(xs + k);
         char num[6];
         i2s(gm->totals[s], num);
-        int16_t tmin = k ? (int16_t)(COLR[0] + 1) :
+        int16_t tmin = k ? (int16_t)(COLR[k - 1] + 1) :
                            (int16_t)(1 + (int16_t)t7_width(gj_str(app->lang, GjStrTotalRow)) + 1);
         t7_right_fit(g, tmin, (int16_t)COLR[k], (int16_t)(ty + 2), num, 0);
     }
 }
 
-static void draw_game_over(GjGfx* g, const GjApp* app) {
+GJ_SCREEN void draw_game_over(GjGfx* g, const GjApp* app) {
     const GjGame* gm = &app->game;
     uint8_t order[GJ_PLAYERS] = {0, 1, 2, 3};
     for(uint8_t i = 0; i < GJ_PLAYERS - 1; i++)
@@ -1267,15 +1580,17 @@ static void draw_game_over(GjGfx* g, const GjApp* app) {
                 order[j] = order[j + 1];
                 order[j + 1] = t;
             }
-    t7_center(g, 32, 3, gj_str(app->lang, GjStrPulkaDone), 1);
-    gj_gfx_hline(g, 0, 13, GJ_FB_W, 1);
+    const bool land = g->landscape;
+    const int16_t W = gj_fb_w(g);
+    t7_center(g, (int16_t)(W / 2), land ? 1 : 3, gj_str(app->lang, GjStrPulkaDone), 1);
+    gj_gfx_hline(g, 0, land ? 10 : 13, W, 1);
     for(uint8_t i = 0; i < GJ_PLAYERS; i++) {
         uint8_t s = order[i];
-        int16_t y = (int16_t)(20 + i * 14);
+        int16_t y = land ? (int16_t)(14 + i * 10) : (int16_t)(20 + i * 14);
         bool win = (i == 0);
         uint8_t fg = 1;
         if(win) {
-            gj_gfx_rrect(g, 2, (int16_t)(y - 1), 60, 12, 1);
+            gj_gfx_rrect(g, 2, (int16_t)(y - 1), (int16_t)(W - 4), land ? 10 : 12, 1);
             fg = 0;
             gj_gfx_xbm(g, 3, (int16_t)(y + 2), 7, 5, crown7, 0);
         } else {
@@ -1287,79 +1602,110 @@ static void draw_game_over(GjGfx* g, const GjApp* app) {
         char num[6];
         t7_text(g, 12, (int16_t)(y + 1), seat_name(app->lang, s), fg);
         i2s(gm->totals[s], num);
-        t7_text(g, (int16_t)(61 - (int16_t)t7_width(num)), (int16_t)(y + 1), num, fg);
+        t7_text(g, (int16_t)(W - 3 - (int16_t)t7_width(num)), (int16_t)(y + 1), num, fg);
     }
-    gj_gfx_hline(g, 0, 114, GJ_FB_W, 1);
-    t7_center(g, 32, 118, gj_str(app->lang, GjStrOkMenu), 1);
+    if(land) {
+        gj_gfx_hline(g, 0, 54, W, 1);
+        t7_center(g, (int16_t)(W / 2), 56, gj_str(app->lang, GjStrOkMenu), 1);
+    } else {
+        footer_hint(g, app->lang, GjStrOkMenu, 114, 118);
+    }
 }
 
-static void draw_about(GjGfx* g, const GjApp* app) {
-    gj_gfx_xbm(g, 4, 5, 7, 7, jo7, 1);
-    t7_text(g, 14, 5, gj_str(app->lang, GjStrJokeri), 1);
-    t7_text(g, 44, 5, gj_str(app->lang, GjStrVersion), 1);
-    gj_gfx_hline(g, 0, 16, GJ_FB_W, 1);
+GJ_SCREEN void draw_about(GjGfx* g, const GjApp* app) {
+    /* Portrait runs one long column: controls, then the chart legend, then the
+     * site. Landscape splits that column in two at x=66 — controls left, the
+     * legend and site right — which is the same reading order, folded. */
+    const bool land = g->landscape;
+    const int16_t c2 = land ? 66 : 2; /* second block's left edge */
+    gj_gfx_xbm(g, 4, land ? 2 : 5, 7, 7, jo7, 1);
+    t7_text(g, 14, land ? 2 : 5, gj_str(app->lang, GjStrJokeri), 1);
+    t7_text(g, 44, land ? 2 : 5, gj_str(app->lang, GjStrVersion), 1);
+    gj_gfx_hline(g, 0, land ? 13 : 16, gj_fb_w(g), 1);
     /* controls: icon column + short label */
-    t7_text(g, 2, 22, "<>", 1);
-    t7_text(g, 20, 22, gj_str(app->lang, GjStrSelect), 1);
-    t7_text(g, 2, 34, gj_str(app->lang, GjStrOk), 1);
-    t7_text(g, 20, 34, gj_str(app->lang, GjStrPlay), 1);
-    t7_text(g, 2, 46, "^", 1);
-    t7_text(g, 20, 46, gj_str(app->lang, GjStrTableWord), 1);
-    t7_text(g, 2, 58, gj_str(app->lang, GjStrBack), 1);
-    t7_text(g, 30, 58, gj_str(app->lang, GjStrPause), 1);
-    gj_gfx_hline(g, 2, 70, 60, 1);
-    t7_text(g, 2, 76, gj_str(app->lang, GjStrChartColon), 1);
-    t7_text(g, 2, 86, gj_str(app->lang, GjStrSeatsHint), 1);
-    t7_text(g, 2, 96, gj_str(app->lang, GjStrDealsHint), 1);
-    gj_gfx_hline(g, 2, 108, 60, 1);
+    const int16_t r0 = land ? 17 : 22, rp = land ? 10 : 12;
+    t7_text(g, 2, r0, "<>", 1);
+    t7_text(g, 20, r0, gj_str(app->lang, GjStrSelect), 1);
+    t7_text(g, 2, (int16_t)(r0 + rp), gj_str(app->lang, GjStrOk), 1);
+    t7_text(g, 20, (int16_t)(r0 + rp), gj_str(app->lang, GjStrPlay), 1);
+    t7_text(g, 2, (int16_t)(r0 + 2 * rp), "^", 1);
+    t7_text(g, 20, (int16_t)(r0 + 2 * rp), gj_str(app->lang, GjStrTableWord), 1);
+    t7_text(g, 2, (int16_t)(r0 + 3 * rp), gj_str(app->lang, GjStrBack), 1);
+    t7_text(g, 30, (int16_t)(r0 + 3 * rp), gj_str(app->lang, GjStrPause), 1);
+    if(!land) gj_gfx_hline(g, 2, 70, 60, 1);
+    const int16_t h0 = land ? 17 : 76, hp = land ? 10 : 10;
+    t7_text(g, c2, h0, gj_str(app->lang, GjStrChartColon), 1);
+    t7_text(g, c2, (int16_t)(h0 + hp), gj_str(app->lang, GjStrSeatsHint), 1);
+    t7_text(g, c2, (int16_t)(h0 + 2 * hp), gj_str(app->lang, GjStrDealsHint), 1);
+    gj_gfx_hline(g, c2, land ? 47 : 108, 60, 1);
     /* canonical site: joker.agentic.ge (two lines so it fits 64px) */
-    t7_center(g, 32, 112, gj_str(app->lang, GjStrJokerDot), 1);
-    t7_center(g, 32, 120, gj_str(app->lang, GjStrAgentic), 1);
+    int16_t sx = land ? 96 : 32;
+    t7_center(g, sx, land ? 50 : 112, gj_str(app->lang, GjStrJokerDot), 1);
+    t7_center(g, sx, land ? 57 : 120, gj_str(app->lang, GjStrAgentic), 1);
 }
 
 /* Back-button popup during play: Resume / Chart / Rules / Exit */
 static void draw_pause_menu(GjGfx* g, const GjApp* app) {
     const char* rows[4] = {gj_str(app->lang, GjStrResume), gj_str(app->lang, GjStrChart),
                            gj_str(app->lang, GjStrRules), gj_str(app->lang, GjStrExit)};
-    modal(g, 8, 30, 48, 64, "PAUSED");
+    /* Portrait stacks four rows in a 48x64 card. 64 rows tall is the whole
+     * landscape screen, so there it becomes a 96x48 card with the same four
+     * rows in two columns — down the left pair first, matching the landscape
+     * main menu so the two grids read the same way. */
+    const bool land = g->landscape;
+    int16_t mx = land ? (int16_t)((gj_fb_w(g) - 96) / 2) : 8;
+    int16_t my = land ? 8 : 30;
+    modal(g, mx, my, land ? 96 : 48, land ? 48 : 64, "PAUSED");
     for(uint8_t i = 0; i < 4; i++) {
-        int16_t ry = (int16_t)(43 + i * 12);
+        int16_t rx = (int16_t)(mx + 2 + (land ? (i / 2) * 46 : 0));
+        int16_t ry = (int16_t)(my + 13 + (land ? (i % 2) : i) * 12);
         if(app->pause_sel == i) {
-            gj_gfx_rrect(g, 10, ry, 44, 11, 1);
-            t7_text(g, 15, (int16_t)(ry + 2), rows[i], 0);
+            gj_gfx_rrect(g, rx, ry, 44, 11, 1);
+            t7_text(g, (int16_t)(rx + 5), (int16_t)(ry + 2), rows[i], 0);
         } else {
-            t7_text(g, 15, (int16_t)(ry + 2), rows[i], 1);
+            t7_text(g, (int16_t)(rx + 5), (int16_t)(ry + 2), rows[i], 1);
         }
     }
 }
 
 static void draw_confirm(GjGfx* g, const GjApp* app) {
-    modal(g, 4, 44, 56, 40, "LEAVE?");
-    t7_center(g, 32, 57, gj_str(app->lang, GjStrSaved), 1);
+    int16_t mx = g->landscape ? (int16_t)((gj_fb_w(g) - 56) / 2) : 4;
+    int16_t my = g->landscape ? (int16_t)((gj_fb_h(g) - 40) / 2) : 44;
+    modal(g, mx, my, 56, 40, "LEAVE?");
+    int16_t ty = (int16_t)(my + 13), by = (int16_t)(my + 26);
+    t7_center(g, (int16_t)(mx + 28), ty, gj_str(app->lang, GjStrSaved), 1);
     if(app->confirm_sel == 0) {
-        gj_gfx_rrect(g, 6, 70, 26, 11, 1);
-        t7_text(g, 8, (int16_t)(72), gj_str(app->lang, GjStrSave), 0);
-        t7_text(g, 36, (int16_t)(72), gj_str(app->lang, GjStrStay), 1);
+        gj_gfx_rrect(g, (int16_t)(mx + 2), by, 26, 11, 1);
+        t7_text(g, (int16_t)(mx + 4), (int16_t)(by + 2), gj_str(app->lang, GjStrSave), 0);
+        t7_text(g, (int16_t)(mx + 32), (int16_t)(by + 2), gj_str(app->lang, GjStrStay), 1);
     } else {
-        t7_text(g, 8, (int16_t)(72), gj_str(app->lang, GjStrSave), 1);
-        gj_gfx_rrect(g, 33, 70, 26, 11, 1);
-        t7_text(g, 36, (int16_t)(72), gj_str(app->lang, GjStrStay), 0);
+        t7_text(g, (int16_t)(mx + 4), (int16_t)(by + 2), gj_str(app->lang, GjStrSave), 1);
+        gj_gfx_rrect(g, (int16_t)(mx + 29), by, 26, 11, 1);
+        t7_text(g, (int16_t)(mx + 32), (int16_t)(by + 2), gj_str(app->lang, GjStrStay), 0);
     }
 }
 
 /* near-empty beat after bidding: who leads the first trick */
-static void draw_lead_intro(GjGfx* g, const GjApp* app) {
+GJ_SCREEN void draw_lead_intro(GjGfx* g, const GjApp* app) {
     const GjGame* gm = &app->game;
     uint8_t ld = gm->trick_leader & 3u;
     
+    const bool land = g->landscape;
+    const int16_t cx = (int16_t)(gj_fb_w(g) / 2);
     const char* nm = seat_name(app->lang, ld);
     const char* verb = gj_str(app->lang, (ld == 0) ? GjStrStart : GjStrStarts);
     int16_t nw = (int16_t)gj_gfx_text_big_width(nm);
-    gj_gfx_text_big(g, (int16_t)(32 - nw / 2), 38, nm, 1);
-    t7_center(g, 32, 60, verb, 1);
-    /* turn triangle pointing at that seat's table position */
-    uint8_t dir = (ld == 2) ? 3 : (ld == 0) ? 2 : (ld == 1) ? 0 : 1;
-    tri(g, 30, 72, dir, 1);
+    gj_gfx_text_big(g, (int16_t)(cx - nw / 2), land ? 8 : 38, nm, 1);
+    t7_center(g, cx, land ? 22 : 60, verb, 1);
+    /* Turn triangle pointing at that seat's table position. Portrait points
+     * around the compass cross; landscape has no cross, so it points DOWN at
+     * the seat's column — the place that seat's card will actually land. */
+    if(land) {
+        tri(g, (int16_t)(COL_CX_L[SEAT_COL_L[ld]] - 2), 32, 3, 1);
+    } else {
+        uint8_t dir = (ld == 2) ? 3 : (ld == 0) ? 2 : (ld == 1) ? 0 : 1;
+        tri(g, 30, 72, dir, 1);
+    }
     /* your bid for the deal */
     char buf[12], num[6];
     buf[0] = 0;
@@ -1368,9 +1714,13 @@ static void draw_lead_intro(GjGfx* g, const GjApp* app) {
         scat(buf, "-");
     else
         scat(buf, i2s(gm->bids[0], num));
-    t7_center(g, 32, 90, buf, 1);
-    gj_gfx_hline(g, 0, 114, GJ_FB_W, 1);
-    t7_center(g, 32, 118, gj_str(app->lang, GjStrOk), 1);
+    t7_center(g, cx, land ? 42 : 90, buf, 1);
+    if(land) {
+        gj_gfx_hline(g, 0, 54, gj_fb_w(g), 1);
+        t7_center(g, cx, 56, gj_str(app->lang, GjStrOk), 1);
+    } else {
+        footer_hint(g, app->lang, GjStrOk, 114, 118);
+    }
 }
 
 /* ===================================================================== */
@@ -1380,23 +1730,36 @@ static void draw_lead_intro(GjGfx* g, const GjApp* app) {
 /* ---- Settings screen (from the menu) --------------------------------- */
 /* Deliberately its own function, not folded into draw_phase: that frame is
  * already ~336B against the 384B/frame gate in tests/stack_check.sh. */
-static void draw_settings(GjGfx* g, const GjApp* app) {
+GJ_SCREEN void draw_settings(GjGfx* g, const GjApp* app) {
     uint8_t lang = app->lang;
+    const bool land = g->landscape;
+    const int16_t W = gj_fb_w(g);
     /* header bar, matching the Rules screen */
-    gj_gfx_rect(g, 0, 0, GJ_FB_W, 9, 1);
+    gj_gfx_rect(g, 0, 0, W, 9, 1);
     t7_text(g, 2, 1, gj_str(lang, GjStrSettings), 0);
 
-    static const uint16_t LBL[3] = {GjStrLangRow, GjStrKhishtiWarn, GjStrBotsRow};
+    static const uint16_t LBL[GJ_SETTINGS_ROW_COUNT] = {
+        GjStrLangRow, GjStrKhishtiWarn, GjStrBotsRow, GjStrLayoutRow};
     const uint16_t lang_vals[GJ_LANG_COUNT] = {GjStrLangEnName, GjStrLangKaName};
     const uint16_t diff_vals[GJ_DIFF_COUNT] = {GjStrDiffEasy, GjStrDiffNormal, GjStrDiffHard};
+    const uint16_t lay_vals[GJ_LAYOUT_COUNT] = {GjStrLayoutVert, GjStrLayoutHorz};
     char num[6];
     char kh[8];
 
-    for(uint8_t row = 0; row < 3; row++) {
-        int16_t y = (int16_t)(18 + row * 26);
+    /* Portrait stacks label-over-value in a column; landscape has the width to
+     * put them on one line, so the pill moves to the right margin. Same rows,
+     * same order, same chevrons — only the anchors differ. */
+    const int16_t pill_w = 60;
+    const int16_t pill_x = land ? (int16_t)(W - pill_w - 2) : 2;
+    const int16_t pill_cx = (int16_t)(pill_x + pill_w / 2);
+
+    for(uint8_t row = 0; row < GJ_SETTINGS_ROW_COUNT; row++) {
+        /* Portrait pitch is 24, not the old 26: a fourth row had to fit above
+         * the y=116 footer (18 + 3*24 + 11 + 10 = 111). */
+        int16_t y = land ? (int16_t)(12 + row * 13) : (int16_t)(18 + row * 24);
         bool sel = (app->settings_sel == row);
         /* label */
-        t7_text(g, 4, y, gj_str(lang, LBL[row]), 1);
+        t7_text(g, 4, land ? (int16_t)(y + 2) : y, gj_str(lang, LBL[row]), 1);
         /* value, in a pill when the row has focus, with < > chevrons */
         const char* val;
         if(row == 0) {
@@ -1406,22 +1769,29 @@ static void draw_settings(GjGfx* g, const GjApp* app) {
             scat(kh, "-");
             scat(kh, u2s((uint16_t)(app->khishti_opt == GjKhishti500 ? 500 : 200), num));
             val = kh;
-        } else {
+        } else if(row == 2) {
             val = gj_str(lang, diff_vals[app->difficulty % GJ_DIFF_COUNT]);
+        } else {
+            val = gj_str(lang, lay_vals[app->layout % GJ_LAYOUT_COUNT]);
         }
         int16_t vw = (int16_t)t7_width(val);
-        int16_t vy = (int16_t)(y + 11);
+        int16_t vy = land ? (int16_t)(y + 2) : (int16_t)(y + 11);
         if(sel) {
-            gj_gfx_rrect(g, 2, (int16_t)(vy - 2), 60, 12, 1);
-            t7_center(g, 32, vy, val, 0);
-            tri(g, 4, (int16_t)(vy + 1), 0, 0); /* left chevron */
-            tri(g, 58, (int16_t)(vy + 1), 1, 0); /* right chevron */
+            gj_gfx_rrect(g, pill_x, (int16_t)(vy - 2), pill_w, 12, 1);
+            t7_center(g, pill_cx, vy, val, 0);
+            tri(g, (int16_t)(pill_x + 2), (int16_t)(vy + 1), 0, 0); /* left chevron */
+            tri(g, (int16_t)(pill_x + pill_w - 4), (int16_t)(vy + 1), 1, 0); /* right */
         } else {
-            t7_text(g, (int16_t)(32 - vw / 2), vy, val, 1);
+            t7_text(g, (int16_t)(pill_cx - vw / 2), vy, val, 1);
         }
     }
-    gj_gfx_hline(g, 0, 116, GJ_FB_W, 1);
-    t7_center(g, 32, 119, gj_str(lang, GjStrOk), 1);
+    if(land) {
+        /* No footer band in 64 rows — the hint rides in the header instead. */
+        t7_right_fit(g, 40, (int16_t)(W - 2), 1, gj_str(lang, GjStrOk), 0);
+    } else {
+        gj_gfx_hline(g, 0, 116, W, 1);
+        t7_center(g, 32, 119, gj_str(lang, GjStrOk), 1);
+    }
 }
 
 static void draw_phase(GjGfx* g, const GjApp* app, uint8_t phase) {
@@ -1493,6 +1863,10 @@ static void draw_phase(GjGfx* g, const GjApp* app, uint8_t phase) {
 }
 
 void gj_render_frame(GjGfx* g, const GjApp* app) {
+    /* The ONE writer of g->landscape: every primitive derives stride and clip
+     * bounds from it, so the layout preference reaches the whole renderer
+     * through this single assignment. Set before clear, not after. */
+    g->landscape = (uint8_t)(app->layout == GjLayoutHorizontal);
     gj_gfx_clear(g);
     uint8_t phase = app->phase;
     if(phase == PhaseConfirmExit || phase == PhasePause) {

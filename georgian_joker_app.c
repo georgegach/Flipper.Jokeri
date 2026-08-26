@@ -1,6 +1,6 @@
 /* georgian_joker_app.c — thin furi wrapper: ViewPort + 25ms frame-clock
  * message loop, single mutex guarding { GjApp, GjGfx }. ALL game/UI logic
- * lives in the furi-free shell (gj_shell.c) driving a vertical 64x128
+ * lives in the furi-free shell (gj_shell.c) driving a 64x128 or 128x64
  * framebuffer (gj_gfx.c) rendered by gj_render.c and blitted via
  * canvas_draw_xbm. Platform effects (RNG, save) are injected through
  * GjShellIo. Skeleton from ChaosEngineer.Nexus (ViewPort, no ViewDispatcher). */
@@ -76,7 +76,7 @@ static void io_save_delete(void* ctx) {
 /* Preferences live in their own file, so they get their own deferred slot. */
 static void io_settings_save(void* ctx, const GjApp* app) {
     AppCtx* c = ctx;
-    gj_settings_pack(&c->cfg_buf, app->lang, app->khishti_opt, app->difficulty);
+    gj_settings_pack(&c->cfg_buf, app->lang, app->khishti_opt, app->difficulty, app->layout);
     c->pending_settings = true;
 }
 
@@ -116,13 +116,27 @@ static bool map_key(const InputEvent* event, GjKey* out) {
     return false;
 }
 
+/* The layout preference is the ONLY thing that rotates the UI: it picks the
+ * ViewPort orientation (which is also what makes the OS re-map the d-pad, so
+ * the shell never compensates for rotated keys) and the blit dimensions. */
+static void apply_orientation(ViewPort* vp, uint8_t layout) {
+    view_port_set_orientation(
+        vp,
+        layout == GjLayoutHorizontal ? ViewPortOrientationHorizontal :
+                                       ViewPortOrientationVertical);
+}
+
 /* ---- OS callbacks --------------------------------------------------- */
 static void render_callback(Canvas* canvas, void* context) {
     furi_assert(context);
     AppCtx* ctx = context;
     furi_mutex_acquire(ctx->mutex, FuriWaitForever);
-    gj_render_frame(&ctx->state->gfx, &ctx->state->app);
-    canvas_draw_xbm(canvas, 0, 0, GJ_FB_W, GJ_FB_H, ctx->state->gfx.fb);
+    GjGfx* gfx = &ctx->state->gfx;
+    gj_render_frame(gfx, &ctx->state->app);
+    /* Dimensions come from the frame we just rendered, not from the app state,
+     * so the blit can never disagree with the stride the pixels were written
+     * at — even for one frame mid-toggle. */
+    canvas_draw_xbm(canvas, 0, 0, gj_fb_w(gfx), gj_fb_h(gfx), gfx->fb);
     furi_mutex_release(ctx->mutex);
 }
 
@@ -176,10 +190,13 @@ int32_t georgian_joker_app(void* p) {
      * cannot be clobbered by the reset. */
     if(!gj_settings_read(ctx->storage, &ctx->cfg_buf)) gj_settings_defaults(&ctx->cfg_buf);
     gj_settings_unpack(&ctx->cfg_buf, &ctx->state->app.lang, &ctx->state->app.khishti_opt,
-                       &ctx->state->app.difficulty);
+                       &ctx->state->app.difficulty, &ctx->state->app.layout);
 
     ctx->view_port = view_port_alloc();
-    view_port_set_orientation(ctx->view_port, ViewPortOrientationVertical);
+    /* Boot straight into the stored layout — reading prefs above this line is
+     * what makes that possible, so keep the order. */
+    uint8_t layout_now = ctx->state->app.layout;
+    apply_orientation(ctx->view_port, layout_now);
     view_port_draw_callback_set(ctx->view_port, render_callback, ctx);
     view_port_input_callback_set(ctx->view_port, input_callback, ctx);
 
@@ -205,6 +222,7 @@ int32_t georgian_joker_app(void* p) {
             gj_shell_tick(&ctx->state->app, &io);
         }
         bool running = ctx->state->app.running;
+        uint8_t layout = ctx->state->app.layout;
         PendingIo pending = ctx->pending_io;
         ctx->pending_io = PendingNone;
         bool cfg_pending = ctx->pending_settings;
@@ -221,6 +239,16 @@ int32_t georgian_joker_app(void* p) {
         furi_mutex_release(ctx->mutex);
 
         io_flush(ctx, pending, cfg_pending); /* SD op, mutex released */
+        /* Rotate the moment the setting changes, rather than on the way out of
+         * the Settings screen: the layout row then previews itself, which is
+         * the only honest way to choose between two layouts. Polling a byte
+         * per 25ms tick costs nothing and keeps the io struct about
+         * persistence. The CRC below covers app.layout, so the repaint that
+         * draws the rotated frame is already scheduled. */
+        if(layout != layout_now) {
+            layout_now = layout;
+            apply_orientation(ctx->view_port, layout_now);
+        }
         if(!have_sig || sig != last_sig) {
             last_sig = sig;
             have_sig = true;

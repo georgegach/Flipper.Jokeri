@@ -43,6 +43,9 @@ typedef enum {
     GjStrDiffEasy,
     GjStrDiffNormal,
     GjStrDiffHard,
+    GjStrLayoutRow,
+    GjStrLayoutVert,
+    GjStrLayoutHorz,
     GjStrOkSelect,
 
     /* seats + stages (shared across screens) */
@@ -163,4 +166,6 @@ bool gj_rules_line_is_khishti(const char* line);
 /* Rules-screen line metrics. Georgian glyphs descend, so its pitch is taller
  * and fewer lines fit; both are per-language rather than fixed. */
 uint8_t gj_rules_pitch(uint8_t lang);
-uint8_t gj_rules_visible(uint8_t lang);
+/* Lines that fit on screen — layout-dependent, so the render loop and the
+ * shell's scroll clamp cannot disagree about how far the page can go. */
+uint8_t gj_rules_visible(uint8_t lang, uint8_t landscape);

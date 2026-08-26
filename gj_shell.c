@@ -16,9 +16,9 @@
 #include "gj_i18n.h"
 
 /* GjApp is heap on device (not on the 2/4KB stack), but keep it bounded so a
- * stray field can't balloon it unnoticed. Currently 340 B: +2 from GjGame's
- * khishti and +4 from the settings fields (lang, khishti_opt, difficulty,
- * settings_sel). Raised deliberately, not to silence the gate. */
+ * stray field can't balloon it unnoticed. Currently 341 B: +2 from GjGame's
+ * khishti and +5 from the settings fields (lang, khishti_opt, difficulty,
+ * layout, settings_sel). Raised deliberately, not to silence the gate. */
 _Static_assert(sizeof(GjApp) <= 344, "GjApp over its RAM budget");
 
 /* Bot pacing beat (25ms ticks): 18..29 -> ~0.45..0.75s between bot actions. */
@@ -273,18 +273,26 @@ static void trick_result_advance(GjApp* st, const GjShellIo* io) {
     }
 }
 
-/* 12 rows of the 5x7 chart fit at once; scroll past that. Mode-aware: a
- * 4-deal Quick Nines game never scrolls. */
-static uint8_t standings_maxscroll(const GjGame* g) {
-    uint8_t n = gj_mode_num_deals(g->mode);
-    return (n > 12u) ? (uint8_t)(n - 12u) : 0u;
+/* Chart rows on screen — 12 portrait, 5 landscape. gj_render.c draws exactly
+ * this many, so the clamp and the drawing cannot disagree. */
+static uint8_t standings_rows(const GjApp* st) {
+    return st->layout == GjLayoutHorizontal ? (uint8_t)GJ_STANDINGS_ROWS_L :
+                                              (uint8_t)GJ_STANDINGS_ROWS_P;
+}
+
+/* Scroll past what fits. Mode-aware: a 4-deal Quick Nines game never scrolls
+ * in portrait, though it does in landscape where only 5 rows show. */
+static uint8_t standings_maxscroll(const GjApp* st) {
+    uint8_t n = gj_mode_num_deals(st->game.mode);
+    uint8_t rows = standings_rows(st);
+    return (n > rows) ? (uint8_t)(n - rows) : 0u;
 }
 
 static void open_standings(GjApp* st, uint8_t from) {
     st->prev_phase = from;
     st->phase = PhaseStandings;
     uint8_t d = st->game.deal_index;
-    uint8_t mx = standings_maxscroll(&st->game);
+    uint8_t mx = standings_maxscroll(st);
     st->standings_scroll = (d > mx) ? mx : d;
     st->standings_xscroll = 0;
 }
@@ -303,10 +311,9 @@ static void open_settings(GjApp* st, uint8_t from) {
     st->settings_sel = 0;
 }
 
-/* Settings rows, in display order. */
-enum { SetRowLang = 0, SetRowKhishti, SetRowBots, GJ_SETTINGS_ROWS };
-
-/* Cycle the focused row's value. Each wraps, matching the trump picker. */
+/* Cycle the focused row's value. Each wraps, matching the trump picker.
+ * Every row gets an explicit case: a `default:` here once meant "and BOTS",
+ * which would have quietly swallowed this row when it was appended. */
 static void settings_step(GjApp* st, int dir) {
     switch(st->settings_sel) {
     case SetRowLang:
@@ -316,9 +323,14 @@ static void settings_step(GjApp* st, int dir) {
         st->khishti_opt = (uint8_t)((st->khishti_opt + (dir > 0 ? 1 : GJ_KHISHTI_OPT_COUNT - 1)) %
                                     GJ_KHISHTI_OPT_COUNT);
         break;
-    default:
+    case SetRowBots:
         st->difficulty =
             (uint8_t)((st->difficulty + (dir > 0 ? 1 : GJ_DIFF_COUNT - 1)) % GJ_DIFF_COUNT);
+        break;
+    case SetRowLayout:
+    default:
+        st->layout =
+            (uint8_t)((st->layout + (dir > 0 ? 1 : GJ_LAYOUT_COUNT - 1)) % GJ_LAYOUT_COUNT);
         break;
     }
 }
@@ -587,6 +599,14 @@ void gj_shell_input(GjApp* st, const GjShellIo* io, GjKey key) {
                 st->menu_sel = ring_step(st->menu_sel, count, -1);
             } else if(key == GjKeyDown) {
                 st->menu_sel = ring_step(st->menu_sel, count, +1);
+            } else if(
+                (key == GjKeyLeft || key == GjKeyRight) &&
+                st->layout == GjLayoutHorizontal) {
+                /* landscape draws the menu as two columns of `rows`; Left and
+                 * Right hop between them, wrapping through the modulus so a
+                 * short second column can never strand the cursor */
+                uint8_t rows = (uint8_t)((count + 1) / 2);
+                st->menu_sel = (uint8_t)((st->menu_sel + rows) % count);
             } else if(key == GjKeyBack) {
                 st->running = false;
             }
@@ -709,16 +729,34 @@ void gj_shell_input(GjApp* st, const GjShellIo* io, GjKey key) {
         }
         break;
 
-    case PhaseStandings:
+    case PhaseStandings: {
+        /* Landscape shows all four seat columns, so there is nothing to pan
+         * to: Left/Right page the deals instead, which is the axis that got
+         * SHORTER (5 rows against portrait's 12) and so needs the help. */
+        bool land = (st->layout == GjLayoutHorizontal);
+        uint8_t mx = standings_maxscroll(st);
+        if(land) st->standings_xscroll = 0;
         if(is_press) {
             if(key == GjKeyUp) {
                 if(st->standings_scroll > 0) st->standings_scroll--;
             } else if(key == GjKeyDown) {
-                if(st->standings_scroll < standings_maxscroll(&st->game)) st->standings_scroll++;
+                if(st->standings_scroll < mx) st->standings_scroll++;
             } else if(key == GjKeyLeft) {
-                if(st->standings_xscroll > 0) st->standings_xscroll--;
+                if(land) {
+                    uint8_t page = standings_rows(st);
+                    st->standings_scroll =
+                        (st->standings_scroll > page) ? (uint8_t)(st->standings_scroll - page) : 0u;
+                } else if(st->standings_xscroll > 0) {
+                    st->standings_xscroll--;
+                }
             } else if(key == GjKeyRight) {
-                if(st->standings_xscroll < GJ_STANDINGS_MAXXSCROLL) st->standings_xscroll++;
+                if(land) {
+                    uint8_t page = standings_rows(st);
+                    uint8_t nx = (uint8_t)(st->standings_scroll + page);
+                    st->standings_scroll = (nx > mx) ? mx : nx;
+                } else if(st->standings_xscroll < GJ_STANDINGS_MAXXSCROLL) {
+                    st->standings_xscroll++;
+                }
             } else if(key == GjKeyBack) {
                 st->phase = st->prev_phase;
             }
@@ -726,6 +764,7 @@ void gj_shell_input(GjApp* st, const GjShellIo* io, GjKey key) {
             st->phase = st->prev_phase;
         }
         break;
+    }
 
     case PhasePause:
         if(is_press) {
@@ -756,7 +795,7 @@ void gj_shell_input(GjApp* st, const GjShellIo* io, GjKey key) {
                 if(st->rules_scroll > 0) st->rules_scroll--;
             } else if(key == GjKeyDown) {
                 uint16_t total = gj_rules_lines(st->lang);
-                uint8_t vis = gj_rules_visible(st->lang);
+                uint8_t vis = gj_rules_visible(st->lang, st->layout);
                 uint8_t mx = (total > vis) ? (uint8_t)(total - vis) : 0u;
                 if(st->rules_scroll < mx) st->rules_scroll++;
             } else if(key == GjKeyBack) {
@@ -770,9 +809,9 @@ void gj_shell_input(GjApp* st, const GjShellIo* io, GjKey key) {
     case PhaseSettings:
         if(is_press) {
             if(key == GjKeyUp) {
-                st->settings_sel = ring_step(st->settings_sel, GJ_SETTINGS_ROWS, -1);
+                st->settings_sel = ring_step(st->settings_sel, GJ_SETTINGS_ROW_COUNT, -1);
             } else if(key == GjKeyDown) {
-                st->settings_sel = ring_step(st->settings_sel, GJ_SETTINGS_ROWS, +1);
+                st->settings_sel = ring_step(st->settings_sel, GJ_SETTINGS_ROW_COUNT, +1);
             } else if(key == GjKeyLeft) {
                 settings_step(st, -1);
             } else if(key == GjKeyRight) {

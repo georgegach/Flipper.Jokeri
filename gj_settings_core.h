@@ -25,6 +25,12 @@ enum { GjKhishti200 = 0, GjKhishti500 = 1 };
 enum { GjDiffEasy = 0, GjDiffNormal = 1, GjDiffHard = 2 };
 #define GJ_DIFF_COUNT 3
 
+/* Screen layout. Vertical is 0 so an old 16-byte file — whose reserved[] bytes
+ * were zeroed by pack — reads back as Vertical, which is what it was written
+ * on. That is why this setting cost no version bump: see the note below. */
+enum { GjLayoutVertical = 0, GjLayoutHorizontal = 1 };
+#define GJ_LAYOUT_COUNT 2
+
 typedef struct {
     uint32_t magic;
     uint16_t version;
@@ -32,17 +38,37 @@ typedef struct {
     uint8_t lang; /* GjLang* */
     uint8_t khishti; /* GjKhishti* */
     uint8_t difficulty; /* GjDiff* */
-    uint8_t reserved[5]; /* zeroed by pack -> byte-deterministic */
+    uint8_t layout; /* GjLayout* — took a reserved byte, see below */
+    uint8_t reserved[4]; /* zeroed by pack -> byte-deterministic */
 } GjSettings;
 
-/* Defaults for a first run or a rejected file: English, -200, Normal. */
+/* WHY `layout` DID NOT BUMP GJ_SETTINGS_VERSION: it was carved out of
+ * reserved[], which pack has always zeroed and the CRC has always covered. A
+ * file written by the pre-layout build is therefore byte-identical to one
+ * written by this build with layout = GjLayoutVertical — same size, same CRC,
+ * still valid. Bumping the version would have been correct-but-costly: exact-
+ * match validation has no migration path, so every existing player would have
+ * silently lost their language and difficulty. Spend a reserved byte instead
+ * whenever the new field's zero value is the right answer for old files. */
+
+/* Defaults for a first run or a rejected file: English, -200, Normal,
+ * Vertical. */
 void gj_settings_defaults(GjSettings* s);
 
 /* Pack/validate/unpack. gj_settings_pack zeroes the struct first so padding
  * and reserved[] never carry junk into the CRC. */
-void gj_settings_pack(GjSettings* out, uint8_t lang, uint8_t khishti, uint8_t difficulty);
+void gj_settings_pack(
+    GjSettings* out,
+    uint8_t lang,
+    uint8_t khishti,
+    uint8_t difficulty,
+    uint8_t layout);
 bool gj_settings_validate(const GjSettings* s);
-/* Reads a validated blob into the three fields, clamping each to its range so
+/* Reads a validated blob into the four fields, clamping each to its range so
  * a corrupt-but-CRC-valid file cannot put the UI in an impossible state. */
-void gj_settings_unpack(const GjSettings* s, uint8_t* lang, uint8_t* khishti,
-                        uint8_t* difficulty);
+void gj_settings_unpack(
+    const GjSettings* s,
+    uint8_t* lang,
+    uint8_t* khishti,
+    uint8_t* difficulty,
+    uint8_t* layout);
