@@ -549,11 +549,12 @@ static void minicard(
 static const uint8_t SLOT_X[4] = {27, 12, 27, 42};
 static const uint8_t SLOT_Y[4] = {65, 48, 35, 48};
 
-/* Dealer mark: a 6x1 rule centred under that seat's t:b. It replaces a 2x2
+/* Dealer mark: a 5x1 rule centred under that seat's t:b. It replaces a 2x2
  * dot — at this size the dot sat next to a ':' and a '-' and read as more
- * punctuation, where an underline reads as a mark ON the pair. 3x the dot's
- * width, and thin, so it never competes with the digits above it. */
-#define DEALER_MARK_W 6
+ * punctuation, where an underline reads as a mark ON the pair. Odd width, so
+ * it centres exactly on the column; thin, so it never competes with the
+ * digits; and two clear rows under the text rather than one. */
+#define DEALER_MARK_W 5
 static void dealer_mark(GjGfx* g, int16_t cx, int16_t y, uint8_t color) {
     gj_gfx_hline(g, (int16_t)(cx - DEALER_MARK_W / 2), y, DEALER_MARK_W, color);
 }
@@ -586,7 +587,7 @@ static void draw_top_bar(GjGfx* g, const GjApp* app) {
         if(h > lblh) lblh = h;
     }
     int16_t pair_y = (int16_t)(1 + lblh + 2);
-    int16_t mark_y = (int16_t)(pair_y + 8);
+    int16_t mark_y = (int16_t)(pair_y + 9);
     for(uint8_t i = 0; i < 3; i++) {
         uint8_t s = SEAT[i];
         int16_t cx = (int16_t)COL[i];
@@ -605,7 +606,14 @@ static void draw_top_bar(GjGfx* g, const GjApp* app) {
 /* bottom info row: bid balance (left), the trump (centre) and your plain
  * taken:bid (right). The trump sits centred because it is the one fact every
  * card in the hand below is judged against — the row's two number blocks
- * flank it. */
+ * flank it.
+ *
+ * INFO_Y is 93, not 94, purely so the dealer underline can sit two rows under
+ * the text like the top bar's does and still stop at y102: y103 is the top
+ * row of a LIFTED hand card, and the hand draws after this, so a mark there
+ * would vanish whenever the last card was selected. */
+#define INFO_Y 93
+#define INFO_MARK_Y 102
 static void draw_bottom_row(GjGfx* g, const GjApp* app) {
     const GjGame* gm = &app->game;
 
@@ -619,9 +627,9 @@ static void draw_bottom_row(GjGfx* g, const GjApp* app) {
         for(uint8_t s = 0; s < GJ_PLAYERS; s++) sum += gm->bids[s];
         int d = sum - (int)gm->cards_this_deal;
         if(d != 0) {
-            gj_gfx_xbm(g, 2, 94, 5, 7, (d > 0) ? up5 : dn5, 1);
+            gj_gfx_xbm(g, 2, INFO_Y, 5, 7, (d > 0) ? up5 : dn5, 1);
             char num[6];
-            t7_text(g, 9, 94, u2s((uint16_t)(d > 0 ? d : -d), num), 1);
+            t7_text(g, 9, INFO_Y, u2s((uint16_t)(d > 0 ? d : -d), num), 1);
         }
     }
 
@@ -642,12 +650,12 @@ static void draw_bottom_row(GjGfx* g, const GjApp* app) {
     if(tw) {
         int16_t tx0 = (int16_t)(32 - tw / 2);
         if(gm->trump_suit == GJ_NO_TRUMP) {
-            gj_gfx_xbm(g, tx0, 94, 7, 7, nt7, 1);
+            gj_gfx_xbm(g, tx0, INFO_Y, 7, 7, nt7, 1);
         } else if(r) {
-            t7_text(g, tx0, 94, r, 1);
-            pip7(g, (int16_t)(tx0 + t7_width(r) + 2), 94, gm->trump_card, 1);
+            t7_text(g, tx0, INFO_Y, r, 1);
+            pip7(g, (int16_t)(tx0 + t7_width(r) + 2), INFO_Y, gm->trump_card, 1);
         } else {
-            pip7(g, tx0, 94, (GjCard)(gm->trump_suit * 9 + 3), 1);
+            pip7(g, tx0, INFO_Y, (GjCard)(gm->trump_suit * 9 + 3), 1);
         }
     }
 
@@ -657,8 +665,8 @@ static void draw_bottom_row(GjGfx* g, const GjApp* app) {
     bt_pair(own, gm->bids[0], gm->tricks_taken[0]);
     int16_t ow = (int16_t)t7_width(own);
     int16_t tx = (int16_t)(61 - ow);
-    t7_text(g, tx, 94, own, 1);
-    if(gm->dealer == 0) dealer_mark(g, (int16_t)(tx + ow / 2), 102, 1);
+    t7_text(g, tx, INFO_Y, own, 1);
+    if(gm->dealer == 0) dealer_mark(g, (int16_t)(tx + ow / 2), INFO_MARK_Y, 1);
 }
 
 static void draw_hand(GjGfx* g, const GjApp* app) {
@@ -734,29 +742,37 @@ static void draw_hand(GjGfx* g, const GjApp* app) {
  * lifted card marking where focus is. Up moves to the number and a
  * ◄ number ► picker replaces the hint with "down to count". Blind deals
  * have no hand to read and so open on the number. */
+/* Top row of the picker block. It used to be 22, which hung the whole thing
+ * high: the block runs 53 rows, the free band between the status bar and the
+ * info row is 20..92, and starting at 22 left 18 rows of air underneath and 2
+ * above. At 32 it spans 32..84 — the same band the trick cross occupies, so
+ * the table's centre of gravity does not jump the moment bidding ends. */
+#define BID_Y 32
+
 static void draw_bid_inline(GjGfx* g, const GjApp* app) {
     const GjGame* gm = &app->game;
     if(gm->turn != 0 || gm->bids[0] >= 0) { /* a bot is bidding */
-        t7_center(g, 32, 46, gj_str(app->lang, GjStrBidding), 1);
+        t7_center(g, 32, BID_Y + 24, gj_str(app->lang, GjStrBidding), 1);
         return;
     }
     bool focus_bid = (app->bid_focus == 0);
-    if(!focus_bid) tri(g, 30, 22, 2, 1); /* up = back to the picker */
-    t7_center(g, 32, 30, gj_str(app->lang, GjStrYourBid), 1);
+    if(!focus_bid) tri(g, 30, BID_Y, 2, 1); /* up = back to the picker */
+    t7_center(g, 32, BID_Y + 8, gj_str(app->lang, GjStrYourBid), 1);
 
     char num[6];
     i2s(app->bid_sel, num);
     bool legal = gj_bid_legal(gm, 0, (uint8_t)app->bid_sel);
     int16_t bw = (int16_t)gj_gfx_text_big_width(num);
     int16_t bx = (int16_t)(32 - bw / 2);
-    gj_gfx_text_big(g, bx, 42, num, 1);
-    if(!legal) gj_gfx_hline(g, (int16_t)(bx - 3), 47, (int16_t)(bw + 6), 1);
+    gj_gfx_text_big(g, bx, BID_Y + 20, num, 1);
+    if(!legal) gj_gfx_hline(g, (int16_t)(bx - 3), BID_Y + 25, (int16_t)(bw + 6), 1);
     if(focus_bid) { /* ◄ ► only while the picker holds focus */
-        tri(g, 15, 45, 1, 1);
-        tri(g, 46, 45, 0, 1);
+        tri(g, 15, BID_Y + 23, 1, 1);
+        tri(g, 46, BID_Y + 23, 0, 1);
     }
-    if(!legal) t7_center(g, 32, 56, gj_str(app->lang, GjStrKhishtiWarn), 1); /* forbidden bid warning */
-    if(focus_bid) tri(g, 30, 70, 3, 1); /* down = count your hand */
+    /* forbidden bid warning */
+    if(!legal) t7_center(g, 32, BID_Y + 34, gj_str(app->lang, GjStrKhishtiWarn), 1);
+    if(focus_bid) tri(g, 30, BID_Y + 48, 3, 1); /* down = count your hand */
 }
 
 static void draw_play_base(GjGfx* g, const GjApp* app) {
