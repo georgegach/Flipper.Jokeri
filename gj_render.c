@@ -1421,7 +1421,12 @@ GJ_SCREEN void draw_trump_select(GjGfx* g, const GjApp* app) {
         for(uint8_t i = 0; i < shown; i++)
             minicard(g, app->lang, (int16_t)(8 + dx + i * 16), land ? 16 : 26,
                      gm->hands[0].cards[i], GjPlayNormal, false);
-        t7_center(g, cx, land ? 39 : 50, gj_str(app->lang, GjStrPeek), 1);
+        /* Portrait labels the three face-up cards; landscape does not. The
+         * label sat at y39..45 and the selected-suit frame starts at y43, so
+         * they collided — and three of your own cards under "PICK TRUMP",
+         * above a row of suits, already say "here is a peek, now choose".
+         * Deleting the word beat finding it a new home. */
+        if(!land) t7_center(g, cx, 50, gj_str(app->lang, GjStrPeek), 1);
     } else {
         /* same ka trap as draw_stage_intro: a Mkhedruli seat name is up to 15
          * bytes, so seat + " PICKS" needs 22, not 20. */
