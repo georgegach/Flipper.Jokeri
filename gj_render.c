@@ -549,6 +549,15 @@ static void minicard(
 static const uint8_t SLOT_X[4] = {27, 12, 27, 42};
 static const uint8_t SLOT_Y[4] = {65, 48, 35, 48};
 
+/* Dealer mark: a 6x1 rule centred under that seat's t:b. It replaces a 2x2
+ * dot — at this size the dot sat next to a ':' and a '-' and read as more
+ * punctuation, where an underline reads as a mark ON the pair. 3x the dot's
+ * width, and thin, so it never competes with the digits above it. */
+#define DEALER_MARK_W 6
+static void dealer_mark(GjGfx* g, int16_t cx, int16_t y, uint8_t color) {
+    gj_gfx_hline(g, (int16_t)(cx - DEALER_MARK_W / 2), y, DEALER_MARK_W, color);
+}
+
 /* append "taken:bid" (bid '-' when unbid) to buf */
 static void bt_pair(char* buf, int8_t bid, uint8_t taken) {
     char num[6];
@@ -561,7 +570,7 @@ static void bt_pair(char* buf, int8_t bid, uint8_t taken) {
 }
 
 /* top status bar (no rule underneath): opponents W/N/E as 5x7 labels with
- * their taken:bid pair beneath, and a 2px dealer dot centred under the pair. */
+ * their taken:bid pair beneath, and the dealer underline under the pair. */
 static void draw_top_bar(GjGfx* g, const GjApp* app) {
     const GjGame* gm = &app->game;
     static const uint8_t COL[3] = {12, 32, 52}; /* column centres for W,N,E */
@@ -577,7 +586,7 @@ static void draw_top_bar(GjGfx* g, const GjApp* app) {
         if(h > lblh) lblh = h;
     }
     int16_t pair_y = (int16_t)(1 + lblh + 2);
-    int16_t dot_y = (int16_t)(pair_y + 8);
+    int16_t mark_y = (int16_t)(pair_y + 8);
     for(uint8_t i = 0; i < 3; i++) {
         uint8_t s = SEAT[i];
         int16_t cx = (int16_t)COL[i];
@@ -589,7 +598,7 @@ static void draw_top_bar(GjGfx* g, const GjApp* app) {
         pair[0] = 0;
         bt_pair(pair, gm->bids[s], gm->tricks_taken[s]);
         t7_center(g, cx, pair_y, pair, 1);
-        if(gm->dealer == s) gj_gfx_rect(g, (int16_t)(cx - 1), dot_y, 2, 2, 1);
+        if(gm->dealer == s) dealer_mark(g, cx, mark_y, 1);
     }
 }
 
@@ -642,14 +651,14 @@ static void draw_bottom_row(GjGfx* g, const GjApp* app) {
         }
     }
 
-    /* right: your taken:bid, dealer dot centred beneath it when you deal */
+    /* right: your taken:bid, dealer underline centred beneath it when you deal */
     char own[8];
     own[0] = 0;
     bt_pair(own, gm->bids[0], gm->tricks_taken[0]);
     int16_t ow = (int16_t)t7_width(own);
     int16_t tx = (int16_t)(61 - ow);
     t7_text(g, tx, 94, own, 1);
-    if(gm->dealer == 0) gj_gfx_rect(g, (int16_t)(tx + ow / 2 - 1), 102, 2, 2, 1);
+    if(gm->dealer == 0) dealer_mark(g, (int16_t)(tx + ow / 2), 102, 1);
 }
 
 static void draw_hand(GjGfx* g, const GjApp* app) {
