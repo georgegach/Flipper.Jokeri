@@ -115,7 +115,7 @@ static const char* const EN[GjStrCount] = {
     [GjStrInitBlind] = "B",
 
     /* about */
-    [GjStrVersion] = "V0.6", /* keep in step with application.fam fap_version */
+    [GjStrVersion] = "V0.7", /* keep in step with application.fam fap_version */
     [GjStrSelect] = "SELECT",
     [GjStrPlay] = "PLAY",
     [GjStrBack] = "BACK",
@@ -248,7 +248,7 @@ static const char* const KA[GjStrCount] = {
     [GjStrInitBlind] = "ბ",
 
     /* about */
-    [GjStrVersion] = "V0.6", /* keep in step with application.fam fap_version */
+    [GjStrVersion] = "V0.7", /* keep in step with application.fam fap_version */
     [GjStrSelect] = "არჩევა",
     [GjStrPlay] = "თამაში",
     [GjStrBack] = "უკან",

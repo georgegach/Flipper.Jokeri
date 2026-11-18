@@ -6,6 +6,28 @@ No backticks, code blocks, images, quotes, rules or level-3 headers below this l
 catalog runs this file through a Markdown filter that allows only headers 1–2, bold,
 italic, lists and links, and *raises* on anything else rather than stripping it.
 
+## 0.7 — a landscape layout, the bid gap on the table, a real 1
+
+First version submitted to the Flipper Apps Catalog.
+
+- **Landscape layout.** Settings has a new LAYOUT row: vertical, the default and
+  unchanged, or horizontal. Horizontal is laid out for the wide screen rather than turned
+  sideways: four seat columns with each played card under its seat, the trump and bid
+  balance on a rail at the right, and your whole hand along the bottom, never scrolled.
+  The menu is one scrolling column, the bid picker sits on a single line, and the
+  standings show all four seats at once, with Left and Right paging through the deals.
+  The row previews itself as you change it, and your settings and saved pulka carry over.
+- **The trump sits in the middle of the info row**, and once bidding closes the left of
+  the row shows the deal's gap: an up arrow and N when the table bid N more tricks than
+  were dealt, a down arrow when it bid fewer.
+- **The dealer is underlined** instead of dotted. A short rule under their score pair
+  reads as a mark on it rather than as punctuation.
+- **A 1 looks like a 1.** It was drawn as a bare bar everywhere, a shape sized for the 10
+  on a card face. Bids, deal numbers and scores now show a proper numeral; only card faces
+  and an overfull standings cell keep the bar.
+- **Two Georgian-screen memory bugs fixed.** The deal intro and the trump-picker caption
+  wrote past their buffers with Georgian seat names.
+
 ## 0.6 — bid from your hand, the last English on a Georgian screen, a calmer popup
 
 - **The play-screen status bar is translated.** It read D07/24 and B:2 T:1 in every
@@ -42,10 +64,9 @@ italic, lists and links, and *raises* on anything else rather than stripping it.
   first lands on the last, on the main menu, the pause menu, Settings and the Joker popup.
   The rules text and the standings table still stop at their ends, on purpose.
 
-## 0.4 — first catalog release
+## 0.4 — app id jokeri, its own repository
 
-First version published to the Flipper Apps Catalog. Everything below shipped before
-listing; 0.1–0.3 were never submitted.
+Readied for the Flipper Apps Catalog; 0.1–0.6 were never submitted.
 
 - **App id is now jokeri.** App data moves from /ext/apps_data/georgianjoker/ to
   /ext/apps_data/jokeri/. Any old save was already invalidated by the save-format bump in

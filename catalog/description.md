@@ -25,6 +25,7 @@ Features:
 - Three heuristic opponents, at Easy, Normal or Hard
 - Save and resume — a pulka survives your pocket
 - Running standings, viewable mid-game
+- Portrait or landscape: hold the Flipper upright or play the table sideways
 - Khishti at the standard −200 or a harsher −500
 - **Full Georgian interface**, card table included, in a hand-drawn Mtavruli pixel face
 
