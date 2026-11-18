@@ -11,16 +11,25 @@ canvas, the capture must stay in the Flipper's landscape framebuffer — the app
 will appear rotated in the listing, as it does for every vertical Flipper app.
 `tools/catalog_preflight.py` enforces all of this on every push.
 
-Filenames are referenced from the catalog manifest, so keep them stable:
+These were taken over Bluetooth instead (RPC screen stream from the Mac, 1-bit frame scaled
+x4 nearest-neighbour, black on Flipper orange). The bundler thresholds every pixel to
+black/transparent after its own nearest downscale, so the bundled result is identical to a
+qFlipper capture of the same frame.
+
+Filenames are referenced from the catalog manifest, so keep them stable. Manifest order is
+listing order, and the **first image is the catalog card thumbnail**: keep a landscape shot
+first. Portrait shots appear rotated (see above); the set carries both on purpose.
 
 | File | Screen | How to get there |
 |---|---|---|
-| `menu.png` | Main menu | Launch the app |
-| `bidding.png` | Bid picker mid-deal | New Game → play to your bid turn |
-| `trick.png` | The trick cross, cards down | Play a card and let two bots follow |
-| `standings.png` | Score table | Press **Up** during a deal |
-| `settings.png` | Settings, set to `KA` | Menu → SETTINGS → LANG → `KA` |
-| `georgian.png` | The card table in Georgian | With `LANG=KA`, start a game |
+| `table-landscape.png` | Card table, Joker winning the trick (cover) | Settings → LAYOUT → HORZ; play a deal |
+| `joker-landscape.png` | Joker popup: take / under | Lead or follow with a Joker |
+| `bidding-portrait.png` | Bid picker over the hand | LAYOUT VERT; play to your bid turn, **Up** to the picker |
+| `table-portrait.png` | Trick cross, three cards down | Your turn to follow |
+| `standings-landscape.png` | Score table after three deals | **Up** on the deal result |
+| `georgian-landscape.png` | Bid picker over the hand, in Georgian | Settings → LANG → KA, LAYOUT HORZ; your bid turn |
+| `georgian-portrait.png` | Card table in Georgian, upright | LANG KA, LAYOUT VERT |
+| `settings-landscape.png` | Settings page | Menu → SETTINGS |
 
-The last two are the differentiator worth showing — a fully Georgian card table is the
+The Georgian pair is the differentiator worth showing: a fully Georgian card table is the
 thing no other Flipper card game has.
