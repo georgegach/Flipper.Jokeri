@@ -25,6 +25,9 @@ First version submitted to the Flipper Apps Catalog.
 - **A 1 looks like a 1.** It was drawn as a bare bar everywhere, a shape sized for the 10
   on a card face. Bids, deal numbers and scores now show a proper numeral; only card faces
   and an overfull standings cell keep the bar.
+- **The last English on Georgian screens is translated.** The Joker popup (ჯოკერი: ფერი,
+  კოზირი, ქვეშ, აღება), the suit picker, the pause and leave popups, the deal intro, the
+  trump caption and your bid before the lead were still printed in English.
 - **Two Georgian-screen memory bugs fixed.** The deal intro and the trump-picker caption
   wrote past their buffers with Georgian seat names.
 

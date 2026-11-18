@@ -773,7 +773,7 @@ static void draw_hand(GjGfx* g, const GjApp* app) {
             gj_gfx_rframe(g, x, base_y, CARD_W, CARD_H, 1);
             hatch(g, (int16_t)(x + 1), (int16_t)(base_y + 1), 9, 18);
         }
-        int16_t bw = (int16_t)(t7_width("BLIND") + 8);
+        int16_t bw = (int16_t)(t7_width(gj_str(app->lang, GjStrBlind)) + 8);
         int16_t bx = (int16_t)((W - bw) / 2);
         gj_gfx_rrect(g, bx, (int16_t)(base_y + 4), bw, 11, 1);
         t7_center(g, (int16_t)(W / 2), (int16_t)(base_y + 6), gj_str(app->lang, GjStrBlind), 0);
@@ -983,12 +983,12 @@ static void draw_joker_menu(GjGfx* g, const GjApp* app) {
     const char* rows[3];
     uint8_t n = 0;
     if(leading) {
-        rows[n++] = "SUIT"; /* demand named suit */
-        if(gm->trump_suit < 4) rows[n++] = "TRUMP"; /* demand highest trump */
-        rows[n++] = "UNDER"; /* underplay */
+        rows[n++] = gj_str(app->lang, GjStrSuit); /* demand named suit */
+        if(gm->trump_suit < 4) rows[n++] = gj_str(app->lang, GjStrTrump); /* highest trump */
+        rows[n++] = gj_str(app->lang, GjStrUnder); /* underplay */
     } else {
-        rows[n++] = "TAKE";
-        rows[n++] = "UNDER";
+        rows[n++] = gj_str(app->lang, GjStrTake);
+        rows[n++] = gj_str(app->lang, GjStrUnder);
     }
     int16_t h = (int16_t)(14 + n * 12);
     /* The popup is the same 58px card in both layouts — it already fits the
@@ -996,7 +996,7 @@ static void draw_joker_menu(GjGfx* g, const GjApp* app) {
      * it wider, keeping the overlay identical to the one players know. */
     int16_t mx = g->landscape ? (int16_t)((gj_fb_w(g) - 58) / 2) : 3;
     int16_t y = g->landscape ? (int16_t)((gj_fb_h(g) - h) / 2) : (int16_t)(50 - h / 2);
-    modal(g, mx, y, 58, h, "JOKER");
+    modal(g, mx, y, 58, h, gj_str(app->lang, GjStrJoker));
     for(uint8_t i = 0; i < n; i++) {
         int16_t ry = (int16_t)(y + 12 + i * 12);
         if(app->joker_sel == i) {
@@ -1011,7 +1011,7 @@ static void draw_joker_menu(GjGfx* g, const GjApp* app) {
 static void draw_suit_picker(GjGfx* g, const GjApp* app) {
     int16_t mx = g->landscape ? (int16_t)((gj_fb_w(g) - 56) / 2) : 4;
     int16_t my = g->landscape ? (int16_t)((gj_fb_h(g) - 30) / 2) : 44;
-    modal(g, mx, my, 56, 30, "SUIT?");
+    modal(g, mx, my, 56, 30, gj_str(app->lang, GjStrSuitQ));
     uint8_t sel = app->suit_sel & 3u;
     for(uint8_t i = 0; i < 4; i++) {
         int16_t px = (int16_t)(mx + 6 + i * 12);
@@ -1333,7 +1333,7 @@ GJ_SCREEN void draw_stage_intro(GjGfx* g, const GjApp* app) {
      * name is 5 + up to 15 bytes (5 letters x 3), and scat has no bound. */
     char buf[32], num[6];
     buf[0] = 0;
-    scat(buf, "DEAL ");
+    scat(buf, gj_str(app->lang, GjStrDeal));
     scat(buf, u2s((uint16_t)(gm->deal_index + 1), num));
     scat(buf, "/");
     scat(buf, u2s(gj_mode_num_deals(gm->mode), num));
@@ -1348,10 +1348,10 @@ GJ_SCREEN void draw_stage_intro(GjGfx* g, const GjApp* app) {
     draw_stage_rail(g, land ? 26 : 58, stage);
     buf[0] = 0;
     scat(buf, u2s(gj_deal_cards_for(gm->mode, gm->deal_index), num));
-    scat(buf, " CARDS");
+    scat(buf, gj_str(app->lang, GjStrCards));
     t7_center(g, cx, land ? 33 : 72, buf, 1);
     buf[0] = 0;
-    scat(buf, "DEAL ");
+    scat(buf, gj_str(app->lang, GjStrDeal));
     scat(buf, seat_name(app->lang, gm->dealer));
     t7_center(g, cx, land ? 43 : 84, buf, 1);
     if(land) {
@@ -1392,9 +1392,9 @@ GJ_SCREEN void draw_trump_reveal(GjGfx* g, const GjApp* app) {
             pip7(g, (int16_t)(cx - 4), (int16_t)(card_y + 12), (GjCard)(gm->trump_suit * 9 + 3), 1);
         }
         if(gj_deal_trump_is_named(gm->mode, gm->deal_index)) {
-            char b[20];
+            char b[32];
             b[0] = 0;
-            scat(b, "BY ");
+            scat(b, gj_str(app->lang, GjStrBy));
             scat(b, seat_name(app->lang, gj_trump_namer(gm)));
             t7_center(g, cx, cap_y, b, 1);
         } else {
@@ -1433,7 +1433,7 @@ GJ_SCREEN void draw_trump_select(GjGfx* g, const GjApp* app) {
         char b[32];
         b[0] = 0;
         scat(b, seat_name(app->lang, namer));
-        scat(b, " PICKS");
+        scat(b, gj_str(app->lang, GjStrPicks));
         t7_center(g, cx, land ? 24 : 34, b, 1);
     }
     /* picker: 4 suits + NT, selected framed */
@@ -1703,7 +1703,7 @@ static void draw_pause_menu(GjGfx* g, const GjApp* app) {
     const bool land = g->landscape;
     int16_t mx = land ? (int16_t)((gj_fb_w(g) - 96) / 2) : 8;
     int16_t my = land ? 8 : 30;
-    modal(g, mx, my, land ? 96 : 48, land ? 48 : 64, "PAUSED");
+    modal(g, mx, my, land ? 96 : 48, land ? 48 : 64, gj_str(app->lang, GjStrPaused));
     for(uint8_t i = 0; i < 4; i++) {
         int16_t rx = (int16_t)(mx + 2 + (land ? (i / 2) * 46 : 0));
         int16_t ry = (int16_t)(my + 13 + (land ? (i % 2) : i) * 12);
@@ -1719,7 +1719,7 @@ static void draw_pause_menu(GjGfx* g, const GjApp* app) {
 static void draw_confirm(GjGfx* g, const GjApp* app) {
     int16_t mx = g->landscape ? (int16_t)((gj_fb_w(g) - 56) / 2) : 4;
     int16_t my = g->landscape ? (int16_t)((gj_fb_h(g) - 40) / 2) : 44;
-    modal(g, mx, my, 56, 40, "LEAVE?");
+    modal(g, mx, my, 56, 40, gj_str(app->lang, GjStrLeaveQ));
     int16_t ty = (int16_t)(my + 13), by = (int16_t)(my + 26);
     t7_center(g, (int16_t)(mx + 28), ty, gj_str(app->lang, GjStrSaved), 1);
     if(app->confirm_sel == 0) {
@@ -1755,9 +1755,9 @@ GJ_SCREEN void draw_lead_intro(GjGfx* g, const GjApp* app) {
         tri(g, 30, 72, dir, 1);
     }
     /* your bid for the deal */
-    char buf[12], num[6];
+    char buf[32], num[6]; /* ka "ფსონი " is 16 bytes */
     buf[0] = 0;
-    scat(buf, "BID ");
+    scat(buf, gj_str(app->lang, GjStrBid));
     if(gm->bids[0] < 0)
         scat(buf, "-");
     else
