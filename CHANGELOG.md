@@ -28,6 +28,9 @@ First version submitted to the Flipper Apps Catalog.
 - **The last English on Georgian screens is translated.** The Joker popup (ჯოკერი: ფერი,
   კოზირი, ქვეშ, აღება), the suit picker, the pause and leave popups, the deal intro, the
   trump caption and your bid before the lead were still printed in English.
+- **Georgian headings show letters, not black boxes.** The stage name on the deal intro
+  (ზრდა, ცხრა, კლება, ბრმა) and the seat name on "… starts" drew a row of solid squares;
+  they now print in Georgian capitals.
 - **Two Georgian-screen memory bugs fixed.** The deal intro and the trump-picker caption
   wrote past their buffers with Georgian seat names.
 

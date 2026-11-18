@@ -350,6 +350,45 @@ static void t7_center(GjGfx* g, int16_t cx, int16_t y, const char* s, uint8_t co
     t7_text(g, (int16_t)(cx - t7_width(s) / 2), y, s, color);
 }
 
+/* 2x heading. The big face (gj_gfx_text_big) is a 3x5 ASCII-only font that
+ * walks bytes, so a Georgian string drew one tofu box per UTF-8 byte (12 for
+ * "ცხრა"). Pure ASCII keeps that face, pixel for pixel; anything else is T7
+ * (Mtavruli) doubled: 14 rows against 10, so it starts 2 higher to share the
+ * big face's midline. */
+static bool is_ascii(const char* s) {
+    for(; *s; s++)
+        if((unsigned char)*s >= 0x80u) return false;
+    return true;
+}
+
+static uint16_t heading_width(const char* s) {
+    if(is_ascii(s)) return gj_gfx_text_big_width(s);
+    uint16_t w = t7_width(s);
+    return (uint16_t)(w * 2u);
+}
+
+static void heading(GjGfx* g, int16_t cx, int16_t y, const char* s) {
+    int16_t x = (int16_t)(cx - heading_width(s) / 2);
+    if(is_ascii(s)) {
+        gj_gfx_text_big(g, x, y, s, 1);
+        return;
+    }
+    y = (int16_t)(y - 2);
+    while(*s) {
+        const T7Glyph* gl = t7_find(utf8_next(&s));
+        if(!gl) {
+            x = (int16_t)(x + 8);
+            continue;
+        }
+        for(int j = 0; j < gl->h; j++)
+            for(int c = 0; c < gl->w; c++)
+                if((gl->rows[j] >> c) & 1u)
+                    gj_gfx_rect(
+                        g, (int16_t)(x + c * 2), (int16_t)(y + (gl->top + j) * 2), 2, 2, 1);
+        x = (int16_t)(x + (gl->w + 1) * 2);
+    }
+}
+
 /* Right-align s so its ink ends at right-1, and keep it out of x_min.
  *
  * Only the Chart needs this. Its row is a deal label plus two right-aligned
@@ -1343,8 +1382,7 @@ GJ_SCREEN void draw_stage_intro(GjGfx* g, const GjApp* app) {
     const int16_t cx = (int16_t)(gj_fb_w(g) / 2);
     t7_center(g, cx, land ? 2 : 14, buf, 1);
     const char* sname = gj_str(app->lang, stage_str_id(stage));
-    int16_t tw = (int16_t)gj_gfx_text_big_width(sname);
-    gj_gfx_text_big(g, (int16_t)(cx - tw / 2), land ? 12 : 34, sname, 1);
+    heading(g, cx, land ? 12 : 34, sname);
     draw_stage_rail(g, land ? 26 : 58, stage);
     buf[0] = 0;
     scat(buf, u2s(gj_deal_cards_for(gm->mode, gm->deal_index), num));
@@ -1742,8 +1780,7 @@ GJ_SCREEN void draw_lead_intro(GjGfx* g, const GjApp* app) {
     const int16_t cx = (int16_t)(gj_fb_w(g) / 2);
     const char* nm = seat_name(app->lang, ld);
     const char* verb = gj_str(app->lang, (ld == 0) ? GjStrStart : GjStrStarts);
-    int16_t nw = (int16_t)gj_gfx_text_big_width(nm);
-    gj_gfx_text_big(g, (int16_t)(cx - nw / 2), land ? 8 : 38, nm, 1);
+    heading(g, cx, land ? 8 : 38, nm);
     t7_center(g, cx, land ? 22 : 60, verb, 1);
     /* Turn triangle pointing at that seat's table position. Portrait points
      * around the compass cross; landscape has no cross, so it points DOWN at
