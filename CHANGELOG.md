@@ -16,6 +16,8 @@ First version submitted to the Flipper Apps Catalog.
   balance on a rail at the right, and your whole hand along the bottom, never scrolled.
   The menu is one scrolling column, the bid picker sits on a single line, and the
   standings show all four seats at once, with Left and Right paging through the deals.
+  The pause popup lays its four rows out in two columns, and Left and Right cross between
+  them. The splash shrinks the two joker cards to fit whole on the wide screen.
   The row previews itself as you change it, and your settings and saved pulka carry over.
 - **The trump sits in the middle of the info row**, and once bidding closes the left of
   the row shows the deal's gap: an up arrow and N when the table bid N more tricks than

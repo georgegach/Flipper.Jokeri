@@ -764,6 +764,12 @@ void gj_shell_input(GjApp* st, const GjShellIo* io, GjKey key) {
                 st->pause_sel = ring_step(st->pause_sel, 4, -1);
             } else if(key == GjKeyDown) {
                 st->pause_sel = ring_step(st->pause_sel, 4, +1);
+            } else if(
+                (key == GjKeyLeft || key == GjKeyRight) &&
+                st->layout == GjLayoutHorizontal) {
+                /* landscape draws two columns (0,1 | 2,3): cross to the other
+                 * column on the same row; with two columns that is a wrap */
+                st->pause_sel = (uint8_t)(st->pause_sel ^ 2u);
             } else if(key == GjKeyBack) {
                 st->phase = st->prev_phase; /* resume */
             }
