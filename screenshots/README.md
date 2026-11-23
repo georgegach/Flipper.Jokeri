@@ -11,25 +11,26 @@ canvas, the capture must stay in the Flipper's landscape framebuffer — the app
 will appear rotated in the listing, as it does for every vertical Flipper app.
 `tools/catalog_preflight.py` enforces all of this on every push.
 
-These were taken over Bluetooth instead (RPC screen stream from the Mac, 1-bit frame scaled
-x4 nearest-neighbour, black on Flipper orange). The bundler thresholds every pixel to
+These were taken over the RPC screen stream instead (USB serial from the Mac, 1-bit frame
+scaled x4 nearest-neighbour, black on Flipper orange). The bundler thresholds every pixel to
 black/transparent after its own nearest downscale, so the bundled result is identical to a
 qFlipper capture of the same frame.
 
+The bid, Joker and table shots come from a real Quick Nines deal that holds both Jokers.
+The device's RNG cannot be steered, so the deal was found on the host with the game's own
+engine and shell (a seed where you name trump and bid first), packed with `gj_save_pack`,
+copied to `/ext/apps_data/jokeri/pulka.save` and resumed with CONTINUE. The standings shot
+is the same game three deals on, with the AI playing your seat.
+
 Filenames are referenced from the catalog manifest, so keep them stable. Manifest order is
 listing order, and the **first image is the catalog card thumbnail**: keep a landscape shot
-first. Portrait shots appear rotated (see above); the set carries both on purpose.
+first. Portrait shots appear rotated (see above).
 
 | File | Screen | How to get there |
 |---|---|---|
-| `table-landscape.png` | Card table, Joker winning the trick (cover) | Settings → LAYOUT → HORZ; play a deal |
-| `joker-landscape.png` | Joker popup: take / under | Lead or follow with a Joker |
-| `bidding-portrait.png` | Bid picker over the hand | LAYOUT VERT; play to your bid turn, **Up** to the picker |
-| `table-portrait.png` | Trick cross, three cards down | Your turn to follow |
+| `bid-landscape.png` | YOUR BID 5 over a hand with both Jokers (cover) | LAYOUT HORZ; Quick Nines, your bid turn, **Up** to the picker |
+| `joker-landscape.png` | Joker popup on the lead, SUIT highlighted | Lead with a Joker |
+| `table-landscape.png` | Table, a Joker raised to lead | Your lead, Joker selected |
 | `standings-landscape.png` | Score table after three deals | **Up** on the deal result |
-| `georgian-landscape.png` | Bid picker over the hand, in Georgian | Settings → LANG → KA, LAYOUT HORZ; your bid turn |
-| `georgian-portrait.png` | Card table in Georgian, upright | LANG KA, LAYOUT VERT |
-| `settings-landscape.png` | Settings page | Menu → SETTINGS |
-
-The Georgian pair is the differentiator worth showing: a fully Georgian card table is the
-thing no other Flipper card game has.
+| `splash-landscape.png` | Splash, both cards whole | Launch the app with LAYOUT HORZ |
+| `table-portrait.png` | Table in the vertical layout, a Joker raised to lead | LAYOUT VERT; your lead |
