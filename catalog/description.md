@@ -4,7 +4,7 @@ traditional 24-deal *pulka* against three AI opponents, on the Flipper's screen.
 A 36-card deck, where the two Jokers replace the 6 of spades and the 6 of clubs. Each deal
 you bid how many tricks you will take, and you score only if you take **exactly** that many.
 Overshoot and you get almost nothing. Bid one or more and take none and you have taken a
-*khishti* — a bayonet — the only way in the game to go negative.
+*khishti* (ხიშტი, a bayonet): the only way in the game to go negative.
 
 The pulka runs 24 deals in four stages: ascending one card up to eight, four nine-card
 deals, descending eight back down to one, then four more nine-card deals bid **blind**,
@@ -26,7 +26,7 @@ Features:
 - Save and resume — a pulka survives your pocket
 - Running standings, viewable mid-game
 - Portrait or landscape: hold the Flipper upright or play the table sideways
-- Khishti at the standard −200 or a harsher −500
+- The no-trick penalty at the standard −200 or a harsher −500
 - **Full Georgian interface**, card table included, in a hand-drawn Mtavruli pixel face
 
 Rules, scoring table and the open questions about regional variants are documented in the

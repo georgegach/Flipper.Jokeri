@@ -22,13 +22,18 @@ engine and shell (a seed where you name trump and bid first), packed with `gj_sa
 copied to `/ext/apps_data/jokeri/pulka.save` and resumed with CONTINUE. The standings shot
 is the same game three deals on, with the AI playing your seat.
 
+The bid shot was redrawn on the host from that same save, by `gj_render_frame` with the
+first Joker selected. The device was not attached for a recapture. The host frame of the
+picker-focused bid screen matches the device capture pixel for pixel, so the raised-Joker
+frame is what the Flipper draws.
+
 Filenames are referenced from the catalog manifest, so keep them stable. Manifest order is
 listing order, and the **first image is the catalog card thumbnail**: keep a landscape shot
 first. Portrait shots appear rotated (see above).
 
 | File | Screen | How to get there |
 |---|---|---|
-| `bid-landscape.png` | YOUR BID 5 over a hand with both Jokers (cover) | LAYOUT HORZ; Quick Nines, your bid turn, **Up** to the picker |
+| `bid-landscape.png` | YOUR BID 5 with the first Joker raised (cover) | LAYOUT HORZ; Quick Nines, your bid turn, bid 5, **Down** into the hand, first card |
 | `joker-landscape.png` | Joker popup on the lead, SUIT highlighted | Lead with a Joker |
 | `table-landscape.png` | Table, a Joker raised to lead | Your lead, Joker selected |
 | `standings-landscape.png` | Score table after three deals | **Up** on the deal result |

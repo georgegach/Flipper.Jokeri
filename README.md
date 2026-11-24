@@ -85,7 +85,7 @@ On a 1-bit screen suit colour is shape: **black suits (♠♣) draw filled pips,
 | Row         | Values                     | Notes                                        |
 |-------------|----------------------------|----------------------------------------------|
 | **LANG**    | `EN` / `KA`                | Full Georgian UI, card table included         |
-| **KHISHTI** | `-200` / `-500`            | Applies from the next deal                    |
+| **PENALTY** | `-200` / `-500`            | Applies from the next deal                    |
 | **BOTS**    | `EASY` / `NORMAL` / `HARD` | Easy is ~87 pts/pulka weaker than Normal      |
 
 Preferences persist in `pulka.cfg` under the app's data directory, separate from the pulka

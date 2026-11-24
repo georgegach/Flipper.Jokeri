@@ -83,6 +83,7 @@ typedef enum {
     GjStrBidding,
     GjStrYourBid,
     GjStrKhishtiWarn, /* illegal-bid warning (the dealer hook) */
+    GjStrPenaltyRow, /* settings label for the bid-but-took-none penalty */
     GjStrBlind,
     GjStrBid,
     GjStrStart,

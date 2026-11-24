@@ -33,6 +33,10 @@ First version submitted to the Flipper Apps Catalog.
 - **Georgian headings show letters, not black boxes.** The stage name on the deal intro
   (ზრდა, ცხრა, კლება, ბრმა) and the seat name on "… starts" drew a row of solid squares;
   they now print in Georgian capitals.
+- **English says PENALTY and HOOK, not KHISHTI.** The Settings row and the Rules entry for
+  bidding and taking none now read PENALTY, and the bid picker's forbidden-bid warning reads
+  HOOK, the name the Rules already gave it. Georgian keeps ხიშტი.
+- **A new app icon:** a card with a J, replacing the scaffold placeholder.
 - **Two Georgian-screen memory bugs fixed.** The deal intro and the trump-picker caption
   wrote past their buffers with Georgian seat names.
 

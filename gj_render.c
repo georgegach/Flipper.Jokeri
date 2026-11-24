@@ -1824,7 +1824,7 @@ GJ_SCREEN void draw_settings(GjGfx* g, const GjApp* app) {
     t7_text(g, 2, 1, gj_str(lang, GjStrSettings), 0);
 
     static const uint16_t LBL[GJ_SETTINGS_ROW_COUNT] = {
-        GjStrLangRow, GjStrKhishtiWarn, GjStrBotsRow, GjStrLayoutRow};
+        GjStrLangRow, GjStrPenaltyRow, GjStrBotsRow, GjStrLayoutRow};
     const uint16_t lang_vals[GJ_LANG_COUNT] = {GjStrLangEnName, GjStrLangKaName};
     const uint16_t diff_vals[GJ_DIFF_COUNT] = {GjStrDiffEasy, GjStrDiffNormal, GjStrDiffHard};
     const uint16_t lay_vals[GJ_LAYOUT_COUNT] = {GjStrLayoutVert, GjStrLayoutHorz};
