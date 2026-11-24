@@ -68,6 +68,7 @@ static const char* const EN[GjStrCount] = {
     /* bidding */
     [GjStrBidding] = "BIDDING",
     [GjStrYourBid] = "YOUR BID",
+    [GjStrYourBidWide] = "YOUR BID",
     [GjStrKhishtiWarn] = "HOOK",
     [GjStrPenaltyRow] = "PENALTY",
     [GjStrBlind] = "BLIND",
@@ -197,7 +198,8 @@ static const char* const KA[GjStrCount] = {
 
     /* bidding */
     [GjStrBidding] = "განაცხადი",
-    [GjStrYourBid] = "თქვ. ფსონი",
+    [GjStrYourBid] = "შენი ფსონი", /* 57px; თქვენი ფსონი is 69, over portrait's 64 */
+    [GjStrYourBidWide] = "თქვენი ფსონი",
     [GjStrKhishtiWarn] = "ხიშტი",
     [GjStrPenaltyRow] = "ხიშტი",
     [GjStrBlind] = "ბრმა",

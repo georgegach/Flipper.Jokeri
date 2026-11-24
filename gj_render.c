@@ -916,7 +916,7 @@ static void draw_bid_inline_land(GjGfx* g, const GjApp* app) {
     char num[6];
     i2s(app->bid_sel, num);
     bool legal = gj_bid_legal(gm, 0, (uint8_t)app->bid_sel);
-    const char* lbl = gj_str(app->lang, legal ? GjStrYourBid : GjStrKhishtiWarn);
+    const char* lbl = gj_str(app->lang, legal ? GjStrYourBidWide : GjStrKhishtiWarn);
 
     /* row: [label] 6 [◄] 3 [number] 3 [►], centred as one block */
     int16_t lw = (int16_t)t7_width(lbl);
