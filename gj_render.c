@@ -19,6 +19,8 @@
 /* small helpers                                                          */
 /* ===================================================================== */
 
+#define GJ_NUM_CAP 8
+
 static char* u2s(uint16_t v, char* b) {
     char t[6];
     int i = 0;
@@ -636,7 +638,7 @@ static void dealer_mark(GjGfx* g, int16_t cx, int16_t y, uint8_t color) {
 
 /* append "taken:bid" (bid '-' when unbid) to buf */
 static void bt_pair(char* buf, int8_t bid, uint8_t taken) {
-    char num[6];
+    char num[GJ_NUM_CAP];
     scat(buf, u2s(taken, num));
     scat(buf, ":");
     if(bid < 0)
@@ -746,7 +748,7 @@ static void draw_bottom_row(GjGfx* g, const GjApp* app) {
         for(uint8_t s = 0; s < GJ_PLAYERS; s++) sum += gm->bids[s];
         int d = sum - (int)gm->cards_this_deal;
         if(d != 0) {
-            char num[6];
+            char num[GJ_NUM_CAP];
             const char* ds = u2s((uint16_t)(d > 0 ? d : -d), num);
             int16_t bx = land ? (int16_t)(RAIL_CX_L - (5 + 2 + (int16_t)t7_width(ds)) / 2) : 2;
             int16_t by = land ? 24 : INFO_Y;
@@ -913,7 +915,7 @@ static void draw_bid_inline_land(GjGfx* g, const GjApp* app) {
     }
     bool focus_bid = (app->bid_focus == 0);
 
-    char num[6];
+    char num[GJ_NUM_CAP];
     i2s(app->bid_sel, num);
     bool legal = gj_bid_legal(gm, 0, (uint8_t)app->bid_sel);
     const char* lbl = gj_str(app->lang, legal ? GjStrYourBidWide : GjStrKhishtiWarn);
@@ -951,7 +953,7 @@ static void draw_bid_inline(GjGfx* g, const GjApp* app) {
     if(!focus_bid) tri(g, 30, BID_Y, 2, 1); /* up = back to the picker */
     t7_center(g, 32, BID_Y + 8, gj_str(app->lang, GjStrYourBid), 1);
 
-    char num[6];
+    char num[GJ_NUM_CAP];
     i2s(app->bid_sel, num);
     bool legal = gj_bid_legal(gm, 0, (uint8_t)app->bid_sel);
     int16_t bw = (int16_t)gj_gfx_text_big_width(num);
@@ -1238,7 +1240,7 @@ GJ_SCREEN void draw_menu(GjGfx* g, const GjApp* app) {
      * Nines, Rules, About, Settings. */
     const char* labels[6];
     uint8_t n = 0;
-    char cont[24], num[6];
+    char cont[32], num[GJ_NUM_CAP];
     if(app->save_available) {
         cont[0] = 0;
         scat(cont, gj_str(app->lang, GjStrCont));
@@ -1337,7 +1339,7 @@ GJ_SCREEN void draw_rules(GjGfx* g, const GjApp* app) {
         const char* line = gj_rules_line(app->lang, li);
         if(gj_rules_line_is_khishti(line)) {
             /* the penalty is a setting; show the value actually in force */
-            char kh[8], num[6];
+            char kh[8], num[GJ_NUM_CAP];
             kh[0] = 0;
             scat(kh, "-");
             scat(kh, u2s((uint16_t)(app->khishti_opt == GjKhishti500 ? 500 : 200), num));
@@ -1370,7 +1372,7 @@ GJ_SCREEN void draw_stage_intro(GjGfx* g, const GjApp* app) {
     uint8_t stage = gj_deal_stage(gm->mode, gm->deal_index) & 3u;
     /* 16 was sized for Latin and overflowed on ka: "DEAL " + a Mkhedruli seat
      * name is 5 + up to 15 bytes (5 letters x 3), and scat has no bound. */
-    char buf[32], num[6];
+    char buf[32], num[GJ_NUM_CAP];
     buf[0] = 0;
     scat(buf, gj_str(app->lang, GjStrDeal));
     scat(buf, u2s((uint16_t)(gm->deal_index + 1), num));
@@ -1512,7 +1514,7 @@ GJ_SCREEN void draw_deal_score(GjGfx* g, const GjApp* app) {
             gj_gfx_rrect(g, 0, (int16_t)(y - 1), W, land ? 10 : 11, 1);
             fg = 0;
         }
-        char cell[8], num[6];
+        char cell[8], num[GJ_NUM_CAP];
         t7_text(g, 2, y, INIT[s], fg); /* seat initial */
         /* taken:bid */
         cell[0] = 0;
@@ -1540,7 +1542,7 @@ GJ_SCREEN void draw_deal_score(GjGfx* g, const GjApp* app) {
 /* standings row label. Standard: A1..A8 N1..N4 D8..D1 B1..B4. Quick Nines:
  * N1..N4 (every deal is a nine). */
 static void standings_label(uint8_t lang, uint8_t mode, uint8_t d, char* out) {
-    char num[6];
+    char num[GJ_NUM_CAP];
     uint16_t letter;
     uint16_t n;
     if(mode != GjModeStandard) {
@@ -1616,7 +1618,7 @@ GJ_SCREEN void draw_standings(GjGfx* g, const GjApp* app) {
             gj_gfx_rect(g, 0, (int16_t)(y - 1), W, pitch, 1);
             fg = 0;
         }
-        char lbl[6];
+        char lbl[GJ_NUM_CAP];
         standings_label(app->lang, gm->mode, d, lbl);
         t7_text(g, 1, y, lbl, fg);
         /* first column free of the label, so a wide cell compacts instead of
@@ -1624,7 +1626,7 @@ GJ_SCREEN void draw_standings(GjGfx* g, const GjApp* app) {
         int16_t lmin = (int16_t)(1 + (int16_t)t7_width(lbl) + 1);
         for(uint8_t k = 0; k < ncols; k++) {
             uint8_t s = (uint8_t)(xs + k);
-            char cell[8], num[6];
+            char cell[8], num[GJ_NUM_CAP];
             if(d < gm->deal_index) {
                 int32_t cum = 0;
                 for(uint8_t r = 0; r <= d; r++) cum += gm->deal_scores[r][s];
@@ -1647,7 +1649,7 @@ GJ_SCREEN void draw_standings(GjGfx* g, const GjApp* app) {
     t7_text(g, 1, (int16_t)(ty + 2), gj_str(app->lang, GjStrTotalRow), 0);
     for(uint8_t k = 0; k < ncols; k++) {
         uint8_t s = (uint8_t)(xs + k);
-        char num[6];
+        char num[GJ_NUM_CAP];
         i2s(gm->totals[s], num);
         int16_t tmin = k ? (int16_t)(COLR[k - 1] + 1) :
                            (int16_t)(1 + (int16_t)t7_width(gj_str(app->lang, GjStrTotalRow)) + 1);
@@ -1684,7 +1686,7 @@ GJ_SCREEN void draw_game_over(GjGfx* g, const GjApp* app) {
             rk[1] = 0;
             t7_text(g, 3, (int16_t)(y + 1), rk, fg);
         }
-        char num[6];
+        char num[GJ_NUM_CAP];
         t7_text(g, 12, (int16_t)(y + 1), seat_name(app->lang, s), fg);
         i2s(gm->totals[s], num);
         t7_text(g, (int16_t)(W - 3 - (int16_t)t7_width(num)), (int16_t)(y + 1), num, fg);
@@ -1792,7 +1794,7 @@ GJ_SCREEN void draw_lead_intro(GjGfx* g, const GjApp* app) {
         tri(g, 30, 72, dir, 1);
     }
     /* your bid for the deal */
-    char buf[32], num[6]; /* ka "ფსონი " is 16 bytes */
+    char buf[32], num[GJ_NUM_CAP]; /* ka "ფსონი " is 16 bytes */
     buf[0] = 0;
     scat(buf, gj_str(app->lang, GjStrBid));
     if(gm->bids[0] < 0)
@@ -1828,7 +1830,7 @@ GJ_SCREEN void draw_settings(GjGfx* g, const GjApp* app) {
     const uint16_t lang_vals[GJ_LANG_COUNT] = {GjStrLangEnName, GjStrLangKaName};
     const uint16_t diff_vals[GJ_DIFF_COUNT] = {GjStrDiffEasy, GjStrDiffNormal, GjStrDiffHard};
     const uint16_t lay_vals[GJ_LAYOUT_COUNT] = {GjStrLayoutVert, GjStrLayoutHorz};
-    char num[6];
+    char num[GJ_NUM_CAP];
     char kh[8];
 
     /* Portrait stacks label-over-value in a column; landscape has the width to

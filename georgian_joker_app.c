@@ -24,6 +24,7 @@ typedef struct {
 } GjState;
 
 #define TAG "GJ"
+#define GJ_TICK_MS 25u
 
 /* Deferred storage op: the shell's io_* hooks run under the app mutex (which
  * the render callback also needs), so they must NEVER touch the SD card — a
@@ -132,10 +133,6 @@ static void render_callback(Canvas* canvas, void* context) {
     AppCtx* ctx = context;
     furi_mutex_acquire(ctx->mutex, FuriWaitForever);
     GjGfx* gfx = &ctx->state->gfx;
-    gj_render_frame(gfx, &ctx->state->app);
-    /* Dimensions come from the frame we just rendered, not from the app state,
-     * so the blit can never disagree with the stride the pixels were written
-     * at — even for one frame mid-toggle. */
     canvas_draw_xbm(canvas, 0, 0, gj_fb_w(gfx), gj_fb_h(gfx), gfx->fb);
     furi_mutex_release(ctx->mutex);
 }
@@ -177,7 +174,7 @@ int32_t georgian_joker_app(void* p) {
         .save = io_save,
         .load = io_load,
         .save_delete = io_save_delete,
-    .settings_save = io_settings_save,
+        .settings_save = io_settings_save,
         .ctx = ctx,
     };
 
@@ -185,6 +182,7 @@ int32_t georgian_joker_app(void* p) {
      * that io_load serves Continue from without ever blocking under the mutex. */
     ctx->save_buf_valid = gj_save_read(ctx->storage, &ctx->save_buf);
     gj_shell_init(&ctx->state->app, ctx->save_buf_valid);
+    if(ctx->save_buf_valid) ctx->state->app.game = ctx->save_buf.game;
     /* Preferences: a missing or rejected file just means defaults, which is
      * also the correct first-run behaviour. Applied AFTER gj_shell_init so it
      * cannot be clobbered by the reset. */
@@ -197,6 +195,7 @@ int32_t georgian_joker_app(void* p) {
      * what makes that possible, so keep the order. */
     uint8_t layout_now = ctx->state->app.layout;
     apply_orientation(ctx->view_port, layout_now);
+    gj_render_frame(&ctx->state->gfx, &ctx->state->app);
     view_port_draw_callback_set(ctx->view_port, render_callback, ctx);
     view_port_input_callback_set(ctx->view_port, input_callback, ctx);
 
@@ -210,16 +209,31 @@ int32_t georgian_joker_app(void* p) {
      * starved the system into a hang. Now the blit runs only on a real change,
      * so a static screen (menu, a picker, your turn) is ~0% CPU. */
     InputEvent event;
+    const uint32_t tick_period = furi_ms_to_ticks(GJ_TICK_MS);
+    uint32_t next_tick = furi_get_tick() + tick_period;
     uint16_t last_sig = 0;
     bool have_sig = false;
     for(;;) {
-        FuriStatus status = furi_message_queue_get(ctx->queue, &event, 25);
+        furi_mutex_acquire(ctx->mutex, FuriWaitForever);
+        bool ticking = gj_shell_needs_tick(&ctx->state->app);
+        furi_mutex_release(ctx->mutex);
+        uint32_t timeout = FuriWaitForever;
+        if(ticking) {
+            int32_t left = (int32_t)(next_tick - furi_get_tick());
+            timeout = left > 0 ? (uint32_t)left : 0;
+        }
+        FuriStatus status = furi_message_queue_get(ctx->queue, &event, timeout);
         furi_mutex_acquire(ctx->mutex, FuriWaitForever);
         if(status == FuriStatusOk) {
             GjKey key;
             if(map_key(&event, &key)) gj_shell_input(&ctx->state->app, &io, key);
-        } else {
+        }
+        uint32_t now = furi_get_tick();
+        if(!gj_shell_needs_tick(&ctx->state->app)) {
+            next_tick = now + tick_period;
+        } else if((int32_t)(now - next_tick) >= 0) {
             gj_shell_tick(&ctx->state->app, &io);
+            next_tick = now + tick_period;
         }
         bool running = ctx->state->app.running;
         uint8_t layout = ctx->state->app.layout;
@@ -227,42 +241,32 @@ int32_t georgian_joker_app(void* p) {
         ctx->pending_io = PendingNone;
         bool cfg_pending = ctx->pending_settings;
         ctx->pending_settings = false;
-        /* CRC the state under the lock (this thread is its only writer). Exclude
-         * wait_ticks: the renderer never reads it, so a countdown (bot pacing,
-         * splash, timed beats) must NOT trigger the ~20ms fullscreen blit — that
-         * was still pegging the GUI thread during bot turns. Zeroing it here is
-         * safe: the render thread is blocked on the mutex we still hold. */
         uint16_t wt = ctx->state->app.wait_ticks;
         ctx->state->app.wait_ticks = 0;
         uint16_t sig = gj_crc16(&ctx->state->app, sizeof(GjApp));
         ctx->state->app.wait_ticks = wt;
+        bool dirty = !have_sig || sig != last_sig;
+        if(dirty) gj_render_frame(&ctx->state->gfx, &ctx->state->app);
         furi_mutex_release(ctx->mutex);
 
-        io_flush(ctx, pending, cfg_pending); /* SD op, mutex released */
-        /* Rotate the moment the setting changes, rather than on the way out of
-         * the Settings screen: the layout row then previews itself, which is
-         * the only honest way to choose between two layouts. Polling a byte
-         * per 25ms tick costs nothing and keeps the io struct about
-         * persistence. The CRC below covers app.layout, so the repaint that
-         * draws the rotated frame is already scheduled. */
+        io_flush(ctx, pending, cfg_pending);
         if(layout != layout_now) {
             layout_now = layout;
             apply_orientation(ctx->view_port, layout_now);
         }
-        if(!have_sig || sig != last_sig) {
+        if(dirty) {
             last_sig = sig;
             have_sig = true;
-            view_port_update(ctx->view_port); /* repaint only on change */
+            view_port_update(ctx->view_port);
         }
         if(!running) break;
     }
 
-    if(ctx->dropped_inputs)
-        FURI_LOG_W(TAG, "dropped %lu inputs", (unsigned long)ctx->dropped_inputs);
-
     /* teardown — symmetric with alloc */
     view_port_enabled_set(ctx->view_port, false);
     gui_remove_view_port(ctx->gui, ctx->view_port);
+    if(ctx->dropped_inputs)
+        FURI_LOG_W(TAG, "dropped %lu inputs", (unsigned long)ctx->dropped_inputs);
     furi_record_close(RECORD_GUI);
     furi_record_close(RECORD_STORAGE);
     view_port_free(ctx->view_port);

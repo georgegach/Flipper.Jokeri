@@ -41,3 +41,4 @@ typedef struct {
 void gj_shell_init(GjApp* app, bool save_available);
 void gj_shell_input(GjApp* app, const GjShellIo* io, GjKey key);
 void gj_shell_tick(GjApp* app, const GjShellIo* io);
+bool gj_shell_needs_tick(const GjApp* app);

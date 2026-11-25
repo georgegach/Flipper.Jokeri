@@ -41,6 +41,13 @@ First version submitted to the Flipper Apps Catalog.
 - **A new app icon:** a Mtavruli Ჯ beside a checkered card back, replacing the scaffold placeholder.
 - **Two Georgian-screen memory bugs fixed.** The deal intro and the trump-picker caption
   wrote past their buffers with Georgian seat names.
+- **Resume fixes.** A pulka quit during the winner highlight resumes on that highlight
+  instead of a broken trick, Continue on a fresh launch names the saved deal rather than
+  D1, and a long Back from Settings keeps the changes.
+- **Scores of minus ten thousand or lower print in full** instead of running past their
+  buffer.
+- **Lighter on the battery.** The app sleeps until a key press when nothing is counting
+  down, instead of waking 40 times a second, and frames are drawn on the app's own thread.
 
 ## 0.6 — bid from your hand, the last English on a Georgian screen, a calmer popup
 

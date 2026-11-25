@@ -396,7 +396,7 @@ static void menu_continue(GjApp* st, const GjShellIo* io) {
         return;
     }
     st->sub = SubNone;
-    if(st->phase == PhaseTrickResult) st->phase = PhaseTrickPlay; /* defensive */
+    if(st->phase == PhaseTrickResult) st->last_trick_winner = gj_trick_best_seat(&st->game);
     st->hand_sel = first_legal_hand(st);
 
     if(st->phase == PhaseBidding || st->phase == PhaseTrickPlay) {
@@ -557,6 +557,7 @@ static bool phase_in_play(uint8_t phase) {
  * out rather than dropped — the same "survives your pocket" contract the pause
  * menu's Exit honours, and the reason this is not simply running = false. */
 static void shell_quit(GjApp* st, const GjShellIo* io) {
+    if(st->phase == PhaseSettings) io_settings_save(io, st);
     uint8_t resume = resumable_phase(st);
     if(phase_in_play(resume) && !gj_game_over(&st->game)) {
         st->phase = resume; /* pack the RESUMABLE phase, never an overlay */
@@ -981,4 +982,19 @@ void gj_shell_init(GjApp* app, bool save_available) {
     app->save_available = save_available;
     app->wait_ticks = GJ_SPLASH_TICKS; /* renderer derives splash progress */
     refresh_cache(app);
+}
+
+bool gj_shell_needs_tick(const GjApp* st) {
+    switch(st->phase) {
+    case PhaseSplash:
+        return true;
+    case PhaseTrumpSelect:
+        return gj_trump_namer(&st->game) != 0;
+    case PhaseBidding:
+        return st->game.turn != 0;
+    case PhaseTrickPlay:
+        return st->game.turn != 0 && st->sub == SubNone;
+    default:
+        return false;
+    }
 }
