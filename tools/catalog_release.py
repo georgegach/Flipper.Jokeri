@@ -27,11 +27,9 @@ SCREENSHOTS = ROOT / "screenshots"
 SCREEN = (128, 64)
 DOWNSCALE_FACTORS = (4, 8)
 
-
 def die(msg):
     print(f"error: {msg}", file=sys.stderr)
     sys.exit(1)
-
 
 def git(*args, check=True):
     r = subprocess.run(
@@ -41,31 +39,25 @@ def git(*args, check=True):
         die(f"git {' '.join(args)}: {r.stderr.strip()}")
     return r.stdout.strip()
 
-
 def png_size(path):
     data = path.read_bytes()
     if data[:8] != b"\x89PNG\r\n\x1a\n":
         die(f"{path} is not a PNG")
     return struct.unpack(">II", data[16:24])
 
-
 def expected_screenshots():
-    """The screenshot names the manifest commits us to, in manifest order."""
     return re.findall(r'^\s*-\s*"\./screenshots/([^"]+)"', MANIFEST.read_text(), re.M)
-
 
 def fam_version():
     m = re.search(r'fap_version\s*=\s*"([^"]*)"', (ROOT / "application.fam").read_text())
     return m.group(1) if m else None
 
-
 def preflight():
     print("\n--- preflight ---")
-    sys.stdout.flush()  # the child writes to the fd directly; without this it lands first
+    sys.stdout.flush()
     return subprocess.run(
         [sys.executable, str(ROOT / "tools" / "catalog_preflight.py")]
     ).returncode
-
 
 def cmd_status(args):
     version = fam_version()
@@ -101,7 +93,6 @@ def cmd_status(args):
         print("  " + "\n  ".join(dirty.splitlines()))
     return preflight()
 
-
 def cmd_intake(args):
     src = Path(args.src).expanduser().resolve()
     if not src.exists():
@@ -133,7 +124,6 @@ def cmd_intake(args):
     missing = [n for n in wanted if not (SCREENSHOTS / n).exists()]
     print(f"still missing: {', '.join(missing) if missing else 'nothing'}")
     return preflight()
-
 
 def cmd_pin(args):
     tag = args.tag or f"v{fam_version()}"
@@ -176,7 +166,6 @@ def cmd_pin(args):
     )
     return rc
 
-
 def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -194,7 +183,6 @@ def main():
 
     args = p.parse_args()
     return {"status": cmd_status, "intake": cmd_intake, "pin": cmd_pin}[args.cmd](args)
-
 
 if __name__ == "__main__":
     sys.exit(main())

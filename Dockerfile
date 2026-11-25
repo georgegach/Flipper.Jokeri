@@ -11,7 +11,6 @@ RUN apt-get update \
 
 RUN pip install --no-cache-dir ufbt
 
-# Cache the Flipper SDK in a writable location that can be backed by a volume.
 ENV UFBT_HOME=/ufbt-cache
 RUN mkdir -p "$UFBT_HOME"
 

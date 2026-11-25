@@ -1,5 +1,3 @@
-/* gj_settings.c — SD-card I/O for preferences. Temp file + rename for
- * atomicity, same as gj_save.c. */
 #include "gj_settings.h"
 
 #define GJ_SETTINGS_TMP APP_DATA_PATH("pulka.cfg.tmp")

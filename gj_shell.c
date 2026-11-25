@@ -1,10 +1,3 @@
-/* gj_shell.c — furi-free phase machine (input handling + timed beats).
- *
- * Extracted verbatim (semantics-wise) from georgian_joker_app.c so the SAME
- * shell drives the Flipper app and the WASM web emulator. Platform effects
- * (RNG, save file) go through GjShellIo; any callback may be NULL. The host
- * owns the cadence: gj_shell_input() per key, gj_shell_tick() every 25ms.
- * CONTRACT: only <stdint.h> <stdbool.h> <string.h> + gj_app/engine/ai/shell. */
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
@@ -15,24 +8,18 @@
 #include "gj_shell.h"
 #include "gj_i18n.h"
 
-/* GjApp is heap on device (not on the 2/4KB stack), but keep it bounded so a
- * stray field can't balloon it unnoticed. Currently 341 B: +2 from GjGame's
- * khishti and +5 from the settings fields (lang, khishti_opt, difficulty,
- * layout, settings_sel). Raised deliberately, not to silence the gate. */
 _Static_assert(sizeof(GjApp) <= 344, "GjApp over its RAM budget");
 
-/* Bot pacing beat (25ms ticks): 18..29 -> ~0.45..0.75s between bot actions. */
 #define GJ_PACE_MIN 18u
 #define GJ_PACE_JITTER 12u
-#define GJ_STANDINGS_MAXXSCROLL 2u /* 4 player columns, 2 visible */
-#define GJ_SPLASH_TICKS 64u /* ~1.6s at 25ms */
+#define GJ_STANDINGS_MAXXSCROLL 2u
+#define GJ_SPLASH_TICKS 64u
 #define GJ_SUIT_COUNT 4u
 #define GJ_TRUMP_CHOICES (GJ_SUIT_COUNT + 1u)
 _Static_assert(GJ_NO_TRUMP == GJ_SUIT_COUNT, "the trump picker's last row is no-trump");
 
 enum { PauseResume = 0, PauseChart, PauseRules, PauseExit, PauseItemCount };
 
-/* ---- io helpers (all hooks NULL-safe) ------------------------------- */
 static uint32_t io_rng(const GjShellIo* io) {
     return io && io->rng ? io->rng(io->ctx) : 0u;
 }
@@ -49,11 +36,6 @@ static void io_settings_save(const GjShellIo* io, const GjApp* app) {
     if(io && io->settings_save) io->settings_save(io->ctx, app);
 }
 
-/* ---- status-bar string cache (was gj_ui_refresh_cache; stdio-free) --- */
-/* Append a UI string. The initials below are one GLYPH but not one byte —
- * Georgian is 3 bytes in UTF-8 — which is why these are copied rather than
- * assigned as chars the way they used to be. */
-/* ---- small helpers -------------------------------------------------- */
 static uint16_t pace_ticks(const GjShellIo* io) {
     return (uint16_t)(GJ_PACE_MIN + (uint16_t)(io_rng(io) % GJ_PACE_JITTER));
 }
@@ -95,15 +77,10 @@ static void bid_sel_step(GjApp* st, int dir) {
     }
 }
 
-/* Blind deals draw the hand as card backs, so there is nothing to browse and
- * no cursor anyone could see move: those keep focus on the number. */
 static bool bid_hand_visible(const GjApp* st) {
     return !gj_deal_is_blind(st->game.mode, st->game.deal_index);
 }
 
-/* Bidding opens on the HAND, not the number: the first thing you want is to
- * read what you were dealt. Up lifts focus to the number, which sits at 0 --
- * normalize_bid_sel only walks past 0 when khishti forbids it to the dealer. */
 static void bid_focus_default(GjApp* st) {
     if(bid_hand_visible(st)) {
         st->bid_focus = 1;
@@ -113,10 +90,6 @@ static void bid_focus_default(GjApp* st) {
     }
 }
 
-/* Down past the last row lands on the first, Up past the first lands on the
- * last. Row SELECTORS wrap; scroll views (Rules text, the standings table) do
- * not — wrapping a long document back to the top reads as a glitch, not a
- * feature, so those keep their clamps. */
 static uint8_t ring_step(uint8_t sel, uint8_t count, int dir) {
     if(count == 0) return 0;
     if(sel >= count) sel = (uint8_t)(count - 1);
@@ -140,17 +113,13 @@ static void hand_sel_step(GjApp* st, int dir) {
     }
 }
 
-/* ---- deal / phase transitions --------------------------------------- */
 static void begin_deal(GjApp* st, const GjShellIo* io) {
-    /* Refresh the penalty from the live setting BEFORE dealing: that is what
-     * makes a settings change take effect immediately while keeping one deal's
-     * scoring self-consistent. */
     gj_set_khishti(&st->game, st->khishti_opt == GjKhishti500 ? GJ_KHISHTI_HARSH : GJ_KHISHTI);
     gj_set_difficulty(&st->game, st->difficulty);
     gj_deal_begin(&st->game, io ? io->rng : 0, io ? io->ctx : 0);
     st->phase = PhaseStageIntro;
     st->sub = SubNone;
-    st->wait_ticks = 60; /* ~1.5s stage card */
+    st->wait_ticks = 60;
 }
 
 static void start_new_pulka(GjApp* st, const GjShellIo* io, uint8_t mode) {
@@ -162,7 +131,6 @@ static void stage_intro_advance(GjApp* st) {
     if(gj_deal_trump_is_named(st->game.mode, st->game.deal_index)) {
         st->phase = PhaseTrumpSelect;
         st->trump_sel = 0;
-        /* bot namer: short beat, then tick performs the pick */
         st->wait_ticks = (gj_trump_namer(&st->game) != 0) ? 24 : 0;
     } else {
         st->phase = PhaseTrumpReveal;
@@ -182,8 +150,6 @@ static void enter_bidding(GjApp* st, const GjShellIo* io) {
     }
 }
 
-/* Who-leads beat between bidding and the first trick: the leader is easy to
- * miss from the turn marker alone. ~1.2 s auto-advance, any OK skips. */
 static void enter_lead_intro(GjApp* st) {
     st->phase = PhaseLeadIntro;
     st->sub = SubNone;
@@ -201,7 +167,7 @@ static void after_play(GjApp* st, const GjShellIo* io) {
     if(gj_trick_complete(&st->game)) {
         st->last_trick_winner = gj_trick_best_seat(&st->game);
         st->phase = PhaseTrickResult;
-        st->wait_ticks = 36; /* ~0.9s winner highlight */
+        st->wait_ticks = 36;
     } else {
         arm_pacing(st, io);
     }
@@ -213,27 +179,23 @@ static void trick_result_advance(GjApp* st, const GjShellIo* io) {
         gj_deal_score(&st->game);
         st->phase = PhaseDealScore;
         st->sub = SubNone;
-        io_save(io, st); /* AUTOSAVE (phase=DealScore) */
+        io_save(io, st);
         st->save_available = true;
     } else {
         st->phase = PhaseTrickPlay;
         st->sub = SubNone;
         st->hand_sel = first_legal_hand(st);
         arm_pacing(st, io);
-        io_save(io, st); /* AUTOSAVE (phase=TrickPlay) */
+        io_save(io, st);
         st->save_available = true;
     }
 }
 
-/* Chart rows on screen — 12 portrait, 5 landscape. gj_render.c draws exactly
- * this many, so the clamp and the drawing cannot disagree. */
 static uint8_t standings_rows(const GjApp* st) {
     return st->layout == GjLayoutHorizontal ? (uint8_t)GJ_STANDINGS_ROWS_L :
                                               (uint8_t)GJ_STANDINGS_ROWS_P;
 }
 
-/* Scroll past what fits. Mode-aware: a 4-deal Quick Nines game never scrolls
- * in portrait, though it does in landscape where only 5 rows show. */
 static uint8_t standings_maxscroll(const GjApp* st) {
     uint8_t n = gj_mode_num_deals(st->game.mode);
     uint8_t rows = standings_rows(st);
@@ -249,23 +211,18 @@ static void open_standings(GjApp* st, uint8_t from) {
     st->standings_xscroll = 0;
 }
 
-/* Rules text screen, reachable from the menu and the pause popup. */
 static void open_rules(GjApp* st, uint8_t from) {
     st->prev_phase = from;
     st->phase = PhaseRules;
     st->rules_scroll = 0;
 }
 
-/* Settings screen, reachable from the menu. Back returns to prev_phase. */
 static void open_settings(GjApp* st, uint8_t from) {
     st->prev_phase = from;
     st->phase = PhaseSettings;
     st->settings_sel = 0;
 }
 
-/* Cycle the focused row's value. Each wraps, matching the trump picker.
- * Every row gets an explicit case: a `default:` here once meant "and BOTS",
- * which would have quietly swallowed this row when it was appended. */
 static void settings_step(GjApp* st, int dir) {
     switch(st->settings_sel) {
     case SetRowLang:
@@ -287,30 +244,18 @@ static void settings_step(GjApp* st, int dir) {
     }
 }
 
-/* Start a new game in `mode`. No overwrite confirm: picking a mode off the menu
- * is already an explicit choice, and Continue sits directly above it as the
- * "don't overwrite" option — the dialog asked a question the menu had already
- * answered. The old save is dropped here, which is the step the dialog's Yes
- * branch used to own.
- *
- * PhaseConfirmExit is now unreachable. Its enum value MUST stay: the phase is
- * persisted in the save file, so renumbering would misread every existing save.
- * Its input and render paths are left in place for the same reason. */
 static void new_game(GjApp* st, const GjShellIo* io, uint8_t mode) {
     io_save_delete(io);
     st->save_available = false;
     start_new_pulka(st, io, mode);
 }
 
-/* Back during play: pause popup [Resume, Chart, Exit] over the table. */
 static void open_pause(GjApp* st, uint8_t from) {
     st->prev_phase = from;
     st->phase = PhasePause;
     st->pause_sel = 0;
 }
 
-/* Exit from the pause menu: pack the RESUMABLE phase into the save (same
- * trick as confirm_yes), then land on the menu. */
 static void pause_exit(GjApp* st, const GjShellIo* io) {
     st->phase = st->prev_phase;
     io_save(io, st);
@@ -319,7 +264,6 @@ static void pause_exit(GjApp* st, const GjShellIo* io) {
     st->menu_sel = 0;
 }
 
-/* ---- load glue ------------------------------------------------------ */
 static void menu_continue(GjApp* st, const GjShellIo* io) {
     if(!io_load(io, st)) {
         st->save_available = false;
@@ -334,7 +278,7 @@ static void menu_continue(GjApp* st, const GjShellIo* io) {
         st->bid_focus = 0;
         if(st->phase == PhaseBidding) {
             if(st->game.turn == 0) normalize_bid_sel(st);
-            bid_focus_default(st); /* resumes browsing the hand, card 0 */
+            bid_focus_default(st);
         }
         st->wait_ticks = (st->game.turn != 0) ? pace_ticks(io) : 0;
     } else if(st->phase == PhaseTrumpSelect) {
@@ -344,18 +288,16 @@ static void menu_continue(GjApp* st, const GjShellIo* io) {
     }
 }
 
-/* ---- trick-play input (SubNone / joker popups) ---------------------- */
 static void play_joker(GjApp* st, const GjShellIo* io, uint8_t kind, uint8_t demand) {
     if(gj_play_card(&st->game, 0, st->pending_hand_idx, kind, demand)) {
         st->sub = SubNone;
         st->hand_sel = 0;
         after_play(st, io);
     } else {
-        st->sub = SubNone; /* illegal — back out of the popup */
+        st->sub = SubNone;
     }
 }
 
-/* Normalized key facts shared by the two input dispatchers. */
 static void handle_trickplay_input(
     GjApp* st,
     const GjShellIo* io,
@@ -409,13 +351,11 @@ static void handle_trickplay_input(
         } else if(is_ok) {
             if(leading) {
                 if(st->joker_sel == 0) {
-                    /* Demand suit -> pick suit */
                     st->sub = SubJokerSuit;
                     st->suit_sel = 0;
                 } else if(has_trump && st->joker_sel == 1) {
                     play_joker(st, io, GjJokerDemandTrump, 0);
                 } else {
-                    /* leading Underplay (names a suit, H4) -> pick suit */
                     st->sub = SubJokerSuit;
                     st->suit_sel = 0;
                 }
@@ -438,7 +378,6 @@ static void handle_trickplay_input(
             else if(key == GjKeyBack)
                 st->sub = SubJokerMenu;
         } else if(is_ok) {
-            /* joker_sel==0 was Demand-suit; any other row was a leading Underplay */
             uint8_t kind = (st->joker_sel == 0) ? GjJokerDemandSuit : GjJokerUnderplay;
             play_joker(st, io, kind, st->suit_sel);
         }
@@ -449,11 +388,6 @@ static void handle_trickplay_input(
     }
 }
 
-/* ---- global quit ----------------------------------------------------- */
-/* Overlays (pause, standings, rules, settings, the exit dialog) stack exactly
- * one deep over the phase they were opened from — open_rules/open_standings
- * pass the pause TARGET rather than PhasePause — so one hop always resolves to
- * the phase a save should resume into. */
 static uint8_t resumable_phase(const GjApp* st) {
     switch(st->phase) {
     case PhaseStandings:
@@ -482,26 +416,18 @@ static bool phase_in_play(uint8_t phase) {
     }
 }
 
-/* Long-press Back quits from anywhere. A pulka in progress is saved on the way
- * out rather than dropped — the same "survives your pocket" contract the pause
- * menu's Exit honours, and the reason this is not simply running = false. */
 static void shell_quit(GjApp* st, const GjShellIo* io) {
     if(st->phase == PhaseSettings) io_settings_save(io, st);
     uint8_t resume = resumable_phase(st);
     if(phase_in_play(resume) && !gj_game_over(&st->game)) {
-        st->phase = resume; /* pack the RESUMABLE phase, never an overlay */
+        st->phase = resume;
         io_save(io, st);
         st->save_available = true;
     }
     st->running = false;
 }
 
-/* ---- top-level input ------------------------------------------------ */
 static void input_menu(GjApp* st, const GjShellIo* io, GjKey key, bool is_press, bool is_ok) {
-    /* actions in display order: Continue (save only), Standard, Quick
-     * Nines, Rules, About, Settings. menu_sel indexes VISIBLE rows.
-     * Settings is APPENDED: tests/drive_util.h derives its row target from
-     * the mode index, which only holds while the modes stay first. */
     uint8_t count = st->save_available ? 6 : 5;
     if(is_press) {
         if(key == GjKeyUp) {
@@ -537,7 +463,7 @@ static void input_menu(GjApp* st, const GjShellIo* io, GjKey key, bool is_press,
 }
 
 static void input_trump_select(GjApp* st, GjKey key, bool is_press, bool is_ok) {
-    if(gj_trump_namer(&st->game) != 0) return; /* bot names it; ignore input */
+    if(gj_trump_namer(&st->game) != 0) return;
     if(is_press) {
         if(key == GjKeyLeft)
             st->trump_sel = ring_step(st->trump_sel, GJ_TRUMP_CHOICES, -1);
@@ -555,13 +481,12 @@ static void input_trump_select(GjApp* st, GjKey key, bool is_press, bool is_ok) 
 static void input_bidding(GjApp* st, const GjShellIo* io, GjKey key, bool is_press, bool is_ok) {
     if(st->game.turn != 0) {
         if(is_press && key == GjKeyBack) open_pause(st, PhaseBidding);
-        return; /* bot's turn — driven by tick */
+        return;
     }
     if(is_press) {
         if(key == GjKeyBack) {
             open_pause(st, PhaseBidding);
         } else if(st->bid_focus == 0) {
-            /* selector: ◄ ► pick a value; Down drops back into the hand */
             if(key == GjKeyLeft)
                 bid_sel_step(st, -1);
             else if(key == GjKeyRight)
@@ -571,7 +496,6 @@ static void input_bidding(GjApp* st, const GjShellIo* io, GjKey key, bool is_pre
                 if(st->hand_sel >= st->game.hands[0].count) st->hand_sel = 0;
             }
         } else {
-            /* hand focus: ◄ ► scan every card (legality ignored); Up returns */
             int n = st->game.hands[0].count;
             if(key == GjKeyLeft && n > 0)
                 st->hand_sel = (uint8_t)((st->hand_sel + n - 1) % n);
@@ -582,7 +506,7 @@ static void input_bidding(GjApp* st, const GjShellIo* io, GjKey key, bool is_pre
         }
     } else if(is_ok) {
         if(st->bid_focus == 1) {
-            st->bid_focus = 0; /* OK from the hand just returns to the picker */
+            st->bid_focus = 0;
         } else if(gj_bid_legal(&st->game, 0, (uint8_t)st->bid_sel) &&
                   gj_place_bid(&st->game, 0, (uint8_t)st->bid_sel)) {
             if(gj_bidding_done(&st->game))
@@ -608,9 +532,6 @@ static void input_deal_score(GjApp* st, const GjShellIo* io, GjKey key, bool is_
 }
 
 static void input_standings(GjApp* st, GjKey key, bool is_press, bool is_ok) {
-    /* Landscape shows all four seat columns, so there is nothing to pan
-     * to: Left/Right page the deals instead, which is the axis that got
-     * SHORTER (5 rows against portrait's 12) and so needs the help. */
     bool land = (st->layout == GjLayoutHorizontal);
     uint8_t mx = standings_maxscroll(st);
     if(land) st->standings_xscroll = 0;
@@ -652,20 +573,17 @@ static void input_pause(GjApp* st, const GjShellIo* io, GjKey key, bool is_press
         } else if(
             (key == GjKeyLeft || key == GjKeyRight) &&
             st->layout == GjLayoutHorizontal) {
-            /* landscape draws two columns (0,1 | 2,3): cross to the other
-             * column on the same row; with two columns that is a wrap */
             st->pause_sel = (uint8_t)(st->pause_sel ^ 2u);
         } else if(key == GjKeyBack) {
-            st->phase = st->prev_phase; /* resume */
+            st->phase = st->prev_phase;
         }
     } else if(is_ok) {
         if(st->pause_sel == PauseResume) {
-            st->phase = st->prev_phase; /* resume */
+            st->phase = st->prev_phase;
         } else if(st->pause_sel == PauseChart) {
-            /* chart; keeps prev_phase, so Back lands straight in play */
             open_standings(st, st->prev_phase);
         } else if(st->pause_sel == PauseRules) {
-            open_rules(st, st->prev_phase); /* Back returns to the pause target */
+            open_rules(st, st->prev_phase);
         } else {
             pause_exit(st, io);
         }
@@ -700,7 +618,6 @@ static void input_settings(GjApp* st, const GjShellIo* io, GjKey key, bool is_pr
         } else if(key == GjKeyRight) {
             settings_step(st, +1);
         } else if(key == GjKeyBack) {
-            /* Persist on the way out: one write per visit, not per keypress. */
             io_settings_save(io, st);
             st->phase = st->prev_phase;
         }
@@ -711,19 +628,14 @@ static void input_settings(GjApp* st, const GjShellIo* io, GjKey key, bool is_pr
 }
 
 void gj_shell_input(GjApp* st, const GjShellIo* io, GjKey key) {
-    /* Long Back is a global escape hatch and is handled before anything else,
-     * including the splash: no phase gets to swallow it. */
     if(key == GjKeyBackLong) {
         shell_quit(st, io);
         return;
     }
 
-    /* Map the host key set onto the old (is_press dpad/Back | is_ok) shape.
-     * OK short & long both fire is_ok. */
     bool is_ok = (key == GjKeyOk || key == GjKeyOkLong);
-    bool is_press = !is_ok; /* dpad + Back arrive here as presses */
+    bool is_press = !is_ok;
 
-    /* Splash: any key skips straight to the menu. */
     if(st->phase == PhaseSplash) {
         st->phase = PhaseMenu;
         st->menu_sel = 0;
@@ -799,11 +711,6 @@ void gj_shell_input(GjApp* st, const GjShellIo* io, GjKey key) {
     }
 }
 
-/* ---- bot-move safety nets ------------------------------------------- */
-/* A rejected bot bid/play would leave turn != 0 forever (input is accepted
- * only when turn == 0) -> hard soft-lock. These place a guaranteed-legal
- * fallback so the game can never wedge, and bump recover_count so tests catch
- * any AI that ever needs the net. Unreachable while gj_ai_* is correct. */
 static bool place_bid_safe(GjApp* st, uint8_t seat, int8_t b) {
     if(b >= 0 && gj_place_bid(&st->game, seat, (uint8_t)b)) return true;
     uint8_t cards = st->game.cards_this_deal;
@@ -813,7 +720,7 @@ static bool place_bid_safe(GjApp* st, uint8_t seat, int8_t b) {
             return true;
         }
     }
-    return false; /* no legal bid exists at all (impossible) */
+    return false;
 }
 
 static bool play_card_safe(GjApp* st, uint8_t seat, const GjAiPlay* p) {
@@ -828,10 +735,9 @@ static bool play_card_safe(GjApp* st, uint8_t seat, const GjAiPlay* p) {
             return true;
         }
     }
-    return false; /* no legal move exists at all (impossible) */
+    return false;
 }
 
-/* ---- timed beats & bot moves (one call per 25ms frame) -------------- */
 void gj_shell_tick(GjApp* st, const GjShellIo* io) {
     switch(st->phase) {
     case PhaseSplash:
@@ -842,11 +748,8 @@ void gj_shell_tick(GjApp* st, const GjShellIo* io) {
         }
         break;
 
-    /* StageIntro / TrumpReveal / LeadIntro / TrickResult no longer auto-advance
-     * — they hold until the player presses OK (see gj_shell_input). */
-
     case PhaseTrumpSelect:
-        if(gj_trump_namer(&st->game) != 0) { /* bot namer */
+        if(gj_trump_namer(&st->game) != 0) {
             if(st->wait_ticks > 0) st->wait_ticks--;
             if(st->wait_ticks == 0) {
                 uint8_t namer = gj_trump_namer(&st->game);
@@ -867,7 +770,7 @@ void gj_shell_tick(GjApp* st, const GjShellIo* io) {
                                gj_ai_bid_blind(&st->game, seat) :
                                gj_ai_bid(&st->game, seat);
                 if(!place_bid_safe(st, seat, b)) {
-                    st->wait_ticks = 40; /* nothing legal (impossible): retry, UI stays alive */
+                    st->wait_ticks = 40;
                     break;
                 }
                 if(gj_bidding_done(&st->game)) {
@@ -890,7 +793,7 @@ void gj_shell_tick(GjApp* st, const GjShellIo* io) {
                 GjAiPlay p;
                 gj_ai_choose_card(&st->game, st->game.turn, &p);
                 if(!play_card_safe(st, st->game.turn, &p)) {
-                    st->wait_ticks = 40; /* nothing legal (impossible): retry, UI stays alive */
+                    st->wait_ticks = 40;
                     break;
                 }
                 if(gj_trick_complete(&st->game)) {
@@ -907,12 +810,11 @@ void gj_shell_tick(GjApp* st, const GjShellIo* io) {
         }
         break;
 
-    default: /* Menu / TrumpSelect(human) / DealScore / Standings / intros / etc. */
+    default:
         break;
     }
 }
 
-/* ---- init ----------------------------------------------------------- */
 void gj_shell_init(GjApp* app, bool save_available) {
     app->phase = PhaseSplash;
     app->sub = SubNone;
@@ -920,7 +822,7 @@ void gj_shell_init(GjApp* app, bool save_available) {
     app->settings_sel = 0;
     app->running = true;
     app->save_available = save_available;
-    app->wait_ticks = GJ_SPLASH_TICKS; /* renderer derives splash progress */
+    app->wait_ticks = GJ_SPLASH_TICKS;
 }
 
 bool gj_shell_needs_tick(const GjApp* st) {

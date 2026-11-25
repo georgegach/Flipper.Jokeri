@@ -1,13 +1,4 @@
 name: "Catalog: real bundler"
-# Runs flipperdevices/flipper-application-catalog's OWN bundler against our manifest,
-# exactly as their submission CI does — clone the pinned commit, build the FAP, resolve
-# the @./ includes, process the icon and screenshots, enforce the Markdown subset.
-#
-# tools/catalog_preflight.py is a fast mirror of the SDK-free half of that. This is the
-# authority: if this is green, the submission PR fails only for reasons a human chose.
-#
-# It lives in CI because the bundler downloads an SDK and compiles the app, and this
-# project is never built on the author's machine.
 
 on:
   push:
@@ -48,8 +39,6 @@ jobs:
         run: python3 -m pip install -r tools/requirements.txt
 
       - name: Stage our manifest where the bundler expects it
-        # The bundler asserts the category and appid in the path match application.fam,
-        # so this placement is itself part of the test.
         run: |
           SHA="${{ inputs.commit_sha || github.sha }}"
           echo "Validating commit $SHA"
@@ -60,8 +49,6 @@ jobs:
 
       - name: Run the bundler
         working-directory: catalog
-        # --nolint mirrors the catalog's own bundle action (skip-lint: true). The build
-        # is NOT skipped: that is the half of the check that finds real breakage.
         run: |
           export UFBT_HOME="$PWD/.ufbt"
           python3 tools/bundle.py --nolint \

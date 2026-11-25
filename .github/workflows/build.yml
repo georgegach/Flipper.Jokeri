@@ -1,40 +1,25 @@
 name: "FAP: Build and Release"
-# Builds the app for the dev and release SDK channels.
-#
-# GitHub-hosted runners ONLY. This repository is public, so `pull_request` runs
-# fork-authored code — a self-hosted runner here would hand strangers a shell on
-# the host. Do not add one.
 
 on:
   push:
     branches:
-      # dev is where work lands; main is what the Apps Catalog pins. Both build,
-      # but every publishing step below is gated on main/tags, so a dev push
-      # compiles and runs the catalog preflight without touching a release.
       - main
       - dev
     tags:
       - "v*"
   pull_request:
   schedule:
-    # Weekly: catches SDK-channel drift without nightly noise.
     - cron: "1 1 * * 1"
   workflow_dispatch:
 
 permissions:
-  contents: write # rolling latest-build release + versioned tags
+  contents: write
 
-# Two pushes in quick succession would otherwise race to force-move `latest-build` and
-# upload assets to it, and the loser can leave the release carrying a stale FAP.
 concurrency:
   group: build-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  # Everything the Apps Catalog bundler checks that does NOT need the SDK. Runs in
-  # parallel with the build so a metadata mistake surfaces in seconds, not weeks later in
-  # a submission PR. Mirrors flipperdevices/flipper-application-catalog tools/bundle.py
-  # and tools/flipp_catalog/markdown_filter.py — if this passes, `bundle.py` should too.
   catalog-checks:
     runs-on: ubuntu-latest
     name: "Catalog: metadata preflight"
@@ -45,10 +30,9 @@ jobs:
       - name: Validate catalog metadata
         run: python3 tools/catalog_preflight.py
 
-      # The full bundler cannot reach its Markdown check until screenshots exist —
-      # _process_assets runs first and aborts. The filter is pure Python though, so run
-      # the real one here against the two files it would judge. Soft-fails if their repo
-      # is unreachable: catalog_preflight.py already covers this, less authoritatively.
+      - name: No comments
+        run: python3 tools/no_comments.py
+
       - name: Markdown subset, via the catalog's own filter
         run: |
           python3 -m pip install --quiet 'Markdown==3.7'
@@ -79,7 +63,7 @@ jobs:
     timeout-minutes: 30
     strategy:
       fail-fast: false
-      max-parallel: 1 # serialize so both channels can update the same rolling release
+      max-parallel: 1
       matrix:
         include:
           - name: dev channel
@@ -99,8 +83,6 @@ jobs:
           app-dir: .
 
       - name: FAP size report
-        # A .fap is an ELF; arm-none-eabi-size reports .text/.rodata/.data/.bss.
-        # Soft-fail: a missing `size` tool must never mask a green build.
         continue-on-error: true
         run: |
           FAP='${{ steps.build-app.outputs.fap-artifacts }}'
@@ -132,10 +114,6 @@ jobs:
           cp ${{ steps.build-app.outputs.fap-artifacts }} \
              /tmp/gj-release/jokeri-${{ matrix.sdk-channel }}.fap
 
-      # A rolling prerelease always carries the current FAP. The tag is force-moved
-      # to HEAD and the SHA + date go in the *name*, because GitHub never updates a
-      # release's published_at — without this it reads as abandoned on mobile even
-      # when the assets are minutes old.
       - name: Move rolling tag to HEAD
         if: github.ref == 'refs/heads/main'
         run: |
@@ -161,8 +139,6 @@ jobs:
             [Apps Catalog](https://lab.flipper.net/apps) or a `v*` release below.
           files: /tmp/gj-release/jokeri-${{ matrix.sdk-channel }}.fap
 
-      # Versioned releases are what the Apps Catalog submission points at, and the only
-      # ones that stay retrievable — the rolling assets are overwritten every push.
       - name: Publish versioned release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2

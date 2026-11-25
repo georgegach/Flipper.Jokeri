@@ -1,20 +1,4 @@
 #!/usr/bin/env python3
-"""Preflight for a Flipper Apps Catalog submission. No dependencies, no SDK.
-
-Mirrors the checks in flipperdevices/flipper-application-catalog that reject a
-submission for reasons unrelated to whether the app builds:
-
-  tools/bundle.py                       icon size/mode, screenshot geometry, empty fields
-  tools/flipp_catalog/markdown_filter.py   the Markdown subset allowed in changelog/description
-  tools/flipp_catalog/manifest.py       fields synced from application.fam
-
-The catalog runs its bundler only when the submission PR is opened, which is weeks after
-the mistake was made. This runs on every push instead. It is deliberately conservative:
-it may complain about something the real filter would accept, but it must never pass
-something the real filter rejects.
-
-Run: python3 tools/catalog_preflight.py
-"""
 
 import re
 import struct
@@ -23,7 +7,6 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 
-# bundle.py: FLIPPER_SCREEN_SIZE / APP_SCREENSHOT_DOWNSCALE_FACTORS / FLIPPER_ICON_SIZE
 SCREEN = (128, 64)
 DOWNSCALE_FACTORS = (4, 8)
 ICON_SIZE = (10, 10)
@@ -31,17 +14,13 @@ ICON_SIZE = (10, 10)
 errors = []
 warnings = []
 
-
 def error(msg):
     errors.append(msg)
-
 
 def warn(msg):
     warnings.append(msg)
 
-
 def png_header(path):
-    """(width, height, bit_depth, colour_type) from the IHDR, without Pillow."""
     data = path.read_bytes()
     if data[:8] != b"\x89PNG\r\n\x1a\n":
         error(f"{path.relative_to(ROOT)}: not a PNG")
@@ -49,20 +28,14 @@ def png_header(path):
     w, h = struct.unpack(">II", data[16:24])
     return w, h, data[24], data[25]
 
-
-# --- application.fam ---------------------------------------------------------------
-
 fam = (ROOT / "application.fam").read_text()
-
 
 def fam_field(name):
     m = re.search(rf'{name}\s*=\s*"([^"]*)"', fam)
     return m.group(1) if m else None
 
-
 version = fam_field("fap_version")
 if not version or not re.fullmatch(r"\d+\.\d+", version):
-    # manifest.py joins the fbt-parsed tuple with "."; fbt rejects anything but major.minor
     error(f"fap_version {version!r} is not major.minor — the catalog linter rejects it")
 
 appid = fam_field("appid")
@@ -77,7 +50,6 @@ category = fam_field("fap_category")
 if category not in CATEGORIES:
     error(f"fap_category {category!r} is not one of the catalog's {sorted(CATEGORIES)}")
 
-# short_description is required and is synced from fap_description — plain text only.
 short_description = fam_field("fap_description")
 if not short_description:
     error("fap_description is empty — it becomes the required short_description")
@@ -86,8 +58,6 @@ elif "`" in short_description or "\n" in short_description:
 
 if not fam_field("fap_author"):
     warn("fap_author is empty")
-
-# --- icon --------------------------------------------------------------------------
 
 icon_rel = fam_field("fap_icon")
 icon = ROOT / icon_rel if icon_rel else None
@@ -99,9 +69,6 @@ else:
         w, h, depth, ctype = hdr
         if (w, h) != ICON_SIZE:
             error(f"icon is {w}x{h}, the catalog requires {ICON_SIZE[0]}x{ICON_SIZE[1]}")
-        # bundle.py rejects any pixel that is neither pure black nor pure white.
-        # 1-bit greyscale (depth 1, colour type 0) can only be those two, so checking
-        # the header is a sufficient proxy and needs no image library.
         if (depth, ctype) != (1, 0):
             error(
                 f"icon is depth {depth} colour-type {ctype}; use 1-bit greyscale so every "
@@ -110,11 +77,8 @@ else:
         else:
             print(f"icon OK: {w}x{h}, {depth}-bit greyscale")
 
-# --- screenshots -------------------------------------------------------------------
-
 shots = sorted((ROOT / "screenshots").glob("*.png"))
 if not shots:
-    # Not fatal on a normal push — it is fatal at submission ("No screenshots found").
     warn("no screenshots yet — the catalog requires at least one before submitting")
 for shot in shots:
     hdr = png_header(shot)
@@ -136,9 +100,6 @@ for shot in shots:
     else:
         print(f"screenshot OK: {name} {w}x{h} ({fx}x)")
 
-# --- markdown subset ---------------------------------------------------------------
-
-# markdown_filter.py raises (does not strip) on these. Headers are capped at level 2.
 MARKDOWN_RULES = [
     (re.compile(r"`"), "backtick / inline code"),
     (re.compile(r"^\s*```"), "fenced code block"),
@@ -172,8 +133,6 @@ for rel in ("CHANGELOG.md", "catalog/description.md"):
     if len(errors) == before:
         print(f"markdown OK: {rel}")
 
-# --- the manifest we will submit ----------------------------------------------------
-
 manifest = (ROOT / "catalog" / "manifest.yml").read_text()
 for field in ("changelog:", "description:", "screenshots:", "sourcecode:"):
     if field not in manifest:
@@ -186,21 +145,16 @@ for inc in re.findall(r'"@\./([^"]+)"', manifest):
 for shot in re.findall(r'^\s*-\s*"\./(screenshots/[^"]+)"', manifest, re.M):
     if (ROOT / shot).exists():
         continue
-    # Before the first capture session the whole set is missing and that is expected —
-    # warn. Once some exist, a missing one is a typo or a forgotten commit — fail.
     (warn if not shots else error)(f"catalog/manifest.yml lists {shot}, which does not exist")
 
 sha = re.search(r"commit_sha:\s*(\S+)", manifest)
 if sha and re.fullmatch(r"[0-9a-f]{40}", sha.group(1)):
     print(f"commit_sha pinned: {sha.group(1)}")
 elif sha:
-    # bundle.py: `if len(commit_sha) != 40`. A short SHA is rejected.
     warn(
         f"commit_sha is {sha.group(1)!r} — fill it with the full 40-character SHA of the "
         "tagged commit before opening the submission PR"
     )
-
-# --- report -------------------------------------------------------------------------
 
 for w_ in warnings:
     print(f"::warning::{w_}")

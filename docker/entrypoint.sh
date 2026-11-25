@@ -1,5 +1,4 @@
 #!/bin/sh
-# Run ufbt, then copy any produced .fap into /app/dist so the host can find it.
 ufbt "$@"
 rc=$?
 if [ -d /ufbt-cache/build ]; then

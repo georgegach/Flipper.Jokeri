@@ -1,6 +1,3 @@
-/* gj_save.c — SD-card I/O for the pulka snapshot (furi Storage layer).
- * The pack/unpack/validate format lives in gj_save_core.c. Writes go to a temp
- * file then storage_common_rename for atomicity. */
 #include "gj_save.h"
 
 #define GJ_SAVE_TMP APP_DATA_PATH("pulka.save.tmp")

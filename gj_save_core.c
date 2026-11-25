@@ -1,17 +1,11 @@
-/* gj_save_core.c — furi-free pack / unpack / validate (see gj_save_core.h).
- * Buffer-only: no Storage, no SD. Host-tested by tests/test_save.c. */
 #include "gj_save_core.h"
-#include <stddef.h> /* offsetof */
+#include <stddef.h>
 #include <string.h>
 
-/* The save blob IS the byte layout of GjGame. If any of these fire, the on-disk
- * format changed and GJ_SAVE_VERSION must bump (and old saves get rejected). */
 _Static_assert(sizeof(GjGame) == 282, "GjGame layout changed -> bump GJ_SAVE_VERSION");
 _Static_assert(sizeof(GjSaveFile) == 300, "GjSaveFile layout changed -> bump GJ_SAVE_VERSION");
 _Static_assert(offsetof(GjSaveFile, phase) == 8, "CRC region anchor moved");
 
-/* CRC over the bytes from `phase` to the end of the struct (everything after
- * the payload_crc field). */
 static uint16_t gj_save_payload_crc(const GjSaveFile* s) {
     const uint8_t* base = (const uint8_t*)s + offsetof(GjSaveFile, phase);
     uint32_t len = (uint32_t)(sizeof(GjSaveFile) - offsetof(GjSaveFile, phase));
@@ -19,7 +13,7 @@ static uint16_t gj_save_payload_crc(const GjSaveFile* s) {
 }
 
 void gj_save_pack(GjSaveFile* out, const GjApp* app) {
-    memset(out, 0, sizeof(*out)); /* zero reserved[] + any padding for determinism */
+    memset(out, 0, sizeof(*out));
     out->magic = GJ_SAVE_MAGIC;
     out->version = GJ_SAVE_VERSION;
     out->phase = app->phase;
