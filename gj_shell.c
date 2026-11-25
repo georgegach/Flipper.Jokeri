@@ -26,6 +26,11 @@ _Static_assert(sizeof(GjApp) <= 344, "GjApp over its RAM budget");
 #define GJ_PACE_JITTER 12u
 #define GJ_STANDINGS_MAXXSCROLL 2u /* 4 player columns, 2 visible */
 #define GJ_SPLASH_TICKS 64u /* ~1.6s at 25ms */
+#define GJ_SUIT_COUNT 4u
+#define GJ_TRUMP_CHOICES (GJ_SUIT_COUNT + 1u)
+_Static_assert(GJ_NO_TRUMP == GJ_SUIT_COUNT, "the trump picker's last row is no-trump");
+
+enum { PauseResume = 0, PauseChart, PauseRules, PauseExit, PauseItemCount };
 
 /* ---- io helpers (all hooks NULL-safe) ------------------------------- */
 static uint32_t io_rng(const GjShellIo* io) {
@@ -427,9 +432,9 @@ static void handle_trickplay_input(
     case SubJokerSuit:
         if(is_press) {
             if(key == GjKeyLeft)
-                st->suit_sel = (st->suit_sel == 0) ? 3 : (uint8_t)(st->suit_sel - 1);
+                st->suit_sel = ring_step(st->suit_sel, GJ_SUIT_COUNT, -1);
             else if(key == GjKeyRight)
-                st->suit_sel = (st->suit_sel == 3) ? 0 : (uint8_t)(st->suit_sel + 1);
+                st->suit_sel = ring_step(st->suit_sel, GJ_SUIT_COUNT, +1);
             else if(key == GjKeyBack)
                 st->sub = SubJokerMenu;
         } else if(is_ok) {
@@ -492,6 +497,219 @@ static void shell_quit(GjApp* st, const GjShellIo* io) {
 }
 
 /* ---- top-level input ------------------------------------------------ */
+static void input_menu(GjApp* st, const GjShellIo* io, GjKey key, bool is_press, bool is_ok) {
+    /* actions in display order: Continue (save only), Standard, Quick
+     * Nines, Rules, About, Settings. menu_sel indexes VISIBLE rows.
+     * Settings is APPENDED: tests/drive_util.h derives its row target from
+     * the mode index, which only holds while the modes stay first. */
+    uint8_t count = st->save_available ? 6 : 5;
+    if(is_press) {
+        if(key == GjKeyUp) {
+            st->menu_sel = ring_step(st->menu_sel, count, -1);
+        } else if(key == GjKeyDown) {
+            st->menu_sel = ring_step(st->menu_sel, count, +1);
+        } else if(key == GjKeyBack) {
+            st->running = false;
+        }
+    } else if(is_ok) {
+        uint8_t act = st->save_available ? st->menu_sel : (uint8_t)(st->menu_sel + 1);
+        switch(act) {
+        case 0:
+            menu_continue(st, io);
+            break;
+        case 1:
+            new_game(st, io, GjModeStandard);
+            break;
+        case 2:
+            new_game(st, io, GjModeQuickNines);
+            break;
+        case 3:
+            open_rules(st, PhaseMenu);
+            break;
+        case 4:
+            st->phase = PhaseAbout;
+            break;
+        default:
+            open_settings(st, PhaseMenu);
+            break;
+        }
+    }
+}
+
+static void input_trump_select(GjApp* st, GjKey key, bool is_press, bool is_ok) {
+    if(gj_trump_namer(&st->game) != 0) return; /* bot names it; ignore input */
+    if(is_press) {
+        if(key == GjKeyLeft)
+            st->trump_sel = ring_step(st->trump_sel, GJ_TRUMP_CHOICES, -1);
+        else if(key == GjKeyRight)
+            st->trump_sel = ring_step(st->trump_sel, GJ_TRUMP_CHOICES, +1);
+        else if(key == GjKeyBack)
+            open_pause(st, PhaseTrumpSelect);
+    } else if(is_ok) {
+        gj_set_trump(&st->game, st->trump_sel);
+        st->phase = PhaseTrumpReveal;
+        st->wait_ticks = 48;
+    }
+}
+
+static void input_bidding(GjApp* st, const GjShellIo* io, GjKey key, bool is_press, bool is_ok) {
+    if(st->game.turn != 0) {
+        if(is_press && key == GjKeyBack) open_pause(st, PhaseBidding);
+        return; /* bot's turn — driven by tick */
+    }
+    if(is_press) {
+        if(key == GjKeyBack) {
+            open_pause(st, PhaseBidding);
+        } else if(st->bid_focus == 0) {
+            /* selector: ◄ ► pick a value; Down drops back into the hand */
+            if(key == GjKeyLeft)
+                bid_sel_step(st, -1);
+            else if(key == GjKeyRight)
+                bid_sel_step(st, +1);
+            else if(key == GjKeyDown && bid_hand_visible(st)) {
+                st->bid_focus = 1;
+                if(st->hand_sel >= st->game.hands[0].count) st->hand_sel = 0;
+            }
+        } else {
+            /* hand focus: ◄ ► scan every card (legality ignored); Up returns */
+            int n = st->game.hands[0].count;
+            if(key == GjKeyLeft && n > 0)
+                st->hand_sel = (uint8_t)((st->hand_sel + n - 1) % n);
+            else if(key == GjKeyRight && n > 0)
+                st->hand_sel = (uint8_t)((st->hand_sel + 1) % n);
+            else if(key == GjKeyUp)
+                st->bid_focus = 0;
+        }
+    } else if(is_ok) {
+        if(st->bid_focus == 1) {
+            st->bid_focus = 0; /* OK from the hand just returns to the picker */
+        } else if(gj_bid_legal(&st->game, 0, (uint8_t)st->bid_sel) &&
+                  gj_place_bid(&st->game, 0, (uint8_t)st->bid_sel)) {
+            if(gj_bidding_done(&st->game))
+                enter_lead_intro(st);
+            else
+                arm_pacing(st, io);
+        }
+    }
+}
+
+static void input_deal_score(GjApp* st, const GjShellIo* io, GjKey key, bool is_press, bool is_ok) {
+    if(is_press && key == GjKeyUp) {
+        open_standings(st, PhaseDealScore);
+    } else if(is_ok) {
+        if(gj_game_over(&st->game)) {
+            st->phase = PhaseGameOver;
+            io_save_delete(io);
+            st->save_available = false;
+        } else {
+            begin_deal(st, io);
+        }
+    }
+}
+
+static void input_standings(GjApp* st, GjKey key, bool is_press, bool is_ok) {
+    /* Landscape shows all four seat columns, so there is nothing to pan
+     * to: Left/Right page the deals instead, which is the axis that got
+     * SHORTER (5 rows against portrait's 12) and so needs the help. */
+    bool land = (st->layout == GjLayoutHorizontal);
+    uint8_t mx = standings_maxscroll(st);
+    if(land) st->standings_xscroll = 0;
+    if(is_press) {
+        if(key == GjKeyUp) {
+            if(st->standings_scroll > 0) st->standings_scroll--;
+        } else if(key == GjKeyDown) {
+            if(st->standings_scroll < mx) st->standings_scroll++;
+        } else if(key == GjKeyLeft) {
+            if(land) {
+                uint8_t page = standings_rows(st);
+                st->standings_scroll =
+                    (st->standings_scroll > page) ? (uint8_t)(st->standings_scroll - page) : 0u;
+            } else if(st->standings_xscroll > 0) {
+                st->standings_xscroll--;
+            }
+        } else if(key == GjKeyRight) {
+            if(land) {
+                uint8_t page = standings_rows(st);
+                uint8_t nx = (uint8_t)(st->standings_scroll + page);
+                st->standings_scroll = (nx > mx) ? mx : nx;
+            } else if(st->standings_xscroll < GJ_STANDINGS_MAXXSCROLL) {
+                st->standings_xscroll++;
+            }
+        } else if(key == GjKeyBack) {
+            st->phase = st->prev_phase;
+        }
+    } else if(is_ok) {
+        st->phase = st->prev_phase;
+    }
+}
+
+static void input_pause(GjApp* st, const GjShellIo* io, GjKey key, bool is_press, bool is_ok) {
+    if(is_press) {
+        if(key == GjKeyUp) {
+            st->pause_sel = ring_step(st->pause_sel, PauseItemCount, -1);
+        } else if(key == GjKeyDown) {
+            st->pause_sel = ring_step(st->pause_sel, PauseItemCount, +1);
+        } else if(
+            (key == GjKeyLeft || key == GjKeyRight) &&
+            st->layout == GjLayoutHorizontal) {
+            /* landscape draws two columns (0,1 | 2,3): cross to the other
+             * column on the same row; with two columns that is a wrap */
+            st->pause_sel = (uint8_t)(st->pause_sel ^ 2u);
+        } else if(key == GjKeyBack) {
+            st->phase = st->prev_phase; /* resume */
+        }
+    } else if(is_ok) {
+        if(st->pause_sel == PauseResume) {
+            st->phase = st->prev_phase; /* resume */
+        } else if(st->pause_sel == PauseChart) {
+            /* chart; keeps prev_phase, so Back lands straight in play */
+            open_standings(st, st->prev_phase);
+        } else if(st->pause_sel == PauseRules) {
+            open_rules(st, st->prev_phase); /* Back returns to the pause target */
+        } else {
+            pause_exit(st, io);
+        }
+    }
+}
+
+static void input_rules(GjApp* st, GjKey key, bool is_press, bool is_ok) {
+    if(is_press) {
+        if(key == GjKeyUp) {
+            if(st->rules_scroll > 0) st->rules_scroll--;
+        } else if(key == GjKeyDown) {
+            uint16_t total = gj_rules_lines(st->lang);
+            uint8_t vis = gj_rules_visible(st->lang, st->layout);
+            uint8_t mx = (total > vis) ? (uint8_t)(total - vis) : 0u;
+            if(st->rules_scroll < mx) st->rules_scroll++;
+        } else if(key == GjKeyBack) {
+            st->phase = st->prev_phase;
+        }
+    } else if(is_ok) {
+        st->phase = st->prev_phase;
+    }
+}
+
+static void input_settings(GjApp* st, const GjShellIo* io, GjKey key, bool is_press, bool is_ok) {
+    if(is_press) {
+        if(key == GjKeyUp) {
+            st->settings_sel = ring_step(st->settings_sel, GJ_SETTINGS_ROW_COUNT, -1);
+        } else if(key == GjKeyDown) {
+            st->settings_sel = ring_step(st->settings_sel, GJ_SETTINGS_ROW_COUNT, +1);
+        } else if(key == GjKeyLeft) {
+            settings_step(st, -1);
+        } else if(key == GjKeyRight) {
+            settings_step(st, +1);
+        } else if(key == GjKeyBack) {
+            /* Persist on the way out: one write per visit, not per keypress. */
+            io_settings_save(io, st);
+            st->phase = st->prev_phase;
+        }
+    } else if(is_ok) {
+        io_settings_save(io, st);
+        st->phase = st->prev_phase;
+    }
+}
+
 void gj_shell_input(GjApp* st, const GjShellIo* io, GjKey key) {
     /* Long Back is a global escape hatch and is handled before anything else,
      * including the splash: no phase gets to swallow it. */
@@ -513,64 +731,16 @@ void gj_shell_input(GjApp* st, const GjShellIo* io, GjKey key) {
     }
 
     switch(st->phase) {
-    case PhaseMenu: {
-        /* actions in display order: Continue (save only), Standard, Quick
-         * Nines, Rules, About, Settings. menu_sel indexes VISIBLE rows.
-         * Settings is APPENDED: tests/drive_util.h derives its row target from
-         * the mode index, which only holds while the modes stay first. */
-        uint8_t count = st->save_available ? 6 : 5;
-        if(is_press) {
-            if(key == GjKeyUp) {
-                st->menu_sel = ring_step(st->menu_sel, count, -1);
-            } else if(key == GjKeyDown) {
-                st->menu_sel = ring_step(st->menu_sel, count, +1);
-            } else if(key == GjKeyBack) {
-                st->running = false;
-            }
-        } else if(is_ok) {
-            uint8_t act = st->save_available ? st->menu_sel : (uint8_t)(st->menu_sel + 1);
-            switch(act) {
-            case 0:
-                menu_continue(st, io);
-                break;
-            case 1:
-                new_game(st, io, GjModeStandard);
-                break;
-            case 2:
-                new_game(st, io, GjModeQuickNines);
-                break;
-            case 3:
-                open_rules(st, PhaseMenu);
-                break;
-            case 4:
-                st->phase = PhaseAbout;
-                break;
-            default:
-                open_settings(st, PhaseMenu);
-                break;
-            }
-        }
+    case PhaseMenu:
+        input_menu(st, io, key, is_press, is_ok);
         break;
-    }
 
     case PhaseStageIntro:
         if(is_ok) stage_intro_advance(st);
         break;
 
     case PhaseTrumpSelect:
-        if(gj_trump_namer(&st->game) != 0) break; /* bot names it; ignore input */
-        if(is_press) {
-            if(key == GjKeyLeft)
-                st->trump_sel = (st->trump_sel == 0) ? 4 : (uint8_t)(st->trump_sel - 1);
-            else if(key == GjKeyRight)
-                st->trump_sel = (st->trump_sel == 4) ? 0 : (uint8_t)(st->trump_sel + 1);
-            else if(key == GjKeyBack)
-                open_pause(st, PhaseTrumpSelect);
-        } else if(is_ok) {
-            gj_set_trump(&st->game, (st->trump_sel == 4) ? GJ_NO_TRUMP : st->trump_sel);
-            st->phase = PhaseTrumpReveal;
-            st->wait_ticks = 48;
-        }
+        input_trump_select(st, key, is_press, is_ok);
         break;
 
     case PhaseTrumpReveal:
@@ -582,44 +752,7 @@ void gj_shell_input(GjApp* st, const GjShellIo* io, GjKey key) {
         break;
 
     case PhaseBidding:
-        if(st->game.turn != 0) {
-            if(is_press && key == GjKeyBack) open_pause(st, PhaseBidding);
-            break; /* bot's turn — driven by tick */
-        }
-        if(is_press) {
-            if(key == GjKeyBack) {
-                open_pause(st, PhaseBidding);
-            } else if(st->bid_focus == 0) {
-                /* selector: ◄ ► pick a value; Down drops back into the hand */
-                if(key == GjKeyLeft)
-                    bid_sel_step(st, -1);
-                else if(key == GjKeyRight)
-                    bid_sel_step(st, +1);
-                else if(key == GjKeyDown && bid_hand_visible(st)) {
-                    st->bid_focus = 1;
-                    if(st->hand_sel >= st->game.hands[0].count) st->hand_sel = 0;
-                }
-            } else {
-                /* hand focus: ◄ ► scan every card (legality ignored); Up returns */
-                int n = st->game.hands[0].count;
-                if(key == GjKeyLeft && n > 0)
-                    st->hand_sel = (uint8_t)((st->hand_sel + n - 1) % n);
-                else if(key == GjKeyRight && n > 0)
-                    st->hand_sel = (uint8_t)((st->hand_sel + 1) % n);
-                else if(key == GjKeyUp)
-                    st->bid_focus = 0;
-            }
-        } else if(is_ok) {
-            if(st->bid_focus == 1) {
-                st->bid_focus = 0; /* OK from the hand just returns to the picker */
-            } else if(gj_bid_legal(&st->game, 0, (uint8_t)st->bid_sel) &&
-                      gj_place_bid(&st->game, 0, (uint8_t)st->bid_sel)) {
-                if(gj_bidding_done(&st->game))
-                    enter_lead_intro(st);
-                else
-                    arm_pacing(st, io);
-            }
-        }
+        input_bidding(st, io, key, is_press, is_ok);
         break;
 
     case PhaseTrickPlay:
@@ -631,121 +764,23 @@ void gj_shell_input(GjApp* st, const GjShellIo* io, GjKey key) {
         break;
 
     case PhaseDealScore:
-        if(is_press && key == GjKeyUp) {
-            open_standings(st, PhaseDealScore);
-        } else if(is_ok) {
-            if(gj_game_over(&st->game)) {
-                st->phase = PhaseGameOver;
-                io_save_delete(io);
-                st->save_available = false;
-            } else {
-                begin_deal(st, io);
-            }
-        }
+        input_deal_score(st, io, key, is_press, is_ok);
         break;
 
-    case PhaseStandings: {
-        /* Landscape shows all four seat columns, so there is nothing to pan
-         * to: Left/Right page the deals instead, which is the axis that got
-         * SHORTER (5 rows against portrait's 12) and so needs the help. */
-        bool land = (st->layout == GjLayoutHorizontal);
-        uint8_t mx = standings_maxscroll(st);
-        if(land) st->standings_xscroll = 0;
-        if(is_press) {
-            if(key == GjKeyUp) {
-                if(st->standings_scroll > 0) st->standings_scroll--;
-            } else if(key == GjKeyDown) {
-                if(st->standings_scroll < mx) st->standings_scroll++;
-            } else if(key == GjKeyLeft) {
-                if(land) {
-                    uint8_t page = standings_rows(st);
-                    st->standings_scroll =
-                        (st->standings_scroll > page) ? (uint8_t)(st->standings_scroll - page) : 0u;
-                } else if(st->standings_xscroll > 0) {
-                    st->standings_xscroll--;
-                }
-            } else if(key == GjKeyRight) {
-                if(land) {
-                    uint8_t page = standings_rows(st);
-                    uint8_t nx = (uint8_t)(st->standings_scroll + page);
-                    st->standings_scroll = (nx > mx) ? mx : nx;
-                } else if(st->standings_xscroll < GJ_STANDINGS_MAXXSCROLL) {
-                    st->standings_xscroll++;
-                }
-            } else if(key == GjKeyBack) {
-                st->phase = st->prev_phase;
-            }
-        } else if(is_ok) {
-            st->phase = st->prev_phase;
-        }
+    case PhaseStandings:
+        input_standings(st, key, is_press, is_ok);
         break;
-    }
 
     case PhasePause:
-        if(is_press) {
-            if(key == GjKeyUp) {
-                st->pause_sel = ring_step(st->pause_sel, 4, -1);
-            } else if(key == GjKeyDown) {
-                st->pause_sel = ring_step(st->pause_sel, 4, +1);
-            } else if(
-                (key == GjKeyLeft || key == GjKeyRight) &&
-                st->layout == GjLayoutHorizontal) {
-                /* landscape draws two columns (0,1 | 2,3): cross to the other
-                 * column on the same row; with two columns that is a wrap */
-                st->pause_sel = (uint8_t)(st->pause_sel ^ 2u);
-            } else if(key == GjKeyBack) {
-                st->phase = st->prev_phase; /* resume */
-            }
-        } else if(is_ok) {
-            if(st->pause_sel == 0) {
-                st->phase = st->prev_phase; /* resume */
-            } else if(st->pause_sel == 1) {
-                /* chart; keeps prev_phase, so Back lands straight in play */
-                open_standings(st, st->prev_phase);
-            } else if(st->pause_sel == 2) {
-                open_rules(st, st->prev_phase); /* Back returns to the pause target */
-            } else {
-                pause_exit(st, io);
-            }
-        }
+        input_pause(st, io, key, is_press, is_ok);
         break;
 
     case PhaseRules:
-        if(is_press) {
-            if(key == GjKeyUp) {
-                if(st->rules_scroll > 0) st->rules_scroll--;
-            } else if(key == GjKeyDown) {
-                uint16_t total = gj_rules_lines(st->lang);
-                uint8_t vis = gj_rules_visible(st->lang, st->layout);
-                uint8_t mx = (total > vis) ? (uint8_t)(total - vis) : 0u;
-                if(st->rules_scroll < mx) st->rules_scroll++;
-            } else if(key == GjKeyBack) {
-                st->phase = st->prev_phase;
-            }
-        } else if(is_ok) {
-            st->phase = st->prev_phase;
-        }
+        input_rules(st, key, is_press, is_ok);
         break;
 
     case PhaseSettings:
-        if(is_press) {
-            if(key == GjKeyUp) {
-                st->settings_sel = ring_step(st->settings_sel, GJ_SETTINGS_ROW_COUNT, -1);
-            } else if(key == GjKeyDown) {
-                st->settings_sel = ring_step(st->settings_sel, GJ_SETTINGS_ROW_COUNT, +1);
-            } else if(key == GjKeyLeft) {
-                settings_step(st, -1);
-            } else if(key == GjKeyRight) {
-                settings_step(st, +1);
-            } else if(key == GjKeyBack) {
-                /* Persist on the way out: one write per visit, not per keypress. */
-                io_settings_save(io, st);
-                st->phase = st->prev_phase;
-            }
-        } else if(is_ok) {
-            io_settings_save(io, st);
-            st->phase = st->prev_phase;
-        }
+        input_settings(st, io, key, is_press, is_ok);
         break;
 
     case PhaseGameOver:

@@ -18,11 +18,6 @@
  * below the baseline. */
 #define GJ_T7_CELL_MAX 10
 
-/* Height of the table font's cell. 10, not 7: ASCII uses the top 7 (the cap
- * box) but Mkhedruli is four-level — 14 letters ascend to cap height and 16
- * descend below the baseline. */
-#define GJ_T7_CELL_MAX 10
-
 /* Dispatches on app->phase / app->sub and draws the complete frame. */
 void gj_render_frame(GjGfx* g, const GjApp* app);
 

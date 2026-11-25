@@ -330,11 +330,6 @@ bool gj_rules_line_is_khishti(const char* line) {
  * the 14 lines Latin got. Mtavruli stands on the baseline at cap height with no
  * descenders, so Georgian now uses the Latin metrics exactly. The lang argument
  * stays — a future script may descend again. */
-uint8_t gj_rules_pitch(uint8_t lang) {
-    (void)lang;
-    return 8u;
-}
-
 uint8_t gj_rules_visible(uint8_t lang, uint8_t landscape) {
     (void)lang;
     /* 8px pitch under a 9px header: 128 rows fit 14 lines, 64 rows fit 6. */

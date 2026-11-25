@@ -1072,9 +1072,9 @@ static void draw_suit_picker(GjGfx* g, const GjApp* app) {
  * costs one call per repaint on a path that already blits 1024 bytes.
  * Pixel-identical: this changes codegen, not geometry. */
 #if defined(__GNUC__) || defined(__clang__)
-#define GJ_SCREEN __attribute__((noinline)) static
+#define GJ_NOINLINE_FOR_STACK __attribute__((noinline)) static
 #else
-#define GJ_SCREEN static
+#define GJ_NOINLINE_FOR_STACK static
 #endif
 
 /* Splash art — the exact 64x128 1-bit mockup (two jester joker cards, the
@@ -1220,14 +1220,14 @@ static const uint8_t SPLASH_H[GJ_FB_BYTES] = {
     0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
 };
 
-GJ_SCREEN void draw_splash(GjGfx* g, const GjApp* app) {
+GJ_NOINLINE_FOR_STACK void draw_splash(GjGfx* g, const GjApp* app) {
     (void)app;
     /* Both assets are GJ_FB_BYTES and already in the stride the layout wants,
      * so the splash is still a single memcpy — just of the right picture. */
     memcpy(g->fb, g->landscape ? SPLASH_H : SPLASH, GJ_FB_BYTES);
 }
 
-GJ_SCREEN void draw_menu(GjGfx* g, const GjApp* app) {
+GJ_NOINLINE_FOR_STACK void draw_menu(GjGfx* g, const GjApp* app) {
     /* logo pip row (menu text in the crafted 5x7 table font, uppercase) */
     gj_gfx_xbm(g, 4, 5, 7, 7, jo7, 1);
     t7_text(g, 14, 6, gj_str(app->lang, GjStrJokeri), 1);
@@ -1317,10 +1317,10 @@ GJ_SCREEN void draw_menu(GjGfx* g, const GjApp* app) {
 /* ---- Rules screen (scrollable, from menu or pause) ------------------- */
 /* Text lives in gj_i18n.c: the line breaks are baked into the data, so each
  * language carries its own wrapping and its own line count. */
-GJ_SCREEN void draw_rules(GjGfx* g, const GjApp* app) {
+GJ_NOINLINE_FOR_STACK void draw_rules(GjGfx* g, const GjApp* app) {
     /* Georgian needs 11px of pitch for its descenders where Latin needs 8, so
      * fewer lines fit on screen. Both come from gj_i18n.c. */
-    uint8_t pitch = gj_rules_pitch(app->lang);
+    uint8_t pitch = GJ_RULES_PITCH;
     uint8_t vis = gj_rules_visible(app->lang, g->landscape);
     uint16_t total = gj_rules_lines(app->lang);
     uint16_t scroll = app->rules_scroll;
@@ -1367,7 +1367,7 @@ static void draw_stage_rail(GjGfx* g, int16_t y, uint8_t stage) {
     }
 }
 
-GJ_SCREEN void draw_stage_intro(GjGfx* g, const GjApp* app) {
+GJ_NOINLINE_FOR_STACK void draw_stage_intro(GjGfx* g, const GjApp* app) {
     const GjGame* gm = &app->game;
     uint8_t stage = gj_deal_stage(gm->mode, gm->deal_index) & 3u;
     /* 16 was sized for Latin and overflowed on ka: "DEAL " + a Mkhedruli seat
@@ -1412,7 +1412,7 @@ static void big_card(GjGfx* g, uint8_t lang, int16_t x, int16_t y, GjCard c) {
     pip7(g, (int16_t)(x + 8), (int16_t)(y + 22), c, 1);
 }
 
-GJ_SCREEN void draw_trump_reveal(GjGfx* g, const GjApp* app) {
+GJ_NOINLINE_FOR_STACK void draw_trump_reveal(GjGfx* g, const GjApp* app) {
     const GjGame* gm = &app->game;
     const bool land = g->landscape;
     const int16_t cx = (int16_t)(gj_fb_w(g) / 2);
@@ -1444,7 +1444,7 @@ GJ_SCREEN void draw_trump_reveal(GjGfx* g, const GjApp* app) {
     footer_hint(g, app->lang, GjStrOk, 114, 118);
 }
 
-GJ_SCREEN void draw_trump_select(GjGfx* g, const GjApp* app) {
+GJ_NOINLINE_FOR_STACK void draw_trump_select(GjGfx* g, const GjApp* app) {
     const GjGame* gm = &app->game;
     const bool land = g->landscape;
     const int16_t cx = (int16_t)(gj_fb_w(g) / 2);
@@ -1496,7 +1496,7 @@ GJ_SCREEN void draw_trump_select(GjGfx* g, const GjApp* app) {
     }
 }
 
-GJ_SCREEN void draw_deal_score(GjGfx* g, const GjApp* app) {
+GJ_NOINLINE_FOR_STACK void draw_deal_score(GjGfx* g, const GjApp* app) {
     const GjGame* gm = &app->game;
     uint8_t done = gm->deal_index ? (uint8_t)(gm->deal_index - 1) : 0;
     const char* INIT[4] = {gj_str(app->lang, GjStrSeatY), gj_str(app->lang, GjStrSeatW),
@@ -1578,7 +1578,7 @@ static void standings_label(uint8_t lang, uint8_t mode, uint8_t d, char* out) {
  * deal-label column plus 2 of the 4 player columns (Left/Right pans,
  * Up/Down scrolls deals). Cells are running totals through that deal;
  * the pinned bottom bar always shows the exact current totals. */
-GJ_SCREEN void draw_standings(GjGfx* g, const GjApp* app) {
+GJ_NOINLINE_FOR_STACK void draw_standings(GjGfx* g, const GjApp* app) {
     const GjGame* gm = &app->game;
     /* Right edges of the score columns. Portrait shows 2 of the 4 seats and
      * pans; landscape is 128 wide, so ALL FOUR fit and the h-scroll goes away
@@ -1657,7 +1657,7 @@ GJ_SCREEN void draw_standings(GjGfx* g, const GjApp* app) {
     }
 }
 
-GJ_SCREEN void draw_game_over(GjGfx* g, const GjApp* app) {
+GJ_NOINLINE_FOR_STACK void draw_game_over(GjGfx* g, const GjApp* app) {
     const GjGame* gm = &app->game;
     uint8_t order[GJ_PLAYERS] = {0, 1, 2, 3};
     for(uint8_t i = 0; i < GJ_PLAYERS - 1; i++)
@@ -1699,7 +1699,7 @@ GJ_SCREEN void draw_game_over(GjGfx* g, const GjApp* app) {
     }
 }
 
-GJ_SCREEN void draw_about(GjGfx* g, const GjApp* app) {
+GJ_NOINLINE_FOR_STACK void draw_about(GjGfx* g, const GjApp* app) {
     /* Portrait runs one long column: controls, then the chart legend, then the
      * site. Landscape splits that column in two at x=66 — controls left, the
      * legend and site right — which is the same reading order, folded. */
@@ -1757,7 +1757,7 @@ static void draw_pause_menu(GjGfx* g, const GjApp* app) {
 }
 
 /* near-empty beat after bidding: who leads the first trick */
-GJ_SCREEN void draw_lead_intro(GjGfx* g, const GjApp* app) {
+GJ_NOINLINE_FOR_STACK void draw_lead_intro(GjGfx* g, const GjApp* app) {
     const GjGame* gm = &app->game;
     uint8_t ld = gm->trick_leader & 3u;
     
@@ -1800,7 +1800,7 @@ GJ_SCREEN void draw_lead_intro(GjGfx* g, const GjApp* app) {
 /* ---- Settings screen (from the menu) --------------------------------- */
 /* Deliberately its own function, not folded into draw_phase: that frame is
  * already ~336B against the 384B/frame gate in tests/stack_check.sh. */
-GJ_SCREEN void draw_settings(GjGfx* g, const GjApp* app) {
+GJ_NOINLINE_FOR_STACK void draw_settings(GjGfx* g, const GjApp* app) {
     uint8_t lang = app->lang;
     const bool land = g->landscape;
     const int16_t W = gj_fb_w(g);
@@ -1810,9 +1810,9 @@ GJ_SCREEN void draw_settings(GjGfx* g, const GjApp* app) {
 
     static const uint16_t LBL[GJ_SETTINGS_ROW_COUNT] = {
         GjStrLangRow, GjStrPenaltyRow, GjStrBotsRow, GjStrLayoutRow};
-    const uint16_t lang_vals[GJ_LANG_COUNT] = {GjStrLangEnName, GjStrLangKaName};
-    const uint16_t diff_vals[GJ_DIFF_COUNT] = {GjStrDiffEasy, GjStrDiffNormal, GjStrDiffHard};
-    const uint16_t lay_vals[GJ_LAYOUT_COUNT] = {GjStrLayoutVert, GjStrLayoutHorz};
+    static const uint16_t lang_vals[GJ_LANG_COUNT] = {GjStrLangEnName, GjStrLangKaName};
+    static const uint16_t diff_vals[GJ_DIFF_COUNT] = {GjStrDiffEasy, GjStrDiffNormal, GjStrDiffHard};
+    static const uint16_t lay_vals[GJ_LAYOUT_COUNT] = {GjStrLayoutVert, GjStrLayoutHorz};
     char num[GJ_NUM_CAP];
     char kh[8];
 
