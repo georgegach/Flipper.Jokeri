@@ -12,7 +12,7 @@ hand-drawn pixel typeface.
 
 Every Anbani Pixel glyph is drawn by hand by its author from his own specimen; the
 family vendors no third-party outlines. The table here keeps only the glyphs the UI
-uses and adds accented letters composed from Anbani Pixel bases and marks, so it is a
+uses (a subset; a letter the font lacks would be composed from its bases and marks), so it is a
 *Modified Version* under OFL clause 2 —
 hence this notice, which OFL clause 2 requires to travel with the derivative.
 
