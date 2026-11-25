@@ -13,7 +13,7 @@
 /* ---- small local helpers -------------------------------------------- */
 
 static bool is_trump_card(GjCard c, uint8_t trump) {
-    return (trump != GJ_NO_TRUMP) && !gj_is_joker(c) && gj_suit(c) == trump;
+    return gj_suit_is_valid(trump) && !gj_is_joker(c) && gj_suit(c) == trump;
 }
 
 /* first joker index in the hand, or -1. */
@@ -110,13 +110,13 @@ static bool card_beats(
         (best_kind == GjJokerTake) || (gj_is_joker(best_card) && best_kind != GjJokerUnderplay);
     if(best_high_joker) return false;
     uint8_t cs = gj_suit(cand), cr = gj_rank(cand);
-    bool cand_trump = (trump != GJ_NO_TRUMP && cs == trump);
+    bool cand_trump = (gj_suit_is_valid(trump) && cs == trump);
     if(gj_is_joker(best_card)) {
         /* underplay joker on top: weak, loses to a led-suit card or any trump */
         return cand_trump || (led_suit != GJ_SUIT_NONE && cs == led_suit);
     }
     uint8_t bs = gj_suit(best_card), br = gj_rank(best_card);
-    bool best_trump = (trump != GJ_NO_TRUMP && bs == trump);
+    bool best_trump = (gj_suit_is_valid(trump) && bs == trump);
     if(cand_trump && !best_trump) return true;
     if(!cand_trump && best_trump) return false;
     if(cand_trump && best_trump) return cr > br;
@@ -149,7 +149,7 @@ int gj_ai_hand_value_x2(const GjHand* h, uint8_t trump_suit) {
             continue;
         }
         uint8_t s = gj_suit(c), r = gj_rank(c);
-        if(trump_suit != GJ_NO_TRUMP && s == trump_suit) {
+        if(gj_suit_is_valid(trump_suit) && s == trump_suit) {
             if(r >= GJ_RANK_Q)
                 val_x2 += 2; /* A/K/Q */
             else if(r >= GJ_RANK_10)
@@ -364,9 +364,9 @@ static void ai_lead(
          * accounted for, trumps are drained, or our whole hand wins anyway. */
         if(jk >= 0) {
             bool other_joker_gone = g->jokers_seen >= 1;
-            bool trump_drained = (trump != GJ_NO_TRUMP) && g->played_per_suit[trump] >= 6;
+            bool trump_drained = gj_suit_is_valid(trump) && g->played_per_suit[trump] >= 6;
             if(other_joker_gone || trump_drained || hand_all_winners(h, trump)) {
-                if(trump != GJ_NO_TRUMP) {
+                if(gj_suit_is_valid(trump)) {
                     out->hand_idx = (uint8_t)jk;
                     out->kind = GjJokerDemandTrump;
                     out->demand_suit = 0;

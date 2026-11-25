@@ -10,23 +10,25 @@
 
 typedef enum {
     PhaseMenu = 0,
-    PhaseStageIntro, /* "STAGE — deal x/24", auto-advance or OK */
-    PhaseTrumpSelect, /* 9-card deals: left-of-dealer names trump (H5) */
-    PhaseTrumpReveal, /* flipped/named trump beat before bidding */
-    PhaseBidding, /* rotating bids; human gets the picker */
-    PhaseTrickPlay, /* card selection / bot plays */
-    PhaseTrickResult, /* winner highlight ~900 ms; autosave point */
-    PhaseDealScore, /* per-deal results; autosave point */
-    PhaseStandings, /* scrollable 24x4 score table (also mid-game overlay) */
-    PhaseGameOver, /* final ranking; save deleted */
-    PhaseConfirmExit, /* "Save & exit?" from Back during play */
-    PhaseAbout,
-    PhaseSplash, /* boot splash, auto-advance to Menu (appended: save compat) */
-    PhaseLeadIntro, /* "YOU START"/"X STARTS" beat after bidding, before play */
-    PhasePause, /* Back during play: Resume / Chart / Rules / Exit (appended) */
-    PhaseRules, /* scrollable rules text; from menu or pause (appended) */
-    PhaseSettings, /* language / khishti / bots (appended: save compat) */
+    PhaseStageIntro = 1,
+    PhaseTrumpSelect = 2,
+    PhaseTrumpReveal = 3,
+    PhaseBidding = 4,
+    PhaseTrickPlay = 5,
+    PhaseTrickResult = 6,
+    PhaseDealScore = 7,
+    PhaseStandings = 8,
+    PhaseGameOver = 9,
+    PhaseRetiredConfirmExit = 10,
+    PhaseAbout = 11,
+    PhaseSplash = 12,
+    PhaseLeadIntro = 13,
+    PhasePause = 14,
+    PhaseRules = 15,
+    PhaseSettings = 16,
 } GamePhase;
+
+_Static_assert(PhaseSettings == 16, "GamePhase values are persisted in saves");
 
 /* Rules screen geometry is entirely per-language now (gj_i18n.c): Georgian
  * descends, so it needs a taller pitch and fits fewer lines. See
@@ -71,9 +73,7 @@ typedef struct {
     uint8_t joker_sel; /* joker popup row */
     uint8_t suit_sel; /* suit picker 0..3 */
     uint8_t trump_sel; /* trump-select 0..3, 4 = no trump */
-    uint8_t confirm_sel; /* 0 = yes, 1 = no */
     uint8_t pause_sel; /* pause menu row: 0 resume, 1 chart, 2 rules, 3 exit */
-    uint8_t new_mode; /* GjMode chosen at the menu, pending overwrite confirm */
     uint8_t rules_scroll; /* first visible line on the Rules screen */
     uint8_t standings_scroll; /* first visible deal row */
     uint8_t standings_xscroll; /* first visible player column (chart h-scroll) */
@@ -85,7 +85,4 @@ typedef struct {
     bool save_available; /* valid save on SD -> Continue shown */
     bool running; /* false = exit app */
     uint8_t recover_count; /* times a rejected bot move forced a fallback (0 = healthy) */
-    /* cached status-bar strings (re-rendered on state change, not per frame) */
-    char str_deal[12]; /* e.g. "D07/24" */
-    char str_bid[16]; /* e.g. "B:2 T:1" */
 } GjApp;

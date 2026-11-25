@@ -5,10 +5,6 @@
 
 #define GJ_SAVE_TMP APP_DATA_PATH("pulka.save.tmp")
 
-/* File-scope scratch so gj_save_exists_valid never puts a ~300B GjSaveFile on
- * the stack. Single-threaded use under the app mutex — safe. */
-static GjSaveFile gj_save_scratch;
-
 bool gj_save_write(Storage* storage, const GjSaveFile* save) {
     File* file = storage_file_alloc(storage);
     bool ok = false;
@@ -40,10 +36,6 @@ bool gj_save_read(Storage* storage, GjSaveFile* out) {
     storage_file_close(file);
     storage_file_free(file);
     return ok;
-}
-
-bool gj_save_exists_valid(Storage* storage) {
-    return gj_save_read(storage, &gj_save_scratch);
 }
 
 void gj_save_delete(Storage* storage) {

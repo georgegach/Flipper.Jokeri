@@ -45,54 +45,9 @@ static void io_settings_save(const GjShellIo* io, const GjApp* app) {
 }
 
 /* ---- status-bar string cache (was gj_ui_refresh_cache; stdio-free) --- */
-static char* put_uint(char* p, unsigned v) {
-    char tmp[10];
-    int n = 0;
-    if(v == 0) tmp[n++] = '0';
-    while(v) {
-        tmp[n++] = (char)('0' + (v % 10));
-        v /= 10;
-    }
-    while(n) *p++ = tmp[--n];
-    return p;
-}
-
 /* Append a UI string. The initials below are one GLYPH but not one byte —
  * Georgian is 3 bytes in UTF-8 — which is why these are copied rather than
  * assigned as chars the way they used to be. */
-static char* put_str(char* p, const char* s) {
-    while(*s) *p++ = *s++;
-    return p;
-}
-
-static void refresh_cache(GjApp* app) {
-    const GjGame* g = &app->game;
-    uint8_t lang = app->lang;
-    /* str_deal: "<D>%02u/%u" -> "D07/24" in English, "ხ07/24" in Georgian */
-    unsigned d = (unsigned)(g->deal_index + 1);
-    char* p = app->str_deal;
-    p = put_str(p, gj_str(lang, GjStrInitDeal));
-    if(d < 10) *p++ = '0';
-    p = put_uint(p, d);
-    *p++ = '/';
-    p = put_uint(p, (unsigned)gj_mode_num_deals(g->mode));
-    *p = '\0';
-    /* str_bid: "<B>:-" or "<B>:%d <T>:%u" -> "B:2 T:1" / "გ:2 მ:1" */
-    p = app->str_bid;
-    p = put_str(p, gj_str(lang, GjStrInitBid));
-    *p++ = ':';
-    if(g->bids[0] < 0) {
-        *p++ = '-';
-    } else {
-        p = put_uint(p, (unsigned)g->bids[0]);
-        *p++ = ' ';
-        p = put_str(p, gj_str(lang, GjStrInitTook));
-        *p++ = ':';
-        p = put_uint(p, (unsigned)g->tricks_taken[0]);
-    }
-    *p = '\0';
-}
-
 /* ---- small helpers -------------------------------------------------- */
 static uint16_t pace_ticks(const GjShellIo* io) {
     return (uint16_t)(GJ_PACE_MIN + (uint16_t)(io_rng(io) % GJ_PACE_JITTER));
@@ -191,7 +146,6 @@ static void begin_deal(GjApp* st, const GjShellIo* io) {
     st->phase = PhaseStageIntro;
     st->sub = SubNone;
     st->wait_ticks = 60; /* ~1.5s stage card */
-    refresh_cache(st);
 }
 
 static void start_new_pulka(GjApp* st, const GjShellIo* io, uint8_t mode) {
@@ -209,7 +163,6 @@ static void stage_intro_advance(GjApp* st) {
         st->phase = PhaseTrumpReveal;
         st->wait_ticks = 48;
     }
-    refresh_cache(st);
 }
 
 static void enter_bidding(GjApp* st, const GjShellIo* io) {
@@ -222,7 +175,6 @@ static void enter_bidding(GjApp* st, const GjShellIo* io) {
     } else {
         st->wait_ticks = pace_ticks(io);
     }
-    refresh_cache(st);
 }
 
 /* Who-leads beat between bidding and the first trick: the leader is easy to
@@ -231,7 +183,6 @@ static void enter_lead_intro(GjApp* st) {
     st->phase = PhaseLeadIntro;
     st->sub = SubNone;
     st->wait_ticks = 48;
-    refresh_cache(st);
 }
 
 static void enter_trick_play(GjApp* st, const GjShellIo* io) {
@@ -239,7 +190,6 @@ static void enter_trick_play(GjApp* st, const GjShellIo* io) {
     st->sub = SubNone;
     st->hand_sel = first_legal_hand(st);
     arm_pacing(st, io);
-    refresh_cache(st);
 }
 
 static void after_play(GjApp* st, const GjShellIo* io) {
@@ -250,7 +200,6 @@ static void after_play(GjApp* st, const GjShellIo* io) {
     } else {
         arm_pacing(st, io);
     }
-    refresh_cache(st);
 }
 
 static void trick_result_advance(GjApp* st, const GjShellIo* io) {
@@ -259,7 +208,6 @@ static void trick_result_advance(GjApp* st, const GjShellIo* io) {
         gj_deal_score(&st->game);
         st->phase = PhaseDealScore;
         st->sub = SubNone;
-        refresh_cache(st);
         io_save(io, st); /* AUTOSAVE (phase=DealScore) */
         st->save_available = true;
     } else {
@@ -267,7 +215,6 @@ static void trick_result_advance(GjApp* st, const GjShellIo* io) {
         st->sub = SubNone;
         st->hand_sel = first_legal_hand(st);
         arm_pacing(st, io);
-        refresh_cache(st);
         io_save(io, st); /* AUTOSAVE (phase=TrickPlay) */
         st->save_available = true;
     }
@@ -367,27 +314,6 @@ static void pause_exit(GjApp* st, const GjShellIo* io) {
     st->menu_sel = 0;
 }
 
-static void confirm_yes(GjApp* st, const GjShellIo* io) {
-    if(st->prev_phase == PhaseMenu) {
-        /* overwrite-save confirm -> start the pending mode */
-        io_save_delete(io);
-        st->save_available = false;
-        start_new_pulka(st, io, st->new_mode);
-    } else {
-        /* save & exit confirm: pack the RESUMABLE phase, not ConfirmExit,
-         * so Continue lands back in play instead of a dangling dialog */
-        st->phase = st->prev_phase;
-        io_save(io, st);
-        st->save_available = true;
-        st->phase = PhaseMenu;
-        st->menu_sel = 0;
-    }
-}
-
-static void confirm_no(GjApp* st) {
-    st->phase = (st->prev_phase == PhaseMenu) ? PhaseMenu : st->prev_phase;
-}
-
 /* ---- load glue ------------------------------------------------------ */
 static void menu_continue(GjApp* st, const GjShellIo* io) {
     if(!io_load(io, st)) {
@@ -411,7 +337,6 @@ static void menu_continue(GjApp* st, const GjShellIo* io) {
     } else {
         st->wait_ticks = 12;
     }
-    refresh_cache(st);
 }
 
 /* ---- trick-play input (SubNone / joker popups) ---------------------- */
@@ -466,7 +391,7 @@ static void handle_trickplay_input(
 
     case SubJokerMenu: {
         bool leading = (st->game.led_suit == GJ_SUIT_NONE);
-        bool has_trump = (st->game.trump_suit <= GjSuitClubs);
+        bool has_trump = gj_suit_is_valid(st->game.trump_suit);
         uint8_t rows = leading ? (has_trump ? 3 : 2) : 2;
         if(is_press) {
             if(key == GjKeyUp) {
@@ -530,7 +455,6 @@ static uint8_t resumable_phase(const GjApp* st) {
     case PhasePause:
     case PhaseRules:
     case PhaseSettings:
-    case PhaseConfirmExit:
         return st->prev_phase;
     default:
         return st->phase;
@@ -646,7 +570,6 @@ void gj_shell_input(GjApp* st, const GjShellIo* io, GjKey key) {
             gj_set_trump(&st->game, (st->trump_sel == 4) ? GJ_NO_TRUMP : st->trump_sel);
             st->phase = PhaseTrumpReveal;
             st->wait_ticks = 48;
-            refresh_cache(st);
         }
         break;
 
@@ -691,7 +614,6 @@ void gj_shell_input(GjApp* st, const GjShellIo* io, GjKey key) {
                 st->bid_focus = 0; /* OK from the hand just returns to the picker */
             } else if(gj_bid_legal(&st->game, 0, (uint8_t)st->bid_sel) &&
                       gj_place_bid(&st->game, 0, (uint8_t)st->bid_sel)) {
-                refresh_cache(st);
                 if(gj_bidding_done(&st->game))
                     enter_lead_intro(st);
                 else
@@ -833,20 +755,6 @@ void gj_shell_input(GjApp* st, const GjShellIo* io, GjKey key) {
         }
         break;
 
-    case PhaseConfirmExit:
-        if(is_press) {
-            if(key == GjKeyLeft || key == GjKeyRight)
-                st->confirm_sel ^= 1u;
-            else if(key == GjKeyBack)
-                confirm_no(st);
-        } else if(is_ok) {
-            if(st->confirm_sel == 0)
-                confirm_yes(st, io);
-            else
-                confirm_no(st);
-        }
-        break;
-
     case PhaseAbout:
         if(is_ok || (is_press && key == GjKeyBack)) st->phase = PhaseMenu;
         break;
@@ -911,7 +819,6 @@ void gj_shell_tick(GjApp* st, const GjShellIo* io) {
                 gj_set_trump(&st->game, gj_ai_pick_trump(&st->game, namer, blind));
                 st->phase = PhaseTrumpReveal;
                 st->wait_ticks = 48;
-                refresh_cache(st);
             }
         }
         break;
@@ -928,7 +835,6 @@ void gj_shell_tick(GjApp* st, const GjShellIo* io) {
                     st->wait_ticks = 40; /* nothing legal (impossible): retry, UI stays alive */
                     break;
                 }
-                refresh_cache(st);
                 if(gj_bidding_done(&st->game)) {
                     enter_lead_intro(st);
                 } else if(st->game.turn == 0) {
@@ -962,7 +868,6 @@ void gj_shell_tick(GjApp* st, const GjShellIo* io) {
                     st->hand_sel = first_legal_hand(st);
                     st->wait_ticks = 0;
                 }
-                refresh_cache(st);
             }
         }
         break;
@@ -981,7 +886,6 @@ void gj_shell_init(GjApp* app, bool save_available) {
     app->running = true;
     app->save_available = save_available;
     app->wait_ticks = GJ_SPLASH_TICKS; /* renderer derives splash progress */
-    refresh_cache(app);
 }
 
 bool gj_shell_needs_tick(const GjApp* st) {

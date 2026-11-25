@@ -64,6 +64,9 @@ static inline uint8_t gj_suit(GjCard c) {
 static inline uint8_t gj_rank(GjCard c) {
     return (uint8_t)(c % 9);
 }
+static inline bool gj_suit_is_valid(uint8_t s) {
+    return s < 4u;
+}
 
 /* ---- Structure of the pulka ----------------------------------------- */
 #define GJ_PLAYERS 4 /* seat 0 = human (South), 1 = West, 2 = North, 3 = East */

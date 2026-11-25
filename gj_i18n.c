@@ -98,10 +98,6 @@ static const char* const EN[GjStrCount] = {
     [GjStrResume] = "RESUME",
     [GjStrChart] = "CHART",
     [GjStrExit] = "EXIT",
-    [GjStrLeaveQ] = "LEAVE?",
-    [GjStrSaved] = "SAVED",
-    [GjStrSave] = "SAVE",
-    [GjStrStay] = "STAY",
 
     /* card faces + chart row labels */
     [GjStrRankJ] = "J",
@@ -127,9 +123,6 @@ static const char* const EN[GjStrCount] = {
     [GjStrDealsHint] = "^v DEALS",
     [GjStrJokerDot] = "JOKER.",
     [GjStrAgentic] = "AGENTIC.GE",
-    [GjStrInitDeal] = "D",
-    [GjStrInitBid] = "B",
-    [GjStrInitTook] = "T",
 };
 
 /* Georgian. Sized against the real pixel budgets: the screen is 64px and the
@@ -229,10 +222,6 @@ static const char* const KA[GjStrCount] = {
     [GjStrResume] = "გაგრძ.",
     [GjStrChart] = "ცხრილი",
     [GjStrExit] = "გასვლა",
-    [GjStrLeaveQ] = "გასვლა?",
-    [GjStrSaved] = "შენახ.",
-    [GjStrSave] = "შენ.",
-    [GjStrStay] = "დარჩ",
 
     /* Card faces stay Latin in every language. A deck is a deck: players read
      * J/Q/K/A on the pips whatever language the UI is in, and the Georgian
@@ -269,9 +258,6 @@ static const char* const KA[GjStrCount] = {
      *   ხ  ხელი        the hand/deal being played
      *   გ  განაცხადი   what you bid
      *   მ  მოგებული    what you have taken */
-    [GjStrInitDeal] = "ხ",
-    [GjStrInitBid] = "გ",
-    [GjStrInitTook] = "მ",
 };
 
 const char* gj_str(uint8_t lang, uint16_t id) {

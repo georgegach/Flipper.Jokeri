@@ -15,5 +15,4 @@
 bool gj_save_write(Storage* storage, const GjSaveFile* save);
 /* false on open failure, short read, or failed gj_save_validate(). */
 bool gj_save_read(Storage* storage, GjSaveFile* out);
-bool gj_save_exists_valid(Storage* storage);
 void gj_save_delete(Storage* storage);

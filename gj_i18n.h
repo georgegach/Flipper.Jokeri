@@ -112,10 +112,6 @@ typedef enum {
     GjStrResume,
     GjStrChart,
     GjStrExit,
-    GjStrLeaveQ,
-    GjStrSaved,
-    GjStrSave,
-    GjStrStay,
 
     /* card faces + chart row labels */
     GjStrRankJ,
@@ -147,9 +143,6 @@ typedef enum {
      * so they stayed English on every Georgian screen — the most-visible text
      * in the app and the last thing left untranslated. Keep them one letter
      * and visually distinct from each other; the bar is tight. */
-    GjStrInitDeal,
-    GjStrInitBid,
-    GjStrInitTook,
 
     GjStrCount
 } GjStrId;

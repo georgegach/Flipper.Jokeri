@@ -47,10 +47,8 @@ void gj_gfx_frame(GjGfx* g, int16_t x, int16_t y, int16_t w, int16_t h, uint8_t 
 /* 1px-radius rounded variants (corner pixels dropped) for the card look. */
 void gj_gfx_rrect(GjGfx* g, int16_t x, int16_t y, int16_t w, int16_t h, uint8_t color);
 void gj_gfx_rframe(GjGfx* g, int16_t x, int16_t y, int16_t w, int16_t h, uint8_t color);
-void gj_gfx_dotted_frame(GjGfx* g, int16_t x, int16_t y, int16_t w, int16_t h);
 /* dotted outline with 1px-inset (rounded) corners, matching gj_gfx_rframe. */
 void gj_gfx_dotted_rframe(GjGfx* g, int16_t x, int16_t y, int16_t w, int16_t h);
-void gj_gfx_invert_rect(GjGfx* g, int16_t x, int16_t y, int16_t w, int16_t h);
 /* Blit a small XBM sprite (same bit layout, byte-padded rows). If color==0
  * set bits are drawn white (for use inside inverted panels). */
 void gj_gfx_xbm(

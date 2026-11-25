@@ -34,7 +34,42 @@ void gj_save_unpack(const GjSaveFile* in, GjApp* app) {
     app->sub = SubNone;
 }
 
+static bool phase_resumable(uint8_t phase) {
+    switch(phase) {
+    case PhaseStageIntro:
+    case PhaseTrumpSelect:
+    case PhaseTrumpReveal:
+    case PhaseLeadIntro:
+    case PhaseBidding:
+    case PhaseTrickPlay:
+    case PhaseTrickResult:
+    case PhaseDealScore:
+        return true;
+    default:
+        return false;
+    }
+}
+
+static bool suit_or_none(uint8_t suit) {
+    return suit < 4u || suit == GJ_SUIT_NONE;
+}
+
+static bool game_sane(const GjGame* g) {
+    if(g->mode >= GJ_MODE_COUNT) return false;
+    if(g->deal_index >= gj_mode_num_deals(g->mode)) return false;
+    if(g->dealer >= GJ_PLAYERS || g->turn >= GJ_PLAYERS || g->trick_leader >= GJ_PLAYERS)
+        return false;
+    if(g->cards_this_deal > GJ_MAX_HAND || g->tricks_played > g->cards_this_deal) return false;
+    if(g->trick_plays > GJ_PLAYERS) return false;
+    if(!(g->trump_suit <= GJ_NO_TRUMP || g->trump_suit == GJ_SUIT_NONE)) return false;
+    if(!suit_or_none(g->led_suit)) return false;
+    for(uint8_t s = 0; s < GJ_PLAYERS; s++)
+        if(g->hands[s].count > GJ_MAX_HAND) return false;
+    return true;
+}
+
 bool gj_save_validate(const GjSaveFile* s) {
     return s->magic == GJ_SAVE_MAGIC && s->version == GJ_SAVE_VERSION &&
-           s->payload_crc == gj_save_payload_crc(s);
+           s->payload_crc == gj_save_payload_crc(s) && phase_resumable(s->phase) &&
+           game_sane(&s->game);
 }

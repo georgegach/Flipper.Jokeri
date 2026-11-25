@@ -104,18 +104,6 @@ void gj_gfx_rframe(GjGfx* g, int16_t x, int16_t y, int16_t w, int16_t h, uint8_t
     gj_gfx_vline(g, (int16_t)(x + w - 1), (int16_t)(y + 1), (int16_t)(h - 2), color);
 }
 
-void gj_gfx_dotted_frame(GjGfx* g, int16_t x, int16_t y, int16_t w, int16_t h) {
-    if(w <= 0 || h <= 0) return;
-    for(int16_t i = 0; i < w; i += 2) {
-        gj_gfx_pixel(g, (int16_t)(x + i), y, 1);
-        gj_gfx_pixel(g, (int16_t)(x + i), (int16_t)(y + h - 1), 1);
-    }
-    for(int16_t j = 0; j < h; j += 2) {
-        gj_gfx_pixel(g, x, (int16_t)(y + j), 1);
-        gj_gfx_pixel(g, (int16_t)(x + w - 1), (int16_t)(y + j), 1);
-    }
-}
-
 void gj_gfx_dotted_rframe(GjGfx* g, int16_t x, int16_t y, int16_t w, int16_t h) {
     if(w <= 2 || h <= 2) return;
     /* edges inset 1px like gj_gfx_rframe, plotted every other pixel */
@@ -126,30 +114,6 @@ void gj_gfx_dotted_rframe(GjGfx* g, int16_t x, int16_t y, int16_t w, int16_t h) 
     for(int16_t j = 1; j < h - 1; j += 2) {
         gj_gfx_pixel(g, x, (int16_t)(y + j), 1);
         gj_gfx_pixel(g, (int16_t)(x + w - 1), (int16_t)(y + j), 1);
-    }
-}
-
-void gj_gfx_invert_rect(GjGfx* g, int16_t x, int16_t y, int16_t w, int16_t h) {
-    if(w <= 0 || h <= 0) return;
-    const int16_t W = gj_fb_w(g), H = gj_fb_h(g);
-    int16_t x0 = x, x1 = (int16_t)(x + w - 1), y0 = y, y1 = (int16_t)(y + h - 1);
-    if(x0 < 0) x0 = 0;
-    if(x1 >= W) x1 = (int16_t)(W - 1);
-    if(y0 < 0) y0 = 0;
-    if(y1 >= H) y1 = (int16_t)(H - 1);
-    if(x0 > x1 || y0 > y1) return;
-    int b0 = x0 >> 3, b1 = x1 >> 3;
-    uint8_t head = (uint8_t)(0xFFu << (x0 & 7));
-    uint8_t tail = (uint8_t)(0xFFu >> (7 - (x1 & 7)));
-    for(int16_t yy = y0; yy <= y1; yy++) {
-        uint8_t* row = &g->fb[yy * (W / 8)];
-        if(b0 == b1) {
-            row[b0] ^= (uint8_t)(head & tail);
-            continue;
-        }
-        row[b0] ^= head;
-        for(int b = b0 + 1; b < b1; b++) row[b] ^= 0xFFu;
-        row[b1] ^= tail;
     }
 }
 

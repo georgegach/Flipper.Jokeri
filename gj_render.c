@@ -763,7 +763,7 @@ static void draw_bottom_row(GjGfx* g, const GjApp* app) {
     int16_t tw = 0;
     if(gm->trump_suit == GJ_NO_TRUMP) {
         tw = 7;
-    } else if(gm->trump_suit < 4) {
+    } else if(gj_suit_is_valid(gm->trump_suit)) {
         if(gm->trump_card != GJ_CARD_NONE && !gj_is_joker(gm->trump_card)) {
             r = rank_str(app->lang, gm->trump_card);
             tw = (int16_t)(t7_width(r) + 2 + 7);
@@ -1025,7 +1025,7 @@ static void draw_joker_menu(GjGfx* g, const GjApp* app) {
     uint8_t n = 0;
     if(leading) {
         rows[n++] = gj_str(app->lang, GjStrSuit); /* demand named suit */
-        if(gm->trump_suit < 4) rows[n++] = gj_str(app->lang, GjStrTrump); /* highest trump */
+        if(gj_suit_is_valid(gm->trump_suit)) rows[n++] = gj_str(app->lang, GjStrTrump); /* highest trump */
         rows[n++] = gj_str(app->lang, GjStrUnder); /* underplay */
     } else {
         rows[n++] = gj_str(app->lang, GjStrTake);
@@ -1424,7 +1424,7 @@ GJ_SCREEN void draw_trump_reveal(GjGfx* g, const GjApp* app) {
         gj_gfx_rframe(g, (int16_t)(cx - 12), (int16_t)(card_y + 2), 24, 24, 1);
         gj_gfx_xbm(g, (int16_t)(cx - 4), (int16_t)(card_y + 10), 7, 7, nt7, 1);
         t7_center(g, cx, land ? 44 : 62, gj_str(app->lang, GjStrNoTrump), 1);
-    } else if(gm->trump_suit < 4) {
+    } else if(gj_suit_is_valid(gm->trump_suit)) {
         if(gm->trump_card != GJ_CARD_NONE && !gj_is_joker(gm->trump_card))
             big_card(g, app->lang, (int16_t)(cx - 12), card_y, gm->trump_card);
         else {
@@ -1756,23 +1756,6 @@ static void draw_pause_menu(GjGfx* g, const GjApp* app) {
     }
 }
 
-static void draw_confirm(GjGfx* g, const GjApp* app) {
-    int16_t mx = g->landscape ? (int16_t)((gj_fb_w(g) - 56) / 2) : 4;
-    int16_t my = g->landscape ? (int16_t)((gj_fb_h(g) - 40) / 2) : 44;
-    modal(g, mx, my, 56, 40, gj_str(app->lang, GjStrLeaveQ));
-    int16_t ty = (int16_t)(my + 13), by = (int16_t)(my + 26);
-    t7_center(g, (int16_t)(mx + 28), ty, gj_str(app->lang, GjStrSaved), 1);
-    if(app->confirm_sel == 0) {
-        gj_gfx_rrect(g, (int16_t)(mx + 2), by, 26, 11, 1);
-        t7_text(g, (int16_t)(mx + 4), (int16_t)(by + 2), gj_str(app->lang, GjStrSave), 0);
-        t7_text(g, (int16_t)(mx + 32), (int16_t)(by + 2), gj_str(app->lang, GjStrStay), 1);
-    } else {
-        t7_text(g, (int16_t)(mx + 4), (int16_t)(by + 2), gj_str(app->lang, GjStrSave), 1);
-        gj_gfx_rrect(g, (int16_t)(mx + 29), by, 26, 11, 1);
-        t7_text(g, (int16_t)(mx + 32), (int16_t)(by + 2), gj_str(app->lang, GjStrStay), 0);
-    }
-}
-
 /* near-empty beat after bidding: who leads the first trick */
 GJ_SCREEN void draw_lead_intro(GjGfx* g, const GjApp* app) {
     const GjGame* gm = &app->game;
@@ -1936,10 +1919,6 @@ static void draw_phase(GjGfx* g, const GjApp* app, uint8_t phase) {
     case PhaseSplash:
         draw_splash(g, app);
         break;
-    case PhaseConfirmExit:
-        /* handled by gj_render_frame (base + dim + modal); bare fallback */
-        draw_confirm(g, app);
-        break;
     case PhasePause:
         /* handled by gj_render_frame (base + dim + modal); bare fallback */
         draw_pause_menu(g, app);
@@ -1956,13 +1935,10 @@ void gj_render_frame(GjGfx* g, const GjApp* app) {
     g->landscape = (uint8_t)(app->layout == GjLayoutHorizontal);
     gj_gfx_clear(g);
     uint8_t phase = app->phase;
-    if(phase == PhaseConfirmExit || phase == PhasePause) {
+    if(phase == PhasePause) {
         draw_phase(g, app, app->prev_phase);
         dim(g);
-        if(phase == PhaseConfirmExit)
-            draw_confirm(g, app);
-        else
-            draw_pause_menu(g, app);
+        draw_pause_menu(g, app);
     } else {
         draw_phase(g, app, phase);
     }

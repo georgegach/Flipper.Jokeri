@@ -47,7 +47,7 @@ bool gj_deal_trump_is_named(uint8_t mode, uint8_t deal_index) {
 
 /* ---- Shuffle -------------------------------------------------------- */
 void gj_shuffle(GjCard* deck, uint8_t n, GjRngFn rng, void* ctx) {
-    if(n < 2) return;
+    if(n < 2 || !rng) return;
     for(uint8_t i = (uint8_t)(n - 1); i > 0; i--) {
         uint8_t j = (uint8_t)(rng(ctx) % (uint32_t)(i + 1));
         GjCard t = deck[i];
@@ -82,7 +82,7 @@ void gj_game_init(GjGame* g, uint8_t first_dealer, uint8_t mode) {
     g->mode = (mode < GJ_MODE_COUNT) ? mode : GjModeStandard;
     g->khishti = GJ_KHISHTI;
     g->difficulty = 1; /* GjDiffNormal; gj_settings_core.h owns the enum */
-    g->dealer = first_dealer;
+    g->dealer = (uint8_t)(first_dealer % GJ_PLAYERS);
     for(uint8_t s = 0; s < GJ_PLAYERS; s++) {
         g->bids[s] = -1;
         g->trick[s].card = GJ_CARD_NONE;
@@ -256,7 +256,7 @@ uint16_t gj_legal_moves(const GjGame* g, uint8_t seat) {
         return mask;
     }
     /* void in follow suit: must trump if able (and a trump suit exists) */
-    if(g->trump_suit < 4) {
+    if(gj_suit_is_valid(g->trump_suit)) {
         bool ht = false;
         for(uint8_t i = 0; i < n; i++) {
             GjCard c = h->cards[i];
@@ -362,7 +362,7 @@ uint8_t gj_trick_best_seat(const GjGame* g) {
     if(win >= 0) return (uint8_t)win;
 
     /* 2: highest trump */
-    if(g->trump_suit < 4) {
+    if(gj_suit_is_valid(g->trump_suit)) {
         int best = -1;
         uint8_t br = 0;
         for(uint8_t p = 0; p < GJ_PLAYERS; p++) {
