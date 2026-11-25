@@ -38,7 +38,7 @@ First version submitted to the Flipper Apps Catalog.
   HOOK, the name the Rules already gave it. Georgian keeps ხიშტი.
 - **The Georgian bid label is spelled out:** თქვენი ფსონი in landscape, შენი ფსონი in
   portrait, where the full form is wider than the screen. It was the clipped თქვ. ფსონი.
-- **A new app icon:** a card with a J, replacing the scaffold placeholder.
+- **A new app icon:** a Mtavruli Ჯ beside a checkered card back, replacing the scaffold placeholder.
 - **Two Georgian-screen memory bugs fixed.** The deal intro and the trump-picker caption
   wrote past their buffers with Georgian seat names.
 
