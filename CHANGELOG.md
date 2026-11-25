@@ -6,10 +6,16 @@ No backticks, code blocks, images, quotes, rules or level-3 headers below this l
 catalog runs this file through a Markdown filter that allows only headers 1–2, bold,
 italic, lists and links, and *raises* on anything else rather than stripping it.
 
-## 0.7 — a landscape layout, the bid gap on the table, a real 1
+## 0.7 — twelve languages, a landscape layout, the bid gap on the table
 
 First version submitted to the Flipper Apps Catalog.
 
+- **Twelve languages.** English and Georgian are joined by Greek, Russian, Ukrainian,
+  Spanish, Portuguese, Italian, Latin, Swedish, Lithuanian and Polish, rules included.
+  Each language names itself in Settings.
+- **A new typeface.** All text is set in Anbani Pixel 5px, in sentence case: lowercase
+  with descenders, accents kept, Georgian back in ordinary Mkhedruli. Rules wrap to the
+  screen in either layout, and headings and scroll arrows sit in a title bar.
 - **Landscape layout.** Settings has a new LAYOUT row: vertical, the default and
   unchanged, or horizontal. Horizontal is laid out for the wide screen rather than turned
   sideways: four seat columns with each played card under its seat, the trump and bid

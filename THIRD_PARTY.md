@@ -1,29 +1,31 @@
 # Third-party notices
 
-## Mkhedruli glyph data — Anbani Pixel
+## Glyph data — Anbani Pixel
 
-The Georgian (Mkhedruli) glyph bitmaps embedded in `gj_render.c` are derived from
-**Anbani Pixel**, a hand-drawn pixel typeface.
+All text glyphs in `gj_glyphs.c` (Latin, Georgian, Greek, Cyrillic) and the font file
+`tools/font/anbani_pixel5.json` they are generated from are **Anbani Pixel 5px**, a
+hand-drawn pixel typeface.
 
     Copyright 2026 Anbani.ge — George Gachechiladze
     https://github.com/Anbani/font
     Licensed under the SIL Open Font License, Version 1.1
 
 Every Anbani Pixel glyph is drawn by hand by its author from his own specimen; the
-family vendors no third-party outlines. The bitmaps here are a transcription of that
-design onto this app's 5x10 cell, and are a *Modified Version* under OFL clause 2 —
+family vendors no third-party outlines. The table here keeps only the glyphs the UI
+uses and adds accented letters composed from Anbani Pixel bases and marks, so it is a
+*Modified Version* under OFL clause 2 —
 hence this notice, which OFL clause 2 requires to travel with the derivative.
 
 No Reserved Font Names are asserted for the Anbani families, so this app's embedded
 face carries no naming restriction.
 
 The remainder of Georgian Joker is GPL-3.0 (see `LICENSE`). OFL-1.1 and GPL-3.0 apply
-to disjoint parts of the source: the glyph tables in `gj_render.c` and everything else,
-respectively. OFL clause 5 permits the font data to be bundled and redistributed with
+to disjoint parts of the source: `gj_glyphs.c` with `tools/font/`, `tools/glyphs_interim.json`,
+and everything else, respectively. OFL clause 5 permits the font data to be bundled and redistributed with
 software under any license.
 
-The Latin 5x7 and 3x5 faces (`gj_font.c`, and the ASCII half of `gj_render.c`) are
-original to this project and GPL-3.0 like the rest.
+The UI symbols in `tools/glyphs_app.json` (arrows, the narrow one) are original to this
+project and GPL-3.0 like the rest.
 
 ---
 

@@ -37,8 +37,3 @@ void gj_gfx_xbm(
     const uint8_t* xbm,
     uint8_t color);
 
-#define GJ_FONT_W 3
-#define GJ_FONT_H 5
-#define GJ_FONT_ADV 4
-void gj_gfx_text_big(GjGfx* g, int16_t x, int16_t y, const char* s, uint8_t color);
-uint16_t gj_gfx_text_big_width(const char* s);

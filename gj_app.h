@@ -33,8 +33,8 @@ typedef enum {
 
 enum { SetRowLang = 0, SetRowKhishti, SetRowBots, SetRowLayout, GJ_SETTINGS_ROW_COUNT };
 
-#define GJ_STANDINGS_ROWS_P 12
-#define GJ_STANDINGS_ROWS_L 5
+#define GJ_STANDINGS_ROWS_P 10
+#define GJ_STANDINGS_ROWS_L 4
 
 typedef struct {
     GjGame game;

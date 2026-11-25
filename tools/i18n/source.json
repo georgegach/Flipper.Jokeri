@@ -1,0 +1,508 @@
+{
+ "strings": [
+  {
+   "id": "Jokeri",
+   "en": "Jokeri",
+   "context": "Game title, top-left of the main menu and About screen. Use the name players in your language know the Georgian game by (e.g. ru Джокер); Latin-script languages may keep Jokeri.",
+   "max_px": 60
+  },
+  {
+   "id": "Cont",
+   "en": "Continue D",
+   "context": "Main-menu pill to continue a saved game; the deal number is appended directly (\"Continue D7\"). Keep a short word + deal abbreviation.",
+   "max_px": 52
+  },
+  {
+   "id": "Standard",
+   "en": "Standard",
+   "context": "Main-menu pill: the full 24-deal game.",
+   "max_px": 60
+  },
+  {
+   "id": "Quick9s",
+   "en": "Quick 9s",
+   "context": "Main-menu pill: short game of only the four 9-card deals.",
+   "max_px": 60
+  },
+  {
+   "id": "Rules",
+   "en": "Rules",
+   "context": "Main-menu pill, pause-menu row and title of the rules screen.",
+   "max_px": 39
+  },
+  {
+   "id": "About",
+   "en": "About",
+   "context": "Main-menu pill: about/controls screen.",
+   "max_px": 60
+  },
+  {
+   "id": "Settings",
+   "en": "Settings",
+   "context": "Main-menu pill and title of the settings screen.",
+   "max_px": 60
+  },
+  {
+   "id": "LangRow",
+   "en": "Language",
+   "context": "Settings row label.",
+   "max_px": 60
+  },
+  {
+   "id": "BotsRow",
+   "en": "Bots",
+   "context": "Settings row label: strength of the three computer players.",
+   "max_px": 60
+  },
+  {
+   "id": "DiffEasy",
+   "en": "Easy",
+   "context": "Settings value: bot strength.",
+   "max_px": 56
+  },
+  {
+   "id": "DiffNormal",
+   "en": "Normal",
+   "context": "Settings value: bot strength.",
+   "max_px": 56
+  },
+  {
+   "id": "DiffHard",
+   "en": "Hard",
+   "context": "Settings value: bot strength.",
+   "max_px": 56
+  },
+  {
+   "id": "LayoutRow",
+   "en": "Layout",
+   "context": "Settings row label: screen orientation.",
+   "max_px": 60
+  },
+  {
+   "id": "LayoutVert",
+   "en": "Vertical",
+   "context": "Settings value: portrait orientation.",
+   "max_px": 56
+  },
+  {
+   "id": "LayoutHorz",
+   "en": "Horizontal",
+   "context": "Settings value: landscape orientation.",
+   "max_px": 56
+  },
+  {
+   "id": "OkSelect",
+   "en": "OK select",
+   "context": "Footer hint: the OK button selects. Keep the literal button name OK.",
+   "max_px": 58
+  },
+  {
+   "id": "You",
+   "en": "You",
+   "context": "Seat name of the human player.",
+   "max_px": 40
+  },
+  {
+   "id": "West",
+   "en": "West",
+   "context": "Seat name of a bot (sits to your left in the compass layout).",
+   "max_px": 40
+  },
+  {
+   "id": "North",
+   "en": "North",
+   "context": "Seat name of a bot (opposite you).",
+   "max_px": 40
+  },
+  {
+   "id": "East",
+   "en": "East",
+   "context": "Seat name of a bot (to your right).",
+   "max_px": 40
+  },
+  {
+   "id": "SeatY",
+   "en": "Y",
+   "context": "One- or two-letter abbreviation of You, as a column heading. Must differ from the other three.",
+   "max_px": 9
+  },
+  {
+   "id": "SeatW",
+   "en": "W",
+   "context": "Abbreviation of West, column heading.",
+   "max_px": 9
+  },
+  {
+   "id": "SeatN",
+   "en": "N",
+   "context": "Abbreviation of North, column heading.",
+   "max_px": 9
+  },
+  {
+   "id": "SeatE",
+   "en": "E",
+   "context": "Abbreviation of East, column heading.",
+   "max_px": 9
+  },
+  {
+   "id": "StageAscend",
+   "en": "Ascend",
+   "context": "Stage of the game: deals 1 to 8 cards (rising).",
+   "max_px": 60
+  },
+  {
+   "id": "StageNines",
+   "en": "Nines",
+   "context": "Stage: four deals of 9 cards.",
+   "max_px": 60
+  },
+  {
+   "id": "StageDescend",
+   "en": "Descend",
+   "context": "Stage: deals 8 down to 1 card.",
+   "max_px": 60
+  },
+  {
+   "id": "StageBlind",
+   "en": "Blind",
+   "context": "Stage: four 9-card deals where you bid before seeing your cards.",
+   "max_px": 60
+  },
+  {
+   "id": "Deal",
+   "en": "Deal ",
+   "context": "Prefix before the deal number, e.g. \"Deal 7\". Keep the trailing space.",
+   "max_px": 60
+  },
+  {
+   "id": "Cards",
+   "en": " cards",
+   "context": "Suffix after a card count, e.g. \"9 cards\". Keep the leading space.",
+   "max_px": 60
+  },
+  {
+   "id": "OkNext",
+   "en": "OK next",
+   "context": "Footer hint: OK goes to the next screen.",
+   "max_px": 60
+  },
+  {
+   "id": "Trump",
+   "en": "Trump",
+   "context": "Title on the trump screen; also joker option 'demand trump' (lead joker demanding the trump suit).",
+   "max_px": 48
+  },
+  {
+   "id": "NoTrump",
+   "en": "No trump",
+   "context": "This deal has no trump suit.",
+   "max_px": 60
+  },
+  {
+   "id": "Nt",
+   "en": "NT",
+   "context": "Two-letter abbreviation of 'no trump' inside a narrow picker row.",
+   "max_px": 12
+  },
+  {
+   "id": "Flipped",
+   "en": "Flipped",
+   "context": "Caption under the turned-up card that set the trump suit.",
+   "max_px": 60
+  },
+  {
+   "id": "By",
+   "en": "by ",
+   "context": "Prefix before a player name: 'by West' (who named the trump). Empty string if your grammar puts the name alone.",
+   "max_px": 60
+  },
+  {
+   "id": "PickTrump",
+   "en": "Pick trump",
+   "context": "Title: you choose the trump suit.",
+   "max_px": 60
+  },
+  {
+   "id": "Picks",
+   "en": " picks",
+   "context": "Suffix after a seat name: 'West picks' (a bot is choosing trump).",
+   "max_px": 60
+  },
+  {
+   "id": "Peek",
+   "en": "Peek",
+   "context": "Hint: peek at your cards before choosing (blind deals).",
+   "max_px": 60
+  },
+  {
+   "id": "Wait",
+   "en": "Wait",
+   "context": "Status: a bot is thinking/choosing, please wait.",
+   "max_px": 40
+  },
+  {
+   "id": "Ok",
+   "en": "OK",
+   "context": "Button label / confirmation footer. Usually keep OK.",
+   "max_px": 40
+  },
+  {
+   "id": "Bidding",
+   "en": "Bidding",
+   "context": "Status while bots are bidding.",
+   "max_px": 60
+  },
+  {
+   "id": "YourBid",
+   "en": "Your bid",
+   "context": "Prompt above the bid number, portrait.",
+   "max_px": 60
+  },
+  {
+   "id": "YourBidWide",
+   "en": "Your bid",
+   "context": "Same prompt, landscape row (more room).",
+   "max_px": 96
+  },
+  {
+   "id": "KhishtiWarn",
+   "en": "Hook",
+   "context": "Warning shown instead of 'Your bid' when this bid is illegal for the dealer (the hook rule: dealer may not make the bids sum to the number of cards).",
+   "max_px": 60
+  },
+  {
+   "id": "PenaltyRow",
+   "en": "Penalty",
+   "context": "Settings row label: size of the khishti penalty (-200 or -500) for bidding and taking no tricks.",
+   "max_px": 60
+  },
+  {
+   "id": "Blind",
+   "en": "Blind",
+   "context": "Badge: you bid blind (cards hidden).",
+   "max_px": 60
+  },
+  {
+   "id": "Bid",
+   "en": "Bid ",
+   "context": "Prefix before a number: 'Bid 3'. Keep the trailing space.",
+   "max_px": 60
+  },
+  {
+   "id": "Start",
+   "en": "You lead",
+   "context": "Shown under your name when you lead the first trick.",
+   "max_px": 60
+  },
+  {
+   "id": "Starts",
+   "en": "leads",
+   "context": "Shown under a bot's name when that bot leads the first trick (verb, 3rd person).",
+   "max_px": 60
+  },
+  {
+   "id": "Joker",
+   "en": "Joker",
+   "context": "Title of the popup when you lead a joker.",
+   "max_px": 54
+  },
+  {
+   "id": "Suit",
+   "en": "Suit",
+   "context": "Joker option: demand the highest card of a suit.",
+   "max_px": 48
+  },
+  {
+   "id": "Under",
+   "en": "Under",
+   "context": "Joker option: play it as the lowest card (underplay / 'under').",
+   "max_px": 48
+  },
+  {
+   "id": "Take",
+   "en": "Take",
+   "context": "Joker option: play it as the highest card and take the trick.",
+   "max_px": 48
+  },
+  {
+   "id": "SuitQ",
+   "en": "Suit?",
+   "context": "Title: which suit to demand?",
+   "max_px": 52
+  },
+  {
+   "id": "Result",
+   "en": "Result",
+   "context": "Title of the end-of-deal score screen.",
+   "max_px": 60
+  },
+  {
+   "id": "TotalRow",
+   "en": "T",
+   "context": "One-letter abbreviation of 'Total' as a table row label.",
+   "max_px": 6
+  },
+  {
+   "id": "Table",
+   "en": "^ Table",
+   "context": "Footer hint: press Up to open the score table. Keep the leading '^ '.",
+   "max_px": 60
+  },
+  {
+   "id": "TableWord",
+   "en": "Table",
+   "context": "The score table (About screen key list: 'Up  Table').",
+   "max_px": 44
+  },
+  {
+   "id": "PulkaDone",
+   "en": "Pulka done",
+   "context": "Title when the whole game (pulka = the full score sheet) is over.",
+   "max_px": 60
+  },
+  {
+   "id": "OkMenu",
+   "en": "OK menu",
+   "context": "Footer hint: OK returns to the main menu.",
+   "max_px": 60
+  },
+  {
+   "id": "Paused",
+   "en": "Paused",
+   "context": "Title of the pause popup.",
+   "max_px": 44
+  },
+  {
+   "id": "Resume",
+   "en": "Resume",
+   "context": "Pause-menu row: back to the game.",
+   "max_px": 39
+  },
+  {
+   "id": "Chart",
+   "en": "Chart",
+   "context": "Pause-menu row: show the score table.",
+   "max_px": 39
+  },
+  {
+   "id": "Exit",
+   "en": "Exit",
+   "context": "Pause-menu row: save and leave to the main menu.",
+   "max_px": 39
+  },
+  {
+   "id": "InitAscend",
+   "en": "A",
+   "context": "One-letter label for the Ascend stage in score-table rows.",
+   "max_px": 6
+  },
+  {
+   "id": "InitNines",
+   "en": "N",
+   "context": "One-letter label for the Nines stage.",
+   "max_px": 6
+  },
+  {
+   "id": "InitDescend",
+   "en": "D",
+   "context": "One-letter label for the Descend stage.",
+   "max_px": 6
+  },
+  {
+   "id": "InitBlind",
+   "en": "B",
+   "context": "One-letter label for the Blind stage.",
+   "max_px": 6
+  },
+  {
+   "id": "Select",
+   "en": "Select",
+   "context": "About screen key list: 'OK  Select'.",
+   "max_px": 44
+  },
+  {
+   "id": "Play",
+   "en": "Play",
+   "context": "About screen key list: 'OK  Play' (play the card).",
+   "max_px": 44
+  },
+  {
+   "id": "Back",
+   "en": "Back",
+   "context": "Button name of the Back key (About screen key list).",
+   "max_px": 26
+  },
+  {
+   "id": "Pause",
+   "en": "Pause",
+   "context": "About screen key list: 'Back  Pause'.",
+   "max_px": 34
+  },
+  {
+   "id": "ChartColon",
+   "en": "Chart:",
+   "context": "About screen: heading of the chart controls list.",
+   "max_px": 60
+  },
+  {
+   "id": "SeatsHint",
+   "en": "<> seats",
+   "context": "About: Left/Right switch seats in the chart. Keep '<> '.",
+   "max_px": 60
+  },
+  {
+   "id": "DealsHint",
+   "en": "^v deals",
+   "context": "About: Up/Down move between deals in the chart. Keep '^v '.",
+   "max_px": 60
+  },
+  {
+   "id": "JokerDot",
+   "en": "Joker.",
+   "context": "Sign-off line on the About screen (brand: Joker. agentic.ge).",
+   "max_px": 60
+  }
+ ],
+ "rules": [
+  {
+   "heading": "",
+   "text": "Georgian Joker"
+  },
+  {
+   "heading": "",
+   "text": "4 seats: you and 3 bots."
+  },
+  {
+   "heading": "Goal",
+   "text": "Bid the tricks you will win, then win them."
+  },
+  {
+   "heading": "Modes",
+   "text": "Standard: 24 deals. 1–8 cards up, 4 nines, 8–1 down, 4 blind nines. Quick 9s: 4 nines."
+  },
+  {
+   "heading": "Trump",
+   "text": "Up to 8 cards: the top card is flipped. Nines: the player left of the dealer names it."
+  },
+  {
+   "heading": "Bidding",
+   "text": "Name the tricks you will win. Hook: the dealer bids last and may not make the bids add up to the cards dealt."
+  },
+  {
+   "heading": "Scoring",
+   "text": "Bid met: 50 per trick plus 50. All tricks bid and won: 100 each. Bid 0, take 0: 50. Missed: 10 per trick won. Penalty (khishti): bid but take none: {P}."
+  },
+  {
+   "heading": "Jokers",
+   "text": "2 jokers replace the black 6s. A joker may always be played. Leading one: take, demand a suit or trump, or play under."
+  },
+  {
+   "heading": "Blind 9s",
+   "text": "Bid first, then see your hand."
+  },
+  {
+   "heading": "",
+   "text": "Joker. agentic.ge"
+  }
+ ]
+}

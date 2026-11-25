@@ -3,10 +3,23 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-enum { GjLangEn = 0, GjLangKa = 1 };
-#define GJ_LANG_COUNT 2
+enum {
+    GjLangEn = 0,
+    GjLangKa = 1,
+    GjLangEl = 2,
+    GjLangRu = 3,
+    GjLangUk = 4,
+    GjLangEs = 5,
+    GjLangPt = 6,
+    GjLangIt = 7,
+    GjLangLa = 8,
+    GjLangSv = 9,
+    GjLangLt = 10,
+    GjLangPl = 11,
+};
+#define GJ_LANG_COUNT 12
 
-#define GJ_RULES_MAX_LINES 128
+#define GJ_RULES_PARAS 10
 
 typedef enum {
     GjStrJokeri = 0,
@@ -17,8 +30,6 @@ typedef enum {
     GjStrAbout,
     GjStrSettings,
     GjStrLangRow,
-    GjStrLangEnName,
-    GjStrLangKaName,
     GjStrBotsRow,
     GjStrDiffEasy,
     GjStrDiffNormal,
@@ -112,9 +123,8 @@ typedef enum {
 } GjStrId;
 
 const char* gj_str(uint8_t lang, uint16_t id);
+const char* gj_lang_name(uint8_t lang);
 
-const char* gj_rules_line(uint8_t lang, uint16_t line);
-uint16_t gj_rules_lines(uint8_t lang);
-bool gj_rules_line_is_khishti(const char* line);
-#define GJ_RULES_PITCH 8u
-uint8_t gj_rules_visible(uint8_t lang, uint8_t landscape);
+#define GJ_RULES_TOKEN '\x01'
+const char* gj_rules_heading(uint8_t lang, uint8_t para);
+const char* gj_rules_text(uint8_t lang, uint8_t para);

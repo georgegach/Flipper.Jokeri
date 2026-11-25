@@ -7,6 +7,9 @@
 #define GJ_SETTINGS_VERSION 1
 
 enum { GjKhishti200 = 0, GjKhishti500 = 1 };
+static inline uint16_t gj_khishti_points(uint8_t opt) {
+    return opt == GjKhishti500 ? 500u : 200u;
+}
 #define GJ_KHISHTI_OPT_COUNT 2
 
 enum { GjDiffEasy = 0, GjDiffNormal = 1, GjDiffHard = 2 };

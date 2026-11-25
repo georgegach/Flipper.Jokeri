@@ -7,6 +7,8 @@
 #include "gj_ai.h"
 #include "gj_shell.h"
 #include "gj_i18n.h"
+#include "gj_rules.h"
+#include "gj_settings_core.h"
 
 _Static_assert(sizeof(GjApp) <= 344, "GjApp over its RAM budget");
 
@@ -595,8 +597,9 @@ static void input_rules(GjApp* st, GjKey key, bool is_press, bool is_ok) {
         if(key == GjKeyUp) {
             if(st->rules_scroll > 0) st->rules_scroll--;
         } else if(key == GjKeyDown) {
-            uint16_t total = gj_rules_lines(st->lang);
-            uint8_t vis = gj_rules_visible(st->lang, st->layout);
+            uint8_t land = (uint8_t)(st->layout == GjLayoutHorizontal);
+            uint16_t total = gj_rules_line_count(st->lang, land, gj_khishti_points(st->khishti_opt));
+            uint8_t vis = gj_rules_visible(land);
             uint8_t mx = (total > vis) ? (uint8_t)(total - vis) : 0u;
             if(st->rules_scroll < mx) st->rules_scroll++;
         } else if(key == GjKeyBack) {
