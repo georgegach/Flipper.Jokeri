@@ -896,7 +896,7 @@ GJ_NOINLINE_FOR_STACK void draw_stage_intro(GjGfx* g, const GjApp* app) {
     buf[0] = 0;
     scat(buf, gj_str(app->lang, GjStrDeal));
     scat(buf, u2s((uint16_t)(gm->deal_index + 1), num));
-    scat(buf, "/");
+    scat(buf, "|");
     scat(buf, u2s(gj_mode_num_deals(gm->mode), num));
     const bool land = g->landscape;
     const int16_t cx = (int16_t)(gj_fb_w(g) / 2);
