@@ -1328,7 +1328,7 @@ GJ_NOINLINE_FOR_STACK void draw_settings(GjGfx* g, const GjApp* app) {
     const int16_t pill_cx = (int16_t)(pill_x + pill_w / 2);
 
     for(uint8_t row = 0; row < GJ_SETTINGS_ROW_COUNT; row++) {
-        int16_t y = land ? (int16_t)(16 + row * 12) : (int16_t)(18 + row * 24);
+        int16_t y = land ? (int16_t)(17 + row * 12) : (int16_t)(18 + row * 24);
         bool sel = (app->settings_sel == row);
         txt(g, 4, y, gj_str(lang, LBL[row]), 1);
         const char* val;
