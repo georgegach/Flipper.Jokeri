@@ -28,13 +28,15 @@ Every image here is a device frame; none was drawn on the host.
 
 Filenames are referenced from the catalog manifest, so keep them stable. Manifest order is
 listing order, and the **first image is the catalog card thumbnail**: keep a landscape shot
-first. Portrait shots appear rotated (see above).
+first. Portrait shots appear rotated (see above); the vertical layout is the game's best
+look, so most of the listing uses it.
 
 | File | Screen | How to get there |
 |---|---|---|
 | `bid-landscape.png` | YOUR BID 7 with the first Joker raised (cover) | LAYOUT HORZ; your bid turn, **Up**, **Right** x7, **Down** into the hand |
-| `joker-landscape.png` | Joker popup on the lead, SUIT highlighted | Lead with a Joker |
-| `table-landscape.png` | A full trick, your Joker taking it on a trump demand | Lead a Joker, TRUMP |
+| `table-portrait.png` | A full trick, your Joker taking it on a trump demand | LAYOUT VERT; lead a Joker, TRUMP |
+| `joker-portrait.png` | Joker popup on the lead, TRUMP highlighted | LAYOUT VERT; lead a Joker, **Down** |
+| `bid-portrait.png` | YOUR BID 7 in the vertical layout | LAYOUT VERT; your bid turn, **Up**, **Right** x7, **Down** |
+| `table-landscape.png` | The same trick in the horizontal layout | LAYOUT HORZ; lead a Joker, TRUMP |
 | `standings-landscape.png` | Score table after three deals | **Up** on the deal result |
-| `splash-landscape.png` | Splash, both cards whole | Launch the app with LAYOUT HORZ |
-| `table-portrait.png` | The same trick in the vertical layout | LAYOUT VERT; lead a Joker, TRUMP |
+| `splash-portrait.png` | Splash, GEORGIAN JOKER under the Georgian word | Launch the app with LAYOUT VERT |
