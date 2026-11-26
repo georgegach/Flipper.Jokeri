@@ -114,6 +114,13 @@ def charset(src_paths):
     return chars
 
 
+def caps(ch):
+    u = ch.upper()
+    if any(0x370 <= ord(c) < 0x400 for c in u):
+        u = unicodedata.normalize("NFC", unicodedata.normalize("NFD", u).replace("\u0301", ""))
+    return u if len(u) == 1 else ch
+
+
 def build(font, app, interim, chars):
     out, provisional, missing = {}, [], []
     for ch in sorted(chars, key=ord):
@@ -134,7 +141,7 @@ def build(font, app, interim, chars):
     return out, provisional, missing
 
 
-def emit(glyphs, path):
+def emit(glyphs, case, path):
     entries, bits = [], []
     for ch, (top, rows) in sorted(glyphs.items(), key=lambda kv: ord(kv[0])):
         w = len(rows[0]) if rows else 0
@@ -159,6 +166,13 @@ def emit(glyphs, path):
     for i in range(0, len(bits), 16):
         lines.append("    " + ", ".join(f"0x{b:02X}" for b in bits[i:i + 16]) + ",")
     lines.append("};")
+    lines.append("")
+    lines.append(f"const uint16_t gj_case_count = {len(case)}u;")
+    lines.append("")
+    lines.append("const uint16_t gj_case_map[][2] = {")
+    for lo, up in case:
+        lines.append(f"    {{0x{ord(lo):04X}, 0x{ord(up):04X}}},")
+    lines.append("};")
     with open(path, "w", encoding="utf-8") as f:
         f.write("\n".join(lines) + "\n")
     return len(entries), len(bits)
@@ -173,11 +187,13 @@ def main():
     font = load(a.font)
     app = load(os.path.join(HERE, "glyphs_app.json"))
     interim = load(os.path.join(HERE, "glyphs_interim.json"))
-    chars = charset([os.path.join(ROOT, "gj_i18n.c")]) | set(app)
+    used = charset([os.path.join(ROOT, "gj_i18n.c")])
+    case = sorted(((c, caps(c)) for c in used if caps(c) != c), key=lambda kv: ord(kv[0]))
+    chars = {caps(c) for c in used} | set(app)
     glyphs, provisional, missing = build(font, app, interim, chars)
     if missing:
         raise SystemExit("no glyph and no way to compose: " + " ".join(f"{c} U+{ord(c):04X}" for c in missing))
-    n, nbytes = emit(glyphs, os.path.join(ROOT, "gj_glyphs.c"))
+    n, nbytes = emit(glyphs, case, os.path.join(ROOT, "gj_glyphs.c"))
     print(f"gj_glyphs.c: {n} glyphs, {nbytes} row bytes")
     if provisional:
         print(f"provisional ({len(provisional)}): " + "".join(provisional), file=sys.stderr)

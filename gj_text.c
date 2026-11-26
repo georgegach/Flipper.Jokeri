@@ -21,7 +21,22 @@ uint16_t gj_text_next(const char** s) {
     return cp;
 }
 
+uint16_t gj_text_caps(uint16_t cp) {
+    uint16_t lo = 0, hi = gj_case_count;
+    while(lo < hi) {
+        uint16_t mid = (uint16_t)((lo + hi) / 2u);
+        uint16_t c = gj_case_map[mid][0];
+        if(c == cp) return gj_case_map[mid][1];
+        if(c < cp)
+            lo = (uint16_t)(mid + 1u);
+        else
+            hi = mid;
+    }
+    return cp;
+}
+
 const GjGlyph* gj_text_glyph(uint16_t cp) {
+    cp = gj_text_caps(cp);
     uint16_t lo = 0, hi = gj_glyph_count;
     while(lo < hi) {
         uint16_t mid = (uint16_t)((lo + hi) / 2u);

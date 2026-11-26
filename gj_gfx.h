@@ -23,6 +23,8 @@ static inline int16_t gj_fb_h(const GjGfx* g) {
 void gj_gfx_clear(GjGfx* g);
 void gj_gfx_pixel(GjGfx* g, int16_t x, int16_t y, uint8_t color);
 void gj_gfx_hline(GjGfx* g, int16_t x, int16_t y, int16_t w, uint8_t color);
+bool gj_gfx_lit(const GjGfx* g, int16_t x, int16_t y);
+void gj_gfx_rule(GjGfx* g, int16_t x, int16_t y, int16_t w);
 void gj_gfx_vline(GjGfx* g, int16_t x, int16_t y, int16_t h, uint8_t color);
 void gj_gfx_rect(GjGfx* g, int16_t x, int16_t y, int16_t w, int16_t h, uint8_t color);
 void gj_gfx_frame(GjGfx* g, int16_t x, int16_t y, int16_t w, int16_t h, uint8_t color);

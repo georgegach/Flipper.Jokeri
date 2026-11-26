@@ -9,7 +9,7 @@
 
 #define GJ_NUM_CAP 8
 #define TITLE_BAR_H 13
-#define TITLE_CAP_Y 2
+#define TITLE_CAP_Y 3
 #define RULES_TOP 14
 #define TOP_CAP_Y 2
 #define LAND_FOOT_RULE 52
@@ -227,7 +227,7 @@ static void modal(GjGfx* g, int16_t x, int16_t y, int16_t w, int16_t h, const ch
     gj_gfx_rrect(g, x, y, w, h, 0);
     gj_gfx_rframe(g, x, y, w, h, 1);
     gj_gfx_rect(g, (int16_t)(x + 1), (int16_t)(y + 1), (int16_t)(w - 2), 11, 1);
-    txt_center(g, (int16_t)(x + w / 2), (int16_t)(y + 1), title, 0);
+    txt_center(g, (int16_t)(x + w / 2), (int16_t)(y + 3), title, GJ_COLOR_XOR);
 }
 
 static void footer_hint(GjGfx* g, uint8_t lang, uint16_t id, int16_t rule_y, int16_t text_y) {
@@ -235,8 +235,8 @@ static void footer_hint(GjGfx* g, uint8_t lang, uint16_t id, int16_t rule_y, int
         txt_right_fit(g, 66, (int16_t)(gj_fb_w(g) - 2), 2, gj_str(lang, id), 1);
         return;
     }
-    gj_gfx_hline(g, 0, rule_y, gj_fb_w(g), 1);
     txt_center(g, 32, text_y, gj_str(lang, id), 1);
+    gj_gfx_rule(g, 0, rule_y, gj_fb_w(g));
 }
 
 #define CARD_W 11
@@ -448,7 +448,7 @@ static void draw_hand(GjGfx* g, const GjApp* app) {
         int16_t bw = (int16_t)(txt_w(gj_str(app->lang, GjStrBlind)) + 8);
         int16_t bx = (int16_t)((W - bw) / 2);
         gj_gfx_rrect(g, bx, (int16_t)(base_y + 3), bw, 14, 1);
-        txt_center(g, (int16_t)(W / 2), (int16_t)(base_y + 6), gj_str(app->lang, GjStrBlind), 0);
+        txt_center(g, (int16_t)(W / 2), (int16_t)(base_y + 6), gj_str(app->lang, GjStrBlind), GJ_COLOR_XOR);
         return;
     }
     if(n == 0) return;
@@ -613,17 +613,17 @@ static void draw_joker_menu(GjGfx* g, const GjApp* app) {
         rows[n++] = gj_str(app->lang, GjStrTake);
         rows[n++] = gj_str(app->lang, GjStrUnder);
     }
-    int16_t h = (int16_t)(15 + n * 12);
+    int16_t h = (int16_t)(15 + n * 13);
     int16_t mx = g->landscape ? (int16_t)((gj_fb_w(g) - 58) / 2) : 3;
     int16_t y = g->landscape ? (int16_t)((gj_fb_h(g) - h) / 2) : (int16_t)(50 - h / 2);
     modal(g, mx, y, 58, h, gj_str(app->lang, GjStrJoker));
     for(uint8_t i = 0; i < n; i++) {
-        int16_t ry = (int16_t)(y + 13 + i * 12);
+        int16_t ry = (int16_t)(y + 13 + i * 13);
         if(app->joker_sel == i) {
-            gj_gfx_rrect(g, (int16_t)(mx + 2), ry, 54, 12, 1);
-            txt(g, (int16_t)(mx + 6), (int16_t)(ry + 1), rows[i], 0);
+            gj_gfx_rrect(g, (int16_t)(mx + 2), ry, 54, 13, 1);
+            txt(g, (int16_t)(mx + 6), (int16_t)(ry + 3), rows[i], GJ_COLOR_XOR);
         } else {
-            txt(g, (int16_t)(mx + 6), (int16_t)(ry + 1), rows[i], 1);
+            txt(g, (int16_t)(mx + 6), (int16_t)(ry + 3), rows[i], 1);
         }
     }
 }
@@ -824,9 +824,9 @@ GJ_NOINLINE_FOR_STACK void draw_menu(GjGfx* g, const GjApp* app) {
             int16_t y = (int16_t)(top + k * 14);
             if(app->menu_sel == i) {
                 gj_gfx_rrect(g, 2, y, pw, 13, 1);
-                txt_center(g, (int16_t)(2 + pw / 2), (int16_t)(y + 2), labels[i], 0);
+                txt_center(g, (int16_t)(2 + pw / 2), (int16_t)(y + 3), labels[i], GJ_COLOR_XOR);
             } else {
-                txt_center(g, (int16_t)(2 + pw / 2), (int16_t)(y + 2), labels[i], 1);
+                txt_center(g, (int16_t)(2 + pw / 2), (int16_t)(y + 3), labels[i], 1);
             }
         }
         if(bar) {
@@ -846,9 +846,9 @@ GJ_NOINLINE_FOR_STACK void draw_menu(GjGfx* g, const GjApp* app) {
         int16_t y = (int16_t)(top + i * 14);
         if(app->menu_sel == i) {
             gj_gfx_rrect(g, 2, y, 60, 13, 1);
-            txt_center(g, 32, (int16_t)(y + 2), labels[i], 0);
+            txt_center(g, 32, (int16_t)(y + 3), labels[i], GJ_COLOR_XOR);
         } else {
-            txt_center(g, 32, (int16_t)(y + 2), labels[i], 1);
+            txt_center(g, 32, (int16_t)(y + 3), labels[i], 1);
         }
     }
     footer_hint(g, app->lang, GjStrOkSelect, 114, 118);
@@ -863,7 +863,7 @@ GJ_NOINLINE_FOR_STACK void draw_rules(GjGfx* g, const GjApp* app) {
     if(scroll > total) scroll = total;
     const int16_t W = gj_fb_w(g);
     gj_gfx_rect(g, 0, 0, W, TITLE_BAR_H, 1);
-    txt(g, 2, TITLE_CAP_Y, gj_str(app->lang, GjStrRules), 0);
+    txt(g, 2, TITLE_CAP_Y, gj_str(app->lang, GjStrRules), GJ_COLOR_XOR);
     if(scroll > 0) tri(g, (int16_t)(W - 16), 5, 2, 0);
     if(scroll + vis < total) tri(g, (int16_t)(W - 8), 5, 3, 0);
     GjRulesLine line;
@@ -872,8 +872,7 @@ GJ_NOINLINE_FOR_STACK void draw_rules(GjGfx* g, const GjApp* app) {
         if(!gj_rules_line(app->lang, land, penalty, li, &line)) break;
         int16_t y = (int16_t)(RULES_TOP + GJ_TEXT_MARK + i * GJ_TEXT_LINE);
         txt(g, 2, y, line.text, 1);
-        if(line.heading)
-            gj_gfx_hline(g, 2, (int16_t)(y + GJ_TEXT_CAP + GJ_TEXT_DESCENT), (int16_t)txt_w(line.text), 1);
+        if(line.heading) gj_gfx_rule(g, 2, (int16_t)(y + GJ_TEXT_CAP + 1), (int16_t)txt_w(line.text));
     }
 }
 
@@ -902,9 +901,9 @@ GJ_NOINLINE_FOR_STACK void draw_stage_intro(GjGfx* g, const GjApp* app) {
     const bool land = g->landscape;
     const int16_t cx = (int16_t)(gj_fb_w(g) / 2);
     if(land) {
-        txt(g, 2, 1, buf, 1);
+        txt(g, 2, 2, buf, 1);
         txt_right_fit(
-            g, (int16_t)(2 + txt_w(buf) + 6), (int16_t)(gj_fb_w(g) - 2), 1,
+            g, (int16_t)(2 + txt_w(buf) + 6), (int16_t)(gj_fb_w(g) - 2), 2,
             gj_str(app->lang, GjStrOkNext), 1);
     } else {
         txt_center(g, cx, 14, buf, 1);
@@ -986,7 +985,7 @@ GJ_NOINLINE_FOR_STACK void draw_trump_select(GjGfx* g, const GjApp* app) {
     }
     if(blind) {
         gj_gfx_rrect(g, (int16_t)(10 + dx), land ? 17 : 25, 44, 14, 1);
-        txt_center(g, cx, land ? 20 : 28, gj_str(app->lang, GjStrBlind), 0);
+        txt_center(g, cx, land ? 20 : 28, gj_str(app->lang, GjStrBlind), GJ_COLOR_XOR);
     } else if(namer == 0) {
         uint8_t shown = gm->hands[0].count < 3 ? gm->hands[0].count : 3;
         for(uint8_t i = 0; i < shown; i++)
@@ -1009,13 +1008,13 @@ GJ_NOINLINE_FOR_STACK void draw_trump_select(GjGfx* g, const GjApp* app) {
         pip7(g, px, y, (GjCard)(i * 9 + 3), 1);
     }
     if(sel == 4) gj_gfx_rframe(g, (int16_t)(ox[4] + dx - 2), (int16_t)(y - 2), 13, 11, 1);
-    txt(g, (int16_t)(ox[4] + dx), (int16_t)(y + 1), gj_str(app->lang, GjStrNt), 1);
+    txt(g, (int16_t)(ox[4] + dx), y, gj_str(app->lang, GjStrNt), 1);
     if(land) {
         if(blind || namer != 0)
             txt_right_fit(g, 66, (int16_t)(gj_fb_w(g) - 2), 2, gj_str(app->lang, GjStrWait), 1);
     } else {
-        gj_gfx_hline(g, 0, 114, gj_fb_w(g), 1);
         if(blind || namer != 0) txt_center(g, 32, 118, gj_str(app->lang, GjStrWait), 1);
+        gj_gfx_rule(g, 0, 114, gj_fb_w(g));
     }
 }
 
@@ -1049,9 +1048,9 @@ GJ_NOINLINE_FOR_STACK void draw_deal_score(GjGfx* g, const GjApp* app) {
         txt(g, (int16_t)(W - 2 - (int16_t)txt_w(num)), y, num, fg);
     }
     if(land) {
-        gj_gfx_hline(g, 0, LAND_FOOT_RULE, W, 1);
         txt(g, 2, LAND_FOOT_Y, gj_str(app->lang, GjStrOkNext), 1);
         txt_right_fit(g, 66, (int16_t)(W - 2), LAND_FOOT_Y, gj_str(app->lang, GjStrTable), 1);
+        gj_gfx_rule(g, 0, LAND_FOOT_RULE, W);
     } else {
         gj_gfx_hline(g, 0, 103, W, 1);
         txt_center(g, 32, 106, gj_str(app->lang, GjStrOkNext), 1);
@@ -1176,10 +1175,13 @@ GJ_NOINLINE_FOR_STACK void draw_game_over(GjGfx* g, const GjApp* app) {
     const bool land = g->landscape;
     const int16_t W = gj_fb_w(g);
     txt_center(g, (int16_t)(W / 2), land ? 0 : 3, gj_str(app->lang, GjStrPulkaDone), 1);
-    gj_gfx_hline(g, 0, land ? 10 : 14, W, 1);
+    if(land)
+        gj_gfx_rule(g, 0, 9, W);
+    else
+        gj_gfx_hline(g, 0, 14, W, 1);
     for(uint8_t i = 0; i < GJ_PLAYERS; i++) {
         uint8_t s = order[i];
-        int16_t y = land ? (int16_t)(12 + i * 10) : (int16_t)(20 + i * 14);
+        int16_t y = land ? (int16_t)(11 + i * 10 + (i ? 1 : 0)) : (int16_t)(20 + i * 14);
         bool win = (i == 0);
         uint8_t fg = 1;
         if(win) {
@@ -1202,8 +1204,8 @@ GJ_NOINLINE_FOR_STACK void draw_game_over(GjGfx* g, const GjApp* app) {
         txt(g, nx, (int16_t)(y + 1), num, fg);
     }
     if(land) {
-        gj_gfx_hline(g, 0, LAND_FOOT_RULE, W, 1);
         txt_center(g, (int16_t)(W / 2), LAND_FOOT_Y, gj_str(app->lang, GjStrOkMenu), 1);
+        gj_gfx_rule(g, 0, LAND_FOOT_RULE, W);
     } else {
         footer_hint(g, app->lang, GjStrOkMenu, 114, 118);
     }
@@ -1214,15 +1216,20 @@ GJ_NOINLINE_FOR_STACK void draw_about(GjGfx* g, const GjApp* app) {
     const int16_t c2 = land ? 66 : 2;
     gj_gfx_xbm(g, 4, land ? 2 : 5, 7, 7, jo7, 1);
     txt(g, 14, land ? 2 : 5, gj_str(app->lang, GjStrJokeri), 1);
-    txt(g, 44, land ? 2 : 5, gj_str(app->lang, GjStrVersion), 1);
+    int16_t vx = (int16_t)(14 + txt_w(gj_str(app->lang, GjStrJokeri)) + 3);
+    if(vx < 44) vx = 44;
+    txt(g, vx, land ? 2 : 5, gj_str(app->lang, GjStrVersion), 1);
     gj_gfx_hline(g, 0, land ? 13 : 16, gj_fb_w(g), 1);
     const int16_t r0 = land ? 16 : 20, rp = 11;
+    const char* ok = gj_str(app->lang, GjStrOk);
+    int16_t kx = (int16_t)(2 + txt_w(ok) + 4);
+    if(kx < 20) kx = 20;
     txt(g, 2, r0, "\xE2\x86\x94", 1);
-    txt(g, 20, r0, gj_str(app->lang, GjStrSelect), 1);
-    txt(g, 2, (int16_t)(r0 + rp), gj_str(app->lang, GjStrOk), 1);
-    txt(g, 20, (int16_t)(r0 + rp), gj_str(app->lang, GjStrPlay), 1);
+    txt(g, kx, r0, gj_str(app->lang, GjStrSelect), 1);
+    txt(g, 2, (int16_t)(r0 + rp), ok, 1);
+    txt(g, kx, (int16_t)(r0 + rp), gj_str(app->lang, GjStrPlay), 1);
     txt(g, 2, (int16_t)(r0 + 2 * rp), "\xE2\x86\x91", 1);
-    txt(g, 20, (int16_t)(r0 + 2 * rp), gj_str(app->lang, GjStrTableWord), 1);
+    txt(g, kx, (int16_t)(r0 + 2 * rp), gj_str(app->lang, GjStrTableWord), 1);
     const char* back = gj_str(app->lang, GjStrBack);
     int16_t px = (int16_t)(2 + txt_w(back) + 4);
     txt(g, 2, (int16_t)(r0 + 3 * rp), back, 1);
@@ -1253,15 +1260,15 @@ static void draw_pause_menu(GjGfx* g, const GjApp* app) {
     const bool land = g->landscape;
     int16_t mx = land ? (int16_t)((gj_fb_w(g) - 96) / 2) : 8;
     int16_t my = land ? 12 : 30;
-    modal(g, mx, my, land ? 96 : 48, land ? 39 : 63, gj_str(app->lang, GjStrPaused));
+    modal(g, mx, my, land ? 96 : 48, land ? 40 : 66, gj_str(app->lang, GjStrPaused));
     for(uint8_t i = 0; i < 4; i++) {
         int16_t rx = (int16_t)(mx + 2 + (land ? (i / 2) * 46 : 0));
-        int16_t ry = (int16_t)(my + 13 + (land ? (i % 2) : i) * 12);
+        int16_t ry = (int16_t)(my + 13 + (land ? (i % 2) : i) * 13);
         if(app->pause_sel == i) {
-            gj_gfx_rrect(g, rx, ry, 44, 12, 1);
-            txt(g, (int16_t)(rx + 5), (int16_t)(ry + 1), rows[i], 0);
+            gj_gfx_rrect(g, rx, ry, 44, 13, 1);
+            txt(g, (int16_t)(rx + 5), (int16_t)(ry + 3), rows[i], GJ_COLOR_XOR);
         } else {
-            txt(g, (int16_t)(rx + 5), (int16_t)(ry + 1), rows[i], 1);
+            txt(g, (int16_t)(rx + 5), (int16_t)(ry + 3), rows[i], 1);
         }
     }
 }
@@ -1291,8 +1298,8 @@ GJ_NOINLINE_FOR_STACK void draw_lead_intro(GjGfx* g, const GjApp* app) {
         scat(buf, i2s(gm->bids[0], num));
     txt_center(g, cx, land ? 41 : 90, buf, 1);
     if(land) {
-        gj_gfx_hline(g, 0, LAND_FOOT_RULE, gj_fb_w(g), 1);
         txt_center(g, cx, LAND_FOOT_Y, gj_str(app->lang, GjStrOk), 1);
+        gj_gfx_rule(g, 0, LAND_FOOT_RULE, gj_fb_w(g));
     } else {
         footer_hint(g, app->lang, GjStrOk, 114, 118);
     }
@@ -1303,7 +1310,7 @@ GJ_NOINLINE_FOR_STACK void draw_settings(GjGfx* g, const GjApp* app) {
     const bool land = g->landscape;
     const int16_t W = gj_fb_w(g);
     gj_gfx_rect(g, 0, 0, W, TITLE_BAR_H, 1);
-    txt(g, 2, TITLE_CAP_Y, gj_str(lang, GjStrSettings), 0);
+    txt(g, 2, TITLE_CAP_Y, gj_str(lang, GjStrSettings), GJ_COLOR_XOR);
 
     static const uint16_t LBL[GJ_SETTINGS_ROW_COUNT] = {
         GjStrLangRow, GjStrPenaltyRow, GjStrBotsRow, GjStrLayoutRow};
@@ -1336,8 +1343,8 @@ GJ_NOINLINE_FOR_STACK void draw_settings(GjGfx* g, const GjApp* app) {
         int16_t vw = (int16_t)txt_w(val);
         int16_t vy = land ? y : (int16_t)(y + 12);
         if(sel) {
-            gj_gfx_rrect(g, pill_x, (int16_t)(vy - 2), pill_w, 13, 1);
-            txt_center(g, pill_cx, vy, val, 0);
+            gj_gfx_rrect(g, pill_x, (int16_t)(vy - 3), pill_w, 13, 1);
+            txt_center(g, pill_cx, vy, val, GJ_COLOR_XOR);
             tri(g, (int16_t)(pill_x + 2), (int16_t)(vy + 1), 0, 0);
             tri(g, (int16_t)(pill_x + pill_w - 4), (int16_t)(vy + 1), 1, 0);
         } else {
@@ -1345,7 +1352,7 @@ GJ_NOINLINE_FOR_STACK void draw_settings(GjGfx* g, const GjApp* app) {
         }
     }
     if(land) {
-        txt_right_fit(g, 40, (int16_t)(W - 2), TITLE_CAP_Y, gj_str(lang, GjStrOk), 0);
+        txt_right_fit(g, 40, (int16_t)(W - 2), TITLE_CAP_Y, gj_str(lang, GjStrOk), GJ_COLOR_XOR);
     } else {
         footer_hint(g, lang, GjStrOk, 114, 118);
     }

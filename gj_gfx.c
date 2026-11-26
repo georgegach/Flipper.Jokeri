@@ -20,6 +20,25 @@ void gj_gfx_pixel(GjGfx* g, int16_t x, int16_t y, uint8_t color) {
         g->fb[idx] &= (uint8_t)~bit;
 }
 
+bool gj_gfx_lit(const GjGfx* g, int16_t x, int16_t y) {
+    const int16_t W = gj_fb_w(g);
+    if(x < 0 || x >= W || y < 0 || y >= gj_fb_h(g)) return false;
+    return ((g->fb[y * (W / 8) + (x >> 3)] >> (x & 7)) & 1u) != 0u;
+}
+
+void gj_gfx_rule(GjGfx* g, int16_t x, int16_t y, int16_t w) {
+    uint8_t near[GJ_FB_H > GJ_FB_W ? GJ_FB_H : GJ_FB_W];
+    const int16_t W = gj_fb_w(g);
+    for(int16_t px = 0; px < W; px++)
+        near[px] = (uint8_t)(gj_gfx_lit(g, px, (int16_t)(y - 1)) || gj_gfx_lit(g, px, y) ||
+                             gj_gfx_lit(g, px, (int16_t)(y + 1)));
+    for(int16_t px = x; px < x + w; px++) {
+        if(px < 0 || px >= W) continue;
+        bool skip = near[px] || (px > 0 && near[px - 1]) || (px + 1 < W && near[px + 1]);
+        if(!skip) gj_gfx_pixel(g, px, y, 1);
+    }
+}
+
 void gj_gfx_hline(GjGfx* g, int16_t x, int16_t y, int16_t w, uint8_t color) {
     const int16_t W = gj_fb_w(g);
     if(w <= 0 || y < 0 || y >= gj_fb_h(g)) return;

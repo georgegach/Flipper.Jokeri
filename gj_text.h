@@ -25,8 +25,11 @@ typedef struct {
 extern const uint16_t gj_glyph_count;
 extern const GjGlyph gj_glyphs[];
 extern const uint8_t gj_glyph_bits[];
+extern const uint16_t gj_case_count;
+extern const uint16_t gj_case_map[][2];
 
 uint16_t gj_text_next(const char** s);
+uint16_t gj_text_caps(uint16_t cp);
 const GjGlyph* gj_text_glyph(uint16_t cp);
 
 uint16_t gj_text_width(const char* s);
