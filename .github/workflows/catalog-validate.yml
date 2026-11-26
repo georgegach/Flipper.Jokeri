@@ -55,6 +55,7 @@ jobs:
             applications/Games/jokeri/manifest.yml bundle.zip
 
       - name: Upload bundle
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: jokeri-catalog-bundle
