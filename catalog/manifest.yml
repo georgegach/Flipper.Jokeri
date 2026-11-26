@@ -2,7 +2,7 @@ sourcecode:
   type: git
   location:
     origin: https://github.com/georgegach/Flipper.Jokeri.git
-    commit_sha: 5211cd58ded0e2667e7beb93a37b63c171002ce5
+    commit_sha: 995ef00e4d585131b9a6ff5091d7adbace5e74b2
 author: "George Gach"
 changelog: "@./CHANGELOG.md"
 description: "@./catalog/description.md"
