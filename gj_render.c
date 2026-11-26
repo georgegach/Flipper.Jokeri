@@ -9,8 +9,9 @@
 
 #define GJ_NUM_CAP 8
 #define TITLE_BAR_H 13
-#define TITLE_CAP_Y 3
+#define TITLE_CAP_Y 2
 #define RULES_TOP 14
+#define TOP_CAP_Y 2
 #define LAND_FOOT_RULE 52
 #define LAND_FOOT_Y 54
 
@@ -225,7 +226,7 @@ static void modal(GjGfx* g, int16_t x, int16_t y, int16_t w, int16_t h, const ch
     gj_gfx_rframe(g, (int16_t)(x - 1), (int16_t)(y - 1), (int16_t)(w + 2), (int16_t)(h + 2), 1);
     gj_gfx_rrect(g, x, y, w, h, 0);
     gj_gfx_rframe(g, x, y, w, h, 1);
-    gj_gfx_rect(g, (int16_t)(x + 1), (int16_t)(y + 1), (int16_t)(w - 2), 9, 1);
+    gj_gfx_rect(g, (int16_t)(x + 1), (int16_t)(y + 1), (int16_t)(w - 2), 11, 1);
     txt_center(g, (int16_t)(x + w / 2), (int16_t)(y + 1), title, 0);
 }
 
@@ -336,13 +337,11 @@ static void draw_top_bar_land(GjGfx* g, const GjApp* app) {
         bool hot = result ? (seat == app->last_trick_winner) :
                             ((app->phase == PhaseTrickPlay || app->phase == PhaseBidding) &&
                              !gj_trick_complete(gm) && gm->turn == seat);
-        if(hot) gj_gfx_rrect(g, (int16_t)(x0 - 2), 0, (int16_t)(lw + 4), 9, 1);
-        txt(g, x0, 1, lbl, (uint8_t)(hot ? 0 : 1));
-        txt(g, (int16_t)(x0 + lw + 3), 1, pair, 1);
-        if(gm->dealer == seat) {
-            int16_t mh = GJ_TEXT_CAP;
-            dealer_mark(g, (int16_t)(x0 + lw / 2), (int16_t)(1 + mh + 1), 1);
-        }
+        if(hot) gj_gfx_rrect(g, (int16_t)(x0 - 2), TOP_CAP_Y - 1, (int16_t)(lw + 4), GJ_TEXT_CAP + 2, 1);
+        txt(g, x0, TOP_CAP_Y, lbl, hot ? GJ_COLOR_XOR : 1);
+        txt(g, (int16_t)(x0 + lw + 3), TOP_CAP_Y, pair, 1);
+        if(gm->dealer == seat)
+            dealer_mark(g, (int16_t)(x0 + lw / 2), TOP_CAP_Y + GJ_TEXT_CAP + 2, 1);
     }
 }
 
@@ -356,16 +355,15 @@ static void draw_top_bar(GjGfx* g, const GjApp* app) {
     const char* LBL[3] = {gj_str(app->lang, GjStrSeatW), gj_str(app->lang, GjStrSeatN),
                           gj_str(app->lang, GjStrSeatE)};
     static const uint8_t SEAT[3] = {1, 2, 3};
-    int16_t lblh = GJ_TEXT_CAP;
-    int16_t pair_y = (int16_t)(1 + lblh + 2);
+    int16_t pair_y = TOP_CAP_Y + GJ_TEXT_CAP + 2;
     int16_t mark_y = (int16_t)(pair_y + 9);
     for(uint8_t i = 0; i < 3; i++) {
         uint8_t s = SEAT[i];
         int16_t cx = (int16_t)COL[i];
         bool acting = (app->phase == PhaseTrickPlay || app->phase == PhaseBidding) &&
                       !gj_trick_complete(gm) && gm->turn == s;
-        if(acting) gj_gfx_rrect(g, (int16_t)(cx - 5), 0, 11, 9, 1);
-        txt_center(g, cx, 1, LBL[i], (uint8_t)(acting ? 0 : 1));
+        if(acting) gj_gfx_rrect(g, (int16_t)(cx - 5), TOP_CAP_Y - 1, 11, GJ_TEXT_CAP + 2, 1);
+        txt_center(g, cx, TOP_CAP_Y, LBL[i], acting ? GJ_COLOR_XOR : 1);
         char pair[8];
         pair[0] = 0;
         bt_pair(pair, gm->bids[s], gm->tricks_taken[s]);
@@ -449,7 +447,7 @@ static void draw_hand(GjGfx* g, const GjApp* app) {
         }
         int16_t bw = (int16_t)(txt_w(gj_str(app->lang, GjStrBlind)) + 8);
         int16_t bx = (int16_t)((W - bw) / 2);
-        gj_gfx_rrect(g, bx, (int16_t)(base_y + 4), bw, 11, 1);
+        gj_gfx_rrect(g, bx, (int16_t)(base_y + 3), bw, 14, 1);
         txt_center(g, (int16_t)(W / 2), (int16_t)(base_y + 6), gj_str(app->lang, GjStrBlind), 0);
         return;
     }
@@ -615,17 +613,17 @@ static void draw_joker_menu(GjGfx* g, const GjApp* app) {
         rows[n++] = gj_str(app->lang, GjStrTake);
         rows[n++] = gj_str(app->lang, GjStrUnder);
     }
-    int16_t h = (int16_t)(14 + n * 12);
+    int16_t h = (int16_t)(15 + n * 12);
     int16_t mx = g->landscape ? (int16_t)((gj_fb_w(g) - 58) / 2) : 3;
     int16_t y = g->landscape ? (int16_t)((gj_fb_h(g) - h) / 2) : (int16_t)(50 - h / 2);
     modal(g, mx, y, 58, h, gj_str(app->lang, GjStrJoker));
     for(uint8_t i = 0; i < n; i++) {
-        int16_t ry = (int16_t)(y + 12 + i * 12);
+        int16_t ry = (int16_t)(y + 13 + i * 12);
         if(app->joker_sel == i) {
-            gj_gfx_rrect(g, (int16_t)(mx + 2), ry, 54, 11, 1);
-            txt(g, (int16_t)(mx + 6), (int16_t)(ry + 2), rows[i], 0);
+            gj_gfx_rrect(g, (int16_t)(mx + 2), ry, 54, 12, 1);
+            txt(g, (int16_t)(mx + 6), (int16_t)(ry + 1), rows[i], 0);
         } else {
-            txt(g, (int16_t)(mx + 6), (int16_t)(ry + 2), rows[i], 1);
+            txt(g, (int16_t)(mx + 6), (int16_t)(ry + 1), rows[i], 1);
         }
     }
 }
@@ -633,12 +631,12 @@ static void draw_joker_menu(GjGfx* g, const GjApp* app) {
 static void draw_suit_picker(GjGfx* g, const GjApp* app) {
     int16_t mx = g->landscape ? (int16_t)((gj_fb_w(g) - 56) / 2) : 4;
     int16_t my = g->landscape ? (int16_t)((gj_fb_h(g) - 30) / 2) : 44;
-    modal(g, mx, my, 56, 30, gj_str(app->lang, GjStrSuitQ));
+    modal(g, mx, my, 56, 31, gj_str(app->lang, GjStrSuitQ));
     uint8_t sel = app->suit_sel & 3u;
     for(uint8_t i = 0; i < 4; i++) {
         int16_t px = (int16_t)(mx + 6 + i * 12);
-        if(i == sel) gj_gfx_rframe(g, (int16_t)(px - 2), (int16_t)(my + 13), 11, 11, 1);
-        pip7(g, px, (int16_t)(my + 15), (GjCard)(i * 9 + 3), 1);
+        if(i == sel) gj_gfx_rframe(g, (int16_t)(px - 2), (int16_t)(my + 14), 11, 11, 1);
+        pip7(g, px, (int16_t)(my + 16), (GjCard)(i * 9 + 3), 1);
     }
 }
 
@@ -826,9 +824,9 @@ GJ_NOINLINE_FOR_STACK void draw_menu(GjGfx* g, const GjApp* app) {
             int16_t y = (int16_t)(top + k * 14);
             if(app->menu_sel == i) {
                 gj_gfx_rrect(g, 2, y, pw, 13, 1);
-                txt_center(g, (int16_t)(2 + pw / 2), (int16_t)(y + 3), labels[i], 0);
+                txt_center(g, (int16_t)(2 + pw / 2), (int16_t)(y + 2), labels[i], 0);
             } else {
-                txt_center(g, (int16_t)(2 + pw / 2), (int16_t)(y + 3), labels[i], 1);
+                txt_center(g, (int16_t)(2 + pw / 2), (int16_t)(y + 2), labels[i], 1);
             }
         }
         if(bar) {
@@ -848,13 +846,12 @@ GJ_NOINLINE_FOR_STACK void draw_menu(GjGfx* g, const GjApp* app) {
         int16_t y = (int16_t)(top + i * 14);
         if(app->menu_sel == i) {
             gj_gfx_rrect(g, 2, y, 60, 13, 1);
-            txt_center(g, 32, (int16_t)(y + 3), labels[i], 0);
+            txt_center(g, 32, (int16_t)(y + 2), labels[i], 0);
         } else {
-            txt_center(g, 32, (int16_t)(y + 3), labels[i], 1);
+            txt_center(g, 32, (int16_t)(y + 2), labels[i], 1);
         }
     }
-    gj_gfx_hline(g, 0, 116, gj_fb_w(g), 1);
-    txt_center(g, 32, 119, gj_str(app->lang, GjStrOkSelect), 1);
+    footer_hint(g, app->lang, GjStrOkSelect, 114, 118);
 }
 
 GJ_NOINLINE_FOR_STACK void draw_rules(GjGfx* g, const GjApp* app) {
@@ -988,8 +985,8 @@ GJ_NOINLINE_FOR_STACK void draw_trump_select(GjGfx* g, const GjApp* app) {
         gj_gfx_hline(g, (int16_t)(4 + dx), land ? 12 : 16, 56, 1);
     }
     if(blind) {
-        gj_gfx_rrect(g, (int16_t)(10 + dx), land ? 18 : 26, 44, 13, 1);
-        txt_center(g, cx, land ? 21 : 29, gj_str(app->lang, GjStrBlind), 0);
+        gj_gfx_rrect(g, (int16_t)(10 + dx), land ? 17 : 25, 44, 14, 1);
+        txt_center(g, cx, land ? 20 : 28, gj_str(app->lang, GjStrBlind), 0);
     } else if(namer == 0) {
         uint8_t shown = gm->hands[0].count < 3 ? gm->hands[0].count : 3;
         for(uint8_t i = 0; i < shown; i++)
@@ -1037,8 +1034,8 @@ GJ_NOINLINE_FOR_STACK void draw_deal_score(GjGfx* g, const GjApp* app) {
         bool made = gm->bids[s] == (int8_t)gm->tricks_taken[s];
         uint8_t fg = 1;
         if(s == 0) {
-            gj_gfx_rrect(g, 0, (int16_t)(y - 1), W, land ? 10 : 11, 1);
-            fg = 0;
+            gj_gfx_rrect(g, 0, (int16_t)(y - 1), W, land ? 10 : 12, 1);
+            fg = GJ_COLOR_XOR;
         }
         char cell[8], num[GJ_NUM_CAP];
         txt(g, 2, y, INIT[s], fg);
@@ -1114,7 +1111,7 @@ GJ_NOINLINE_FOR_STACK void draw_standings(GjGfx* g, const GjApp* app) {
     }
     for(uint8_t k = 0; k < ncols; k++) {
         uint8_t s = (uint8_t)(xs + k);
-        txt(g, (int16_t)(COLR[k] - (int16_t)txt_w(HD[s])), 2, HD[s], 0);
+        txt(g, (int16_t)(COLR[k] - (int16_t)txt_w(HD[s])), 2, HD[s], GJ_COLOR_XOR);
     }
 
     uint8_t ndeals = gj_mode_num_deals(gm->mode);
@@ -1128,7 +1125,7 @@ GJ_NOINLINE_FOR_STACK void draw_standings(GjGfx* g, const GjApp* app) {
         uint8_t fg = 1;
         if(cur) {
             gj_gfx_rect(g, 0, (int16_t)(y - 1), W, pitch, 1);
-            fg = 0;
+            fg = GJ_COLOR_XOR;
         }
         char lbl[GJ_NUM_CAP];
         standings_label(app->lang, gm->mode, d, lbl);
@@ -1153,16 +1150,16 @@ GJ_NOINLINE_FOR_STACK void draw_standings(GjGfx* g, const GjApp* app) {
             for(int16_t px = 0; px < W; px += 2)
                 gj_gfx_pixel(g, px, (int16_t)(y + pitch - 1), cur ? 0 : 1);
     }
-    int16_t ty = (int16_t)(gj_fb_h(g) - 10);
-    gj_gfx_rect(g, 0, ty, W, 10, 1);
-    txt(g, 1, (int16_t)(ty + 2), gj_str(app->lang, GjStrTotalRow), 0);
+    int16_t ty = (int16_t)(gj_fb_h(g) - 11);
+    gj_gfx_rect(g, 0, ty, W, 11, 1);
+    txt(g, 1, (int16_t)(ty + 1), gj_str(app->lang, GjStrTotalRow), GJ_COLOR_XOR);
     for(uint8_t k = 0; k < ncols; k++) {
         uint8_t s = (uint8_t)(xs + k);
         char num[GJ_NUM_CAP];
         i2s(gm->totals[s], num);
         int16_t tmin = k ? (int16_t)(COLR[k - 1] + 1) :
                            (int16_t)(1 + (int16_t)txt_w(gj_str(app->lang, GjStrTotalRow)) + 1);
-        txt_right_fit(g, tmin, (int16_t)COLR[k], (int16_t)(ty + 2), num, 0);
+        txt_right_fit(g, tmin, (int16_t)COLR[k], (int16_t)(ty + 1), num, GJ_COLOR_XOR);
     }
 }
 
@@ -1186,8 +1183,11 @@ GJ_NOINLINE_FOR_STACK void draw_game_over(GjGfx* g, const GjApp* app) {
         bool win = (i == 0);
         uint8_t fg = 1;
         if(win) {
-            gj_gfx_rrect(g, 2, (int16_t)(y - 1), (int16_t)(W - 4), land ? 11 : 12, 1);
-            fg = 0;
+            if(land)
+                gj_gfx_rrect(g, 2, y, (int16_t)(W - 4), GJ_TEXT_CAP + 2, 1);
+            else
+                gj_gfx_rrect(g, 2, (int16_t)(y - 2), (int16_t)(W - 4), 14, 1);
+            fg = GJ_COLOR_XOR;
             gj_gfx_xbm(g, 3, (int16_t)(y + 2), 7, 5, crown7, 0);
         } else {
             char rk[2];
@@ -1252,16 +1252,16 @@ static void draw_pause_menu(GjGfx* g, const GjApp* app) {
                            gj_str(app->lang, GjStrRules), gj_str(app->lang, GjStrExit)};
     const bool land = g->landscape;
     int16_t mx = land ? (int16_t)((gj_fb_w(g) - 96) / 2) : 8;
-    int16_t my = land ? 8 : 30;
-    modal(g, mx, my, land ? 96 : 48, land ? 48 : 64, gj_str(app->lang, GjStrPaused));
+    int16_t my = land ? 12 : 30;
+    modal(g, mx, my, land ? 96 : 48, land ? 39 : 63, gj_str(app->lang, GjStrPaused));
     for(uint8_t i = 0; i < 4; i++) {
         int16_t rx = (int16_t)(mx + 2 + (land ? (i / 2) * 46 : 0));
         int16_t ry = (int16_t)(my + 13 + (land ? (i % 2) : i) * 12);
         if(app->pause_sel == i) {
-            gj_gfx_rrect(g, rx, ry, 44, 11, 1);
-            txt(g, (int16_t)(rx + 5), (int16_t)(ry + 2), rows[i], 0);
+            gj_gfx_rrect(g, rx, ry, 44, 12, 1);
+            txt(g, (int16_t)(rx + 5), (int16_t)(ry + 1), rows[i], 0);
         } else {
-            txt(g, (int16_t)(rx + 5), (int16_t)(ry + 2), rows[i], 1);
+            txt(g, (int16_t)(rx + 5), (int16_t)(ry + 1), rows[i], 1);
         }
     }
 }
@@ -1336,7 +1336,7 @@ GJ_NOINLINE_FOR_STACK void draw_settings(GjGfx* g, const GjApp* app) {
         int16_t vw = (int16_t)txt_w(val);
         int16_t vy = land ? y : (int16_t)(y + 12);
         if(sel) {
-            gj_gfx_rrect(g, pill_x, (int16_t)(vy - 2), pill_w, 12, 1);
+            gj_gfx_rrect(g, pill_x, (int16_t)(vy - 2), pill_w, 13, 1);
             txt_center(g, pill_cx, vy, val, 0);
             tri(g, (int16_t)(pill_x + 2), (int16_t)(vy + 1), 0, 0);
             tri(g, (int16_t)(pill_x + pill_w - 4), (int16_t)(vy + 1), 1, 0);
@@ -1347,8 +1347,7 @@ GJ_NOINLINE_FOR_STACK void draw_settings(GjGfx* g, const GjApp* app) {
     if(land) {
         txt_right_fit(g, 40, (int16_t)(W - 2), TITLE_CAP_Y, gj_str(lang, GjStrOk), 0);
     } else {
-        gj_gfx_hline(g, 0, 116, W, 1);
-        txt_center(g, 32, 119, gj_str(lang, GjStrOk), 1);
+        footer_hint(g, lang, GjStrOk, 114, 118);
     }
 }
 

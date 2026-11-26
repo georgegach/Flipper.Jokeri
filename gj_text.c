@@ -56,8 +56,16 @@ static int16_t glyph_y(int16_t cap_y, const GjGlyph* gl, uint8_t scale) {
     return (int16_t)(cap_y + (GJ_TEXT_CAP - gl->top) * scale);
 }
 
+#ifdef GJ_TESTING
+void (*gj_text_probe)(
+    const GjGfx* g, int16_t x, int16_t cap_y, const char* s, uint16_t bytes, uint8_t color);
+#endif
+
 void gj_text_draw_n(
     GjGfx* g, int16_t x, int16_t cap_y, const char* s, uint16_t bytes, uint8_t color) {
+#ifdef GJ_TESTING
+    if(gj_text_probe) gj_text_probe(g, x, cap_y, s, bytes, color);
+#endif
     const char* end = s + bytes;
     while(s < end && *s) {
         const GjGlyph* gl = gj_text_glyph(gj_text_next(&s));

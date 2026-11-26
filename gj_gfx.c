@@ -134,7 +134,9 @@ void gj_gfx_xbm(
                 int16_t xx = (int16_t)(x + col);
                 if(xx < 0 || xx >= FBW) continue;
                 uint8_t bit = (uint8_t)(1u << (xx & 7));
-                if(color)
+                if(color == GJ_COLOR_XOR)
+                    row[xx >> 3] ^= bit;
+                else if(color)
                     row[xx >> 3] |= bit;
                 else
                     row[xx >> 3] &= (uint8_t)~bit;

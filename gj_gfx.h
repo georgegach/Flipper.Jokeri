@@ -6,6 +6,7 @@
 #define GJ_FB_W 64
 #define GJ_FB_H 128
 #define GJ_FB_BYTES (GJ_FB_W * GJ_FB_H / 8)
+#define GJ_COLOR_XOR 2u
 
 typedef struct {
     uint8_t fb[GJ_FB_BYTES];

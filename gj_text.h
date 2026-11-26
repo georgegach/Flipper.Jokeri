@@ -38,3 +38,8 @@ void gj_text_draw_scaled(
     GjGfx* g, int16_t x, int16_t cap_y, const char* s, uint8_t color, uint8_t scale);
 
 const char* gj_text_wrap(const char* s, uint16_t max_w, uint16_t* line_bytes);
+
+#ifdef GJ_TESTING
+extern void (*gj_text_probe)(
+    const GjGfx* g, int16_t x, int16_t cap_y, const char* s, uint16_t bytes, uint8_t color);
+#endif
