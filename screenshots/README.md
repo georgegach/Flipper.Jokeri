@@ -16,16 +16,15 @@ scaled x4 nearest-neighbour, black on Flipper orange). The bundler thresholds ev
 black/transparent after its own nearest downscale, so the bundled result is identical to a
 qFlipper capture of the same frame.
 
-The bid, Joker and table shots come from a real Quick Nines deal that holds both Jokers.
-The device's RNG cannot be steered, so the deal was found on the host with the game's own
-engine and shell (a seed where you name trump and bid first), packed with `gj_save_pack`,
-copied to `/ext/apps_data/jokeri/pulka.save` and resumed with CONTINUE. The standings shot
-is the same game three deals on, with the AI playing your seat.
-
-The bid shot was redrawn on the host from that same save, by `gj_render_frame` with the
-first Joker selected. The device was not attached for a recapture. The host frame of the
-picker-focused bid screen matches the device capture pixel for pixel, so the raised-Joker
-frame is what the Flipper draws.
+The bid, Joker and table shots come from one real Quick Nines deal: both Jokers, four Aces,
+two Kings, spades named trump. The device's RNG cannot be steered, so the deal was found on the
+host with the game's own engine and shell (seed 134914, the first of 300 000 where you name trump
+and hold both Jokers with the strongest hand), packed with `gj_save_pack`, copied to
+`/ext/apps_data/jokeri/pulka.save` and resumed with CONTINUE. You bid 7; West, North and East
+bid 0, 0 and 1, so the table sits one under. Both table shots are the first trick after you
+lead a Joker demanding trump. The standings shot is the same game three deals on, played from
+the host with a key sequence picked so you lead the table (180 against 150, 110 and −120).
+Every image here is a device frame; none was drawn on the host.
 
 Filenames are referenced from the catalog manifest, so keep them stable. Manifest order is
 listing order, and the **first image is the catalog card thumbnail**: keep a landscape shot
@@ -33,9 +32,9 @@ first. Portrait shots appear rotated (see above).
 
 | File | Screen | How to get there |
 |---|---|---|
-| `bid-landscape.png` | YOUR BID 5 with the first Joker raised (cover) | LAYOUT HORZ; Quick Nines, your bid turn, bid 5, **Down** into the hand, first card |
+| `bid-landscape.png` | YOUR BID 7 with the first Joker raised (cover) | LAYOUT HORZ; your bid turn, **Up**, **Right** x7, **Down** into the hand |
 | `joker-landscape.png` | Joker popup on the lead, SUIT highlighted | Lead with a Joker |
-| `table-landscape.png` | Table, a Joker raised to lead | Your lead, Joker selected |
+| `table-landscape.png` | A full trick, your Joker taking it on a trump demand | Lead a Joker, TRUMP |
 | `standings-landscape.png` | Score table after three deals | **Up** on the deal result |
 | `splash-landscape.png` | Splash, both cards whole | Launch the app with LAYOUT HORZ |
-| `table-portrait.png` | Table in the vertical layout, a Joker raised to lead | LAYOUT VERT; your lead |
+| `table-portrait.png` | The same trick in the vertical layout | LAYOUT VERT; lead a Joker, TRUMP |

@@ -30,4 +30,4 @@ Features:
 - **Full Georgian interface**, card table included, in a hand-drawn Mtavruli pixel face
 
 Rules, scoring table and the open questions about regional variants are documented in the
-source repository. Georgian wording is a non-native draft — corrections are welcome.
+source repository.

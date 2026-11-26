@@ -13,9 +13,9 @@ First version submitted to the Flipper Apps Catalog.
 - **Twelve languages.** English and Georgian are joined by Greek, Russian, Ukrainian,
   Spanish, Portuguese, Italian, Latin, Swedish, Lithuanian and Polish, rules included.
   Each language names itself in Settings.
-- **A new typeface.** All text is set in Anbani Pixel 5px, in sentence case: lowercase
-  with descenders, accents kept, Georgian back in ordinary Mkhedruli. Rules wrap to the
-  screen in either layout, and headings and scroll arrows sit in a title bar.
+- **A new typeface.** All text is set in Anbani Pixel 5px, in capitals throughout, every
+  accented letter drawn by hand and Georgian in Mtavruli. Rules wrap to the screen in
+  either layout, and headings and scroll arrows sit in a title bar.
 - **Landscape layout.** Settings has a new LAYOUT row: vertical, the default and
   unchanged, or horizontal. Horizontal is laid out for the wide screen rather than turned
   sideways: four seat columns with each played card under its seat, the trump and bid

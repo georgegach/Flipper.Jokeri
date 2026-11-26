@@ -109,9 +109,6 @@ budget). `tools/gen_i18n.py` writes `gj_i18n.c`; `tools/gen_glyphs.py` then writ
 base + mark where the font has no drawn one yet. See [THIRD_PARTY.md](THIRD_PARTY.md) for
 the OFL-1.1 notice.
 
-Georgian wording is a non-native draft under review. Corrections very welcome — open an
-issue.
-
 ## Known gaps
 
 Honest open questions rather than settled rules:
